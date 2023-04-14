@@ -1,12 +1,12 @@
 # Import needed libraries
 import pandas as pd
-import pyodbc
+# import pyodbc
 import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+# from sqlalchemy.ext.declarative import declarative_base
+# from sqlalchemy.orm import sessionmaker
 from urllib import parse
 
 load_dotenv(override = True)
