@@ -27,4 +27,5 @@ pandas
 
 ### Packages database
 pyodbc
+psycopg2-binary
 SQLAlchemy

@@ -1,2 +1,6 @@
-/.venv
-/Model.mwb.bak
+__pycache__/
+.venv/
+
+Model.mwb.bak
+test.py
+
