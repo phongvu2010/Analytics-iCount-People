@@ -1,6 +1,6 @@
 from database import Base
 
-from sqlalchemy import Column, ForeignKey, Integer, SMALLINT, CHAR, NCHAR, BOOLEAN, DateTime
+from sqlalchemy import inspect, Column, ForeignKey, Integer, SmallInteger, BigInteger, CHAR, NCHAR, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import PrimaryKeyConstraint
 
@@ -21,16 +21,24 @@ class Store(Base):
     lastEditDate = Column(DateTime)
     formula = Column(CHAR(64))
 
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
+
 class Camera(Base):
     __tablename__ = 'camera'
     tid = Column(Integer, primary_key = True)
     storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
-    DeviceID = Column(SMALLINT)
+    DeviceID = Column(SmallInteger)
     address = Column(CHAR(50), nullable = False)
     date = Column(DateTime)
     status = Column(Integer)
 
     store = relationship(Store)
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
 
 class NumCrowd(Base):
     __tablename__ = 'num_crowd'
@@ -45,16 +53,24 @@ class NumCrowd(Base):
         PrimaryKeyConstraint(recordtime, in_num, out_num, storeid),
     )
 
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
+
 class ErrLog(Base):
     __tablename__ = 'ErrLog'
-    ID = Column(Integer, primary_key = True)
+    ID = Column(BigInteger, primary_key = True)
     storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
-    DeviceCode = Column(SMALLINT)
+    DeviceCode = Column(SmallInteger)
     LogTime = Column(DateTime)
     Errorcode = Column(Integer)
     ErrorMessage = Column(NCHAR(120))
 
     store = relationship(Store)
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
 
 class Status(Base):
     __tablename__ = 'Status'
@@ -62,25 +78,28 @@ class Status(Base):
     storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
     FlashNum = Column(Integer)
     RamNum = Column(Integer)
-    RC1 = Column(BOOLEAN)
-    RC2 = Column(BOOLEAN)
-    RC3 = Column(BOOLEAN)
-    RC4 = Column(BOOLEAN)
-    RC5 = Column(BOOLEAN)
-    RC6 = Column(BOOLEAN)
-    RC7 = Column(BOOLEAN)
-    RC8 = Column(BOOLEAN)
-    DcID = Column(SMALLINT)
+    RC1 = Column(Boolean)
+    RC2 = Column(Boolean)
+    RC3 = Column(Boolean)
+    RC4 = Column(Boolean)
+    RC5 = Column(Boolean)
+    RC6 = Column(Boolean)
+    RC7 = Column(Boolean)
+    RC8 = Column(Boolean)
+    DcID = Column(SmallInteger)
     FV = Column(NCHAR(20))
     DcTime = Column(DateTime)
-    RC1 = Column(BOOLEAN)
-    DeviceID = Column(SMALLINT)
+    DeviceID = Column(SmallInteger)
     IA = Column(Integer)
     OA = Column(Integer)
-    S = Column(SMALLINT)
+    S = Column(SmallInteger)
     T = Column(DateTime)
 
     store = relationship(Store)
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
 
 class Setting(Base):
     __tablename__ = 'setting'
@@ -90,9 +109,13 @@ class Setting(Base):
     companytel = Column(CHAR(20))
     companyip = Column(CHAR(50), nullable = False)
     setupdate = Column(DateTime)
-    setupname = Column(CHAR(50))
-    setupaddress = Column(CHAR(50))
-    setuptel = Column(CHAR(50))
+    salername = Column(CHAR(50))
+    saleraddress = Column(CHAR(50))
+    salertel = Column(CHAR(50))
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
 
 class User(Base):
     __tablename__ = 'users'
@@ -110,3 +133,7 @@ class User(Base):
     storeid = Column(Integer, ForeignKey('store.tid'))
 
     store = relationship(Store)
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs}
