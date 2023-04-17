@@ -1,0 +1,14 @@
+,ID,storeid,FlashNum,RamNum,RC1,RC2,RC3,RC4,RC5,RC6,RC7,RC8,DcID,FV,DcTime,DeviceID,IA,OA,S,T
+0,1,13,118,1234,True,False,False,False,False,False,True,False,17,5122                ,2015-12-29 13:34:00,273,999999,999999,55,2015-12-29 13:34:00
+1,2,14,0,12,False,True,False,False,False,False,False,False,18,5122                ,2015-12-29 13:35:00,283,999999,999999,0,2015-12-29 13:34:00
+2,123950,37,0,0,False,False,False,False,True,False,False,False,17,5896                ,2023-04-17 12:00:03,277,848525,672338,0,2023-04-17 11:57:00
+3,123954,32,0,0,False,True,False,False,False,False,False,False,17,5896                ,2023-04-17 12:00:09,274,666294,766195,0,2023-04-17 11:57:00
+4,773,37,0,0,False,False,False,True,False,False,False,False,17,5896                ,2018-08-24 15:00:03,276,386338,248061,0,2018-08-24 14:56:00
+5,122525,28,6001,0,False,True,False,False,False,False,False,False,28,5896                ,2023-04-07 06:00:08,450,656659,753448,0,2023-04-06 23:36:00
+6,1759,31,0,1,False,False,False,False,True,False,False,False,17,5896                ,2018-08-30 11:00:09,277,53847,54239,0,2018-08-30 10:58:00
+7,43222,30,1463,0,False,False,False,False,False,False,False,True,17,5896                ,2019-05-25 03:00:05,280,47466,48671,8,2019-05-24 23:47:00
+8,123953,35,0,0,False,False,False,True,False,False,False,False,17,5896                ,2023-04-17 12:00:08,276,74905,62349,0,2023-04-17 11:55:00
+9,123948,36,0,0,True,False,False,False,False,False,False,False,17,5896                ,2023-04-17 12:00:09,273,216681,264898,0,2023-04-15 08:50:00
+10,123949,34,0,0,False,False,False,False,True,False,False,False,17,5896                ,2023-04-17 12:00:08,277,899039,871370,0,2023-04-17 11:59:00
+11,123951,33,0,1,False,False,True,False,False,False,False,False,17,5896                ,2023-04-17 12:00:08,275,874709,905280,0,2023-04-17 11:59:00
+12,123952,31,0,0,True,False,False,False,False,False,False,False,17,5896                ,2023-04-17 12:00:09,273,537360,562838,0,2023-04-17 11:58:00
