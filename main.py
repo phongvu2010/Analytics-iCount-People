@@ -4,7 +4,7 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
 
-from st_pages import Page, show_pages, add_page_title
+from st_pages import Page, show_pages#, add_page_title
 from yaml.loader import SafeLoader
 
 # Basic Page Configuration
@@ -13,17 +13,6 @@ st.set_page_config(
     page_title = 'Main - People Counting System',
     page_icon = '📈',
     layout = 'centered'
-)
-
-# Optional -- adds the title and icon to the current page
-# add_page_title()
-
-# Specify what pages should be shown in the sidebar, and what their titles and icons should be
-show_pages(
-    [
-        Page('main.py', 'Home', '🏠'),
-        Page('pages/errLog.py', 'Error Log', ':books:')
-    ]
 )
 
 # hashed_passwords = stauth.Hasher(['admin', 'user']).generate()
@@ -44,6 +33,20 @@ authenticator = stauth.Authenticate(
 )
 
 name, authentication_status, username = authenticator.login('Login', 'main')
+
+def create_pages_link():
+    l = []
+    l.append(Page('main.py', 'Home', '🏠'))
+    if st.session_state['name'] == 'Admin':
+        l.append(Page('pages/errLog.py', 'Error Log', ':books:'))
+
+    return l
+
+# Optional -- adds the title and icon to the current page
+# add_page_title()
+
+# Specify what pages should be shown in the sidebar, and what their titles and icons should be
+show_pages(create_pages_link())
 
 authen_status = st.session_state['authentication_status']
 if authen_status is False:
