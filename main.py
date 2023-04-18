@@ -1,5 +1,5 @@
 # streamlit run main.py
-import refesh_data as db
+# import refesh_data as db
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
@@ -15,20 +15,19 @@ st.set_page_config(
     layout = 'centered'
 )
 
-# hashed_passwords = stauth.Hasher(['admin', 'user']).generate()
-# print(hashed_passwords)
-
 # Optional -- adds the title and icon to the current page
-add_page_title()
+# add_page_title()
 
-# Specify what pages should be shown in the sidebar, and what their titles and icons
-# should be
+# Specify what pages should be shown in the sidebar, and what their titles and icons should be
 show_pages(
     [
         Page('main.py', 'Home', '🏠'),
-        Page('pages/errLog.py', 'Err Log', ':books:'),
+        Page('pages/errLog.py', 'Error Log', ':books:')
     ]
 )
+
+# hashed_passwords = stauth.Hasher(['admin', 'user']).generate()
+# print(hashed_passwords)
 
 with open('.streamlit/config.yaml') as file:
     config = yaml.load(file, Loader = SafeLoader)
@@ -54,16 +53,18 @@ elif authen_status is None:
 
 @st.cache_resource
 def getSetting():
-    return db.dbSetting()
+    return None
+    # return db.dbSetting()
 
 if authen_status:
     db_setting = getSetting()
 
     with st.sidebar:
         st.header(f'Welcome *{st.session_state["name"]}*')
-        st.write(db_setting.companyname)
-        st.write(db_setting.companyaddress)
-        st.write(db_setting.companytel)
+
+        # st.write(db_setting.companyname)
+        # st.write(db_setting.companyaddress)
+        # st.write(db_setting.companytel)
 
         authenticator.logout('Logout', 'main')
 

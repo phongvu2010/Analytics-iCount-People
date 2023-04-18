@@ -1,4 +1,4 @@
-import database as db
+# import database as db
 import streamlit as st
 
 # from models import Store, NumCrowd, ErrLog, Status, Setting
@@ -11,8 +11,8 @@ st.set_page_config(
 )
 
 # pages/sensitive_page.py
-if st.session_state['name'] != 'Admin':
-    st.warning("You must log-in to see the content of this sensitive page! Head over to the log-in page.")
-    st.stop()  # App won't run anything after this line
+# if st.session_state['name'] != 'Admin':
+#     st.warning("You must log-in to see the content of this sensitive page! Head over to the log-in page.")
+#     st.stop()  # App won't run anything after this line
 
 # sensitive_stuffs()
