@@ -29,4 +29,11 @@ pyarrow
 ### Packages database
 pyodbc
 # psycopg2-binary
-SQLAlchemy 
+SQLAlchemy
+
+
+### Streamlit
+streamlit
+streamlit-authenticator
+streamlit-option-menu
+watchdog
