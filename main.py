@@ -5,7 +5,6 @@ import streamlit_authenticator as stauth
 import yaml
 
 from st_pages import Page, show_pages, add_page_title
-from streamlit_option_menu import option_menu
 from yaml.loader import SafeLoader
 
 # Basic Page Configuration
@@ -27,7 +26,7 @@ add_page_title()
 show_pages(
     [
         Page('main.py', 'Home', '🏠'),
-        # Page('pages/errLog.py', 'Err Log', ':books:'),
+        Page('pages/errLog.py', 'Err Log', ':books:'),
     ]
 )
 
@@ -58,26 +57,13 @@ def getSetting():
     return db.dbSetting()
 
 if authen_status:
-    st.session_state['sidebar_state'] = 'expanded'
     db_setting = getSetting()
 
     with st.sidebar:
-        st.success('Select a page above.')
         st.header(f'Welcome *{st.session_state["name"]}*')
         st.write(db_setting.companyname)
         st.write(db_setting.companyaddress)
         st.write(db_setting.companytel)
-        # choose = option_menu(
-        #     "App Gallery", ["About", "Photo Editing", "Project Planning", "Python e-Course", "Contact"],
-        #     icons = ['house', 'camera fill', 'kanban', 'book','person lines fill'],
-        #     menu_icon = "app-indicator", default_index = 0,
-        #     styles = {
-        #         # "container": {"padding": "5!important", "background-color": "#fafafa"},
-        #         # "icon": {"color": "orange", "font-size": "25px"}, 
-        #         # "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
-        #         # "nav-link-selected": {"background-color": "#02ab21"},
-        #     }
-        # )
 
         authenticator.logout('Logout', 'main')
 
