@@ -25,20 +25,20 @@ class Store(Base):
         return {c.key: getattr(self, c.key)
             for c in inspect(self).mapper.column_attrs}
 
-class Camera(Base):
-    __tablename__ = 'camera'
-    tid = Column(Integer, primary_key = True)
-    storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
-    DeviceID = Column(SmallInteger)
-    address = Column(CHAR(50), nullable = False)
-    date = Column(DateTime)
-    status = Column(Integer)
+# class Camera(Base):
+#     __tablename__ = 'camera'
+#     tid = Column(Integer, primary_key = True)
+#     storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
+#     DeviceID = Column(SmallInteger)
+#     address = Column(CHAR(50), nullable = False)
+#     date = Column(DateTime)
+#     status = Column(Integer)
 
-    store = relationship(Store)
+#     store = relationship(Store)
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
+#     def _asdict(self):
+#         return {c.key: getattr(self, c.key)
+#             for c in inspect(self).mapper.column_attrs}
 
 class NumCrowd(Base):
     __tablename__ = 'num_crowd'
@@ -117,23 +117,23 @@ class Setting(Base):
         return {c.key: getattr(self, c.key)
             for c in inspect(self).mapper.column_attrs}
 
-class User(Base):
-    __tablename__ = 'users'
-    tid = Column(Integer, primary_key = True)
-    name = Column(CHAR(20), nullable = False)
-    password = Column(CHAR(32), nullable = False)
-    realname = Column(CHAR(50), nullable = False)
-    sex = Column(CHAR(6))
-    tel = Column(CHAR(20))
-    address = Column(CHAR(128))
-    country = Column(CHAR(20))
-    area = Column(CHAR(20))
-    province = Column(CHAR(20))
-    city = Column(CHAR(20))
-    storeid = Column(Integer, ForeignKey('store.tid'))
+# class User(Base):
+#     __tablename__ = 'users'
+#     tid = Column(Integer, primary_key = True)
+#     name = Column(CHAR(20), nullable = False)
+#     password = Column(CHAR(32), nullable = False)
+#     realname = Column(CHAR(50), nullable = False)
+#     sex = Column(CHAR(6))
+#     tel = Column(CHAR(20))
+#     address = Column(CHAR(128))
+#     country = Column(CHAR(20))
+#     area = Column(CHAR(20))
+#     province = Column(CHAR(20))
+#     city = Column(CHAR(20))
+#     storeid = Column(Integer, ForeignKey('store.tid'))
 
-    store = relationship(Store)
+#     store = relationship(Store)
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
+#     def _asdict(self):
+#         return {c.key: getattr(self, c.key)
+#             for c in inspect(self).mapper.column_attrs}

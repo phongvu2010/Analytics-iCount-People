@@ -1,5 +1,4 @@
 # Import needed libraries
-# import pandas as pd
 import os
 
 from dotenv import load_dotenv
@@ -28,12 +27,3 @@ def getSession():
         return session
     finally:
         session.close()
-
-# Read Target data into a dataframe
-# def get_data(engine, tblName):
-#     target = pd.read_sql('SELECT * FROM "' + tblName + '"', engine)
-
-#     return target
-
-# df = get_data(engine, 'num_crowd')
-# print(df.head())
