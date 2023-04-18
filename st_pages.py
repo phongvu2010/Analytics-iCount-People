@@ -11,7 +11,6 @@ except ImportError:
     def _gather_metrics(name, func, *args, **kwargs):
         return func
 
-
 import requests
 import streamlit as st
 from streamlit.commands.page_config import get_random_emoji
@@ -35,14 +34,12 @@ except ImportError:
         icon, name = page_name_and_icon(script_path)
         return name, icon
 
-
 try:
     from streamlit import cache_resource
 except ImportError:
     from streamlit import experimental_singleton as cache_resource
 
 from streamlit.util import calc_md5
-
 
 def _add_page_title(
     add_icon: bool = True,
@@ -97,15 +94,12 @@ def _add_page_title(
         if hidden_pages:
             hide_pages(hidden_pages)
 
-
 add_page_title = _gather_metrics("st_pages.add_page_title", _add_page_title)
-
 
 @cache_resource
 def get_icons() -> dict[str, str]:
     url = "https://raw.githubusercontent.com/omnidan/node-emoji/master/lib/emoji.json"
     return requests.get(url).json()
-
 
 def translate_icon(icon: str) -> str:
     """
@@ -120,7 +114,6 @@ def translate_icon(icon: str) -> str:
         if icon in icons:
             return icons[icon]
     return icon
-
 
 @dataclass
 class Page:
@@ -196,11 +189,9 @@ class Page:
             in_section=bool(page_dict["in_section"]),
         )
 
-
 class Section(Page):
     def __init__(self, name: str, icon: str | None = None):
         super().__init__(path="", name=name, icon=icon, is_section=True)
-
 
 def _show_pages(pages: list[Page]):
     """
@@ -229,9 +220,7 @@ def _show_pages(pages: list[Page]):
 
     _on_pages_changed.send()
 
-
 show_pages = _gather_metrics("st_pages.show_pages", _show_pages)
-
 
 def _get_pages_from_config(path: str = ".streamlit/pages.toml") -> list[Page] | None:
     """
@@ -271,7 +260,6 @@ def _get_pages_from_config(path: str = ".streamlit/pages.toml") -> list[Page] | 
 
     return pages
 
-
 def _show_pages_from_config(path: str = ".streamlit/pages.toml"):
     """
     Show the pages listed in the config file at the given path
@@ -282,11 +270,9 @@ def _show_pages_from_config(path: str = ".streamlit/pages.toml"):
     if pages is not None:
         show_pages(pages)
 
-
 show_pages_from_config = _gather_metrics(
     "st_pages.show_pages_from_config", _show_pages_from_config
 )
-
 
 def _get_indentation_code() -> str:
     styling = ""
@@ -320,7 +306,6 @@ def _get_indentation_code() -> str:
 
     return styling
 
-
 def _add_indentation():
     """
     For an app that has set one or more "sections", this will add indentation
@@ -342,9 +327,7 @@ def _add_indentation():
         unsafe_allow_html=True,
     )
 
-
 add_indentation = _gather_metrics("st_pages.add_indentation", _add_indentation)
-
 
 def _get_page_hiding_code(pages_to_hide: list[str]) -> str:
     styling = ""
@@ -373,7 +356,6 @@ def _get_page_hiding_code(pages_to_hide: list[str]) -> str:
 
     return styling
 
-
 def _hide_pages(hidden_pages: list[str]):
     """
     For an app that wants to dynmically hide specific pages from the navigation bar.
@@ -388,6 +370,5 @@ def _hide_pages(hidden_pages: list[str]):
         styling,
         unsafe_allow_html=True,
     )
-
 
 hide_pages = _gather_metrics("st_pages.hide_pages", _hide_pages)
