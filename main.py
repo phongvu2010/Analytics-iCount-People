@@ -1,15 +1,14 @@
 # streamlit run main.py
-
-import database as db
+import refesh_data as db
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
 
-from models import Store, NumCrowd, ErrLog, Status, Setting
+from st_pages import Page, show_pages, add_page_title
 from streamlit_option_menu import option_menu
 from yaml.loader import SafeLoader
 
-### Basic Page Configuration
+# Basic Page Configuration
 # Find more emoji here: https://www.webfx.com/tools/emoji-cheat-sheet/
 st.set_page_config(
     page_title = 'Main - People Counting System',
@@ -20,8 +19,23 @@ st.set_page_config(
 # hashed_passwords = stauth.Hasher(['admin', 'user']).generate()
 # print(hashed_passwords)
 
+# Optional -- adds the title and icon to the current page
+add_page_title()
+
+# Specify what pages should be shown in the sidebar, and what their titles and icons
+# should be
+show_pages(
+    [
+        Page('main.py', 'Home', '🏠'),
+        # Page('pages/errLog.py', 'Err Log', ':books:'),
+    ]
+)
+
 with open('.streamlit/config.yaml') as file:
     config = yaml.load(file, Loader = SafeLoader)
+
+if 'authentication_status' in st.session_state:
+    st.session_state['authentication_status'] = ''
 
 authenticator = stauth.Authenticate(
     config['credentials'],
@@ -36,38 +50,37 @@ name, authentication_status, username = authenticator.login('Login', 'main')
 authen_status = st.session_state['authentication_status']
 if authen_status is False:
     st.error('Username/password is incorrect')
-elif authen_status is False:
+elif authen_status is None:
     st.warning('Please enter your username and password')
 
 @st.cache_resource
 def getSetting():
-    return db.getSession().query(Setting).first()
+    return db.dbSetting()
 
 if authen_status:
+    st.session_state['sidebar_state'] = 'expanded'
     db_setting = getSetting()
 
-with st.sidebar:
-    if authen_status:
+    with st.sidebar:
+        st.success('Select a page above.')
         st.header(f'Welcome *{st.session_state["name"]}*')
         st.write(db_setting.companyname)
         st.write(db_setting.companyaddress)
         st.write(db_setting.companytel)
-        choose = option_menu(
-            "App Gallery", ["About", "Photo Editing", "Project Planning", "Python e-Course", "Contact"],
-            icons = ['house', 'camera fill', 'kanban', 'book','person lines fill'],
-            menu_icon = "app-indicator", default_index = 0,
-            styles = {
-                # "container": {"padding": "5!important", "background-color": "#fafafa"},
-                # "icon": {"color": "orange", "font-size": "25px"}, 
-                # "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
-                # "nav-link-selected": {"background-color": "#02ab21"},
-            }
-        )
-        # st.success('Select a page above.')
-        
+        # choose = option_menu(
+        #     "App Gallery", ["About", "Photo Editing", "Project Planning", "Python e-Course", "Contact"],
+        #     icons = ['house', 'camera fill', 'kanban', 'book','person lines fill'],
+        #     menu_icon = "app-indicator", default_index = 0,
+        #     styles = {
+        #         # "container": {"padding": "5!important", "background-color": "#fafafa"},
+        #         # "icon": {"color": "orange", "font-size": "25px"}, 
+        #         # "nav-link": {"font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
+        #         # "nav-link-selected": {"background-color": "#02ab21"},
+        #     }
+        # )
+
         authenticator.logout('Logout', 'main')
 
-with st.container():
-    if authen_status:
+    with st.container():
         st.header('Information')
         st.write('The average number is according to every store by every day/week/month/year.')
