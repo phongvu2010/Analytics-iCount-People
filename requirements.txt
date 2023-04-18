@@ -23,9 +23,9 @@
 ### Packages
 load_dotenv
 pandas
+pyarrow
 
 
 ### Packages database
 pyodbc
 psycopg2-binary
-SQLAlchemy
