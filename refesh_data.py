@@ -6,3 +6,6 @@ from models import Store, NumCrowd, ErrLog, Status, Setting
 def dbSetting():
     return db.getSession().query(Setting).first()
     # return pd.read_feather('temp/Setting.feather')
+
+def dbNumCrowd():
+    return db.getSession().query(NumCrowd).all()

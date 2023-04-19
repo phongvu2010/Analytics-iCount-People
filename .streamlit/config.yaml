@@ -9,7 +9,7 @@ credentials:
       name: User
       password: $2b$12$0j.JJorQThnKZeVXC7C5p.7FV7u3lrP9JDf3HAhs6XXGJFh0v2E36 # To be replaced with hashed password
 cookie:
-  expiry_days: 3
+  expiry_days: 1
   key: some_signature_key # Must be string
   name: some_cookie_name
 preauthorized:
