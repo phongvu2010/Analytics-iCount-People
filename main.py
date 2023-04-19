@@ -1,5 +1,6 @@
 # streamlit run main.py
 
+import calendar
 import numpy as np
 import pandas as pd
 import refesh_data as db
@@ -43,6 +44,10 @@ def getSetting():
     return db.dbSetting()
 
 @st.cache_resource
+def getStore():
+    return db.dbStore()
+
+@st.cache_resource
 def getNumCrowd():
     return db.dbNumCrowd()
 
@@ -65,6 +70,7 @@ def getWeekNums(year):
 
 if authen_status:
     db_setting = getSetting()
+    db_store = getStore()
 elif authen_status is False:
     st.error('Username/password is incorrect')
 
@@ -79,18 +85,32 @@ if authen_status:
         authenticator.logout('Logout', 'main')
 
     with st.container():
-        st.header('Statistics report')
+        st.header('STATISTICS REPORT')
 
         top_menu = st.columns(4)
         with top_menu[0]:
-            option = st.selectbox('How would you like to be statistics?', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'))
+            l_store = ['All'] + db_store['name'].to_list()
+            store_selected = st.selectbox('Store:', l_store)
 
         with top_menu[1]:
+            option = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 2)
+
+        with top_menu[2]:
             if option == 'Daily':
-                d = st.date_input('Date', date.today())
+                d = st.date_input('Date:', date.today())
             elif option == 'Weekly':
-                select_year = st.selectbox('Year', reversed(range(2018, date.today().year + 1)))
-                d = st.selectbox('Week', getWeekNums(str(select_year)))
+                y = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
+                with top_menu[3]: w = st.selectbox('Week:', getWeekNums(str(y)))
+            elif option == 'Monthly':
+                y = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
+                with top_menu[3]: m = st.selectbox('Month:', calendar.month_name[1:], index = date.today().month - 1)
+            elif option == 'Quarter':
+                y = st.selectbox('Year', reversed(range(2018, date.today().year + 1)))
+                with top_menu[3]: q = st.selectbox('Quarter:', (1, 2, 3, 4), index = (date.today().month - 1) // 3)
+            else:
+                y = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
+
+        
 
         st.write('The average number is according to every store by every day/week/month/year.')
-        st.write('Your birthday is:', d)
+        # st.write('Your birthday is:', d)
