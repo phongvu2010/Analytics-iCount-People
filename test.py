@@ -40,22 +40,8 @@
 import pandas as pd
 import numpy as np
 
-def getWeekNums(year):
-    start_date = '1/1/' + year
-    end_date = '31/12/' + year
-    data = pd.date_range(start = start_date, end = end_date, freq = 'D')
+from datetime import datetime
 
-    df = pd.DataFrame(data, columns = ['date'])
-
-    df['w'] = df['date'].dt.strftime('%V').astype(int)
-    df['s'] = df['w'].shift(1)
-    df['week_num'] = np.where(df['s'].isna(), 1, df['w'] + 1)
-    group = df.groupby('week_num').agg({'date': ['min', 'max']}).reset_index()
-    group['week'] = 'WK' + group['week_num'].astype(str) + \
-                    ' (' + group['date']['min'].dt.strftime('%d/%m') + \
-                    ' - ' + group['date']['max'].dt.strftime('%d/%m') + ')'
-
-    return group['week'].to_list()
-    # return group
-
-print(getWeekNums('2023'))
+import calendar
+m = calendar.month_name[1:]
+print(m)
