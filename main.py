@@ -111,8 +111,6 @@ if authen_status:
             else:
                 y = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
 
-        
-
         st.write('The average number is according to every store by every day/week/month/year.')
         # st.write('Your birthday is:', d)
         print(f'{store_selected} - {type(store_selected)}')
