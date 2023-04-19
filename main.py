@@ -89,13 +89,14 @@ if authen_status:
 
         top_menu = st.columns(4)
         with top_menu[0]:
-            l_store = ['All'] + db_store['name'].to_list()
+            l_store = [None] + db_store['name'].to_list()
             store_selected = st.selectbox('Store:', l_store)
 
         with top_menu[1]:
             option = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 2)
 
         with top_menu[2]:
+            d, w, m, q, y = None, None, None, None, None
             if option == 'Daily':
                 d = st.date_input('Date:', date.today())
             elif option == 'Weekly':
@@ -114,3 +115,12 @@ if authen_status:
 
         st.write('The average number is according to every store by every day/week/month/year.')
         # st.write('Your birthday is:', d)
+        print(f'{store_selected} - {type(store_selected)}')
+        
+        print(f'{d} - {type(d)}')
+        print(f'{w} - {type(w)}')
+        print(f'{m} - {type(m)}')
+        print(f'{q} - {type(q)}')
+        print(f'{y} - {type(y)}')
+        print('-----')
+        
