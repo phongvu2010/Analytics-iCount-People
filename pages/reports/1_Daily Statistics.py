@@ -1,19 +1,47 @@
 # streamlit run main.py
 
-import streamlit as st
 import calendar
 import numpy as np
 import pandas as pd
 import refesh_data as db
-import mockup_page as mp
+import streamlit as st
+import streamlit_authenticator as stauth
+import yaml
+
 from datetime import date
+from yaml.loader import SafeLoader
 
-mp.set_pages()
-mp.hidden_style()
+# Basic Page Configuration
+# Find more emoji here: https://www.webfx.com/tools/emoji-cheat-sheet/
+st.set_page_config(
+    page_title = 'Main - People Counting System',
+    page_icon = '📈',
+    layout = 'wide'
+)
 
-authen = mp.login()
+# hashed_passwords = stauth.Hasher(['admin', 'user']).generate()
+# print(hashed_passwords)
+
+if 'authentication_status' in st.session_state:
+    st.session_state['authentication_status'] = ''
+
+with open('.streamlit/config.yaml') as file:
+    config = yaml.load(file, Loader = SafeLoader)
+
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days'],
+    config['preauthorized']
+)
+
+name, authentication_status, username = authenticator.login('Login', 'main')
 authen_status = st.session_state['authentication_status']
-# username = st.session_state['username']
+
+@st.cache_resource
+def getSetting():
+    return db.dbSetting()
 
 @st.cache_resource
 def getStore():
@@ -22,8 +50,7 @@ def getStore():
 
 @st.cache_resource
 def getNumCrowd():
-    results = db.dbNumCrowd()
-    return pd.DataFrame([r._asdict() for r in results])
+    return db.dbNumCrowd()
 
 def getWeekNums(year):
     start_date = '1/1/' + year
@@ -43,12 +70,20 @@ def getWeekNums(year):
     return group['week'].to_list()
 
 if authen_status:
+    db_setting = getSetting()
     db_store = getStore()
 elif authen_status is False:
     st.error('Username/password is incorrect')
 
 if authen_status:
-    mp.sidebar_info(authen)
+    with st.sidebar:
+        st.header(f'Welcome *{st.session_state["name"]}*')
+
+        st.write(db_setting.companyname)
+        st.write(db_setting.companyaddress)
+        st.write(db_setting.companytel)
+
+        authenticator.logout('Logout', 'main')
 
     with st.container():
         st.header('STATISTICS REPORT')
