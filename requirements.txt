@@ -35,5 +35,5 @@ SQLAlchemy
 ### Streamlit
 streamlit
 streamlit-authenticator
-# streamlit-option-menu
+streamlit-option-menu
 watchdog
