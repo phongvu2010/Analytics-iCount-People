@@ -20,8 +20,8 @@ def getStore():
     return db.dbStore()
 
 @st.cache_resource
-def getNumCrowd():
-    return db.dbNumCrowd()
+def getNumCrowd(year):
+    return db.dbNumCrowd(year)
 
 def getWeekNums(year):
     start_date = '1/1/' + year
@@ -40,26 +40,26 @@ def getWeekNums(year):
 
     return group
 
-def filter_data(data, store = 0, d = None, w = None, m = None, q = None, y = None):
-    if (not y) and d:
-        # print('Daily')
-        data = data[data.recordtime.dt.date == d]
-    else:
-        data = data[data.recordtime.dt.year == y]
-        if w:
-            # print('Weekly')
-            data = data[data.recordtime.dt.date >= datetime.fromtimestamp(w[0]) & data.recordtime.dt.date <= datetime.fromtimestamp(w[1])]
-        elif m:
-            # print('Monthly')
-            data = data[data.recordtime.dt.strftime('%B') == m]
-        elif q:
-            # print('Quarter')
-            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == q + 1]
+# def filter_data(data, store = 0, d = None, w = None, m = None, q = None, y = None):
+#     if (not y) and d:
+#         # print('Daily')
+#         data = data[data.recordtime.dt.date == d]
+#     else:
+#         data = data[data.recordtime.dt.year == y]
+#         if w:
+#             # print('Weekly')
+#             data = data[data.recordtime.dt.date >= datetime.fromtimestamp(w[0]) & data.recordtime.dt.date <= datetime.fromtimestamp(w[1])]
+#         elif m:
+#             # print('Monthly')
+#             data = data[data.recordtime.dt.strftime('%B') == m]
+#         elif q:
+#             # print('Quarter')
+#             data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == q + 1]
 
-    if store > 0:
-        data = data[data.storeid == store]
+#     if store > 0:
+#         data = data[data.storeid == store]
 
-    return data
+#     return data
 
 if authen_status:
     mp.sidebar_info(authen)
@@ -96,16 +96,22 @@ if authen_status:
                 y = st.selectbox('Year', reversed(range(2018, date.today().year + 1)))
                 display = ('Spring', 'Summer', 'Autumn', 'Winter')
                 options = list(range(len(display)))
-                print(display)
-                print(options)
                 with top_menu[3]: q = st.selectbox('Quarter:', options, format_func = lambda x: display[x], index = (date.today().month - 1) // 3)
             else:
                 y = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
 
         st.write('The average number is according to every store by every day/week/month/year.')
 
-        data = filter_data(getNumCrowd().copy(), db_store.loc[store_selected - 1, 'tid'], d, w, m, q, y)
-        st.write(data)
+        # if not y and d:
+        #     year = d.year
+        # else:
+        #     year = y
+
+        # if store_selected > 0:
+        #     data = filter_data(getNumCrowd(year).copy(), db_store.loc[store_selected - 1, 'tid'], d, w, m, q, y)
+        # else:
+        #     data = filter_data(getNumCrowd(year).copy(), 0, d, w, m, q, y)
+        # st.write(data)
 
         # st.write(f'Store : { store_selected } - { type(store_selected) }')        
         # if store_selected > 0:
