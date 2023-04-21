@@ -33,7 +33,7 @@ SQLAlchemy
 
 
 ### Streamlit
-st-pages
+# st-pages
 streamlit
 streamlit-authenticator
 # streamlit-option-menu
