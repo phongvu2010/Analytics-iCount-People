@@ -37,11 +37,35 @@
 # print(week_number)
 
 
-import pandas as pd
-import numpy as np
+# import pandas as pd
+# import numpy as np
 
-from datetime import datetime
+# from datetime import datetime
 
-import calendar
-m = calendar.month_name[1:]
-print(m)
+# import calendar
+# m = calendar.month_name[1:]
+# print(m)
+
+
+
+
+from st_pages import Page, Section, show_pages, add_page_title
+
+show_pages(
+    [
+        Page("test.py", "Home", "🏠"),
+        # Can use :<icon-name>: or the actual icon
+        # Page("example_app/example_one.py", "Example One", ":books:"),
+        # Since this is a Section, all the pages underneath it will be indented
+        # The section itself will look like a normal page, but it won't be clickable
+        Section(name="Reports", icon=":pig:"),
+        # The pages appear in the order you pass them
+        Page("pages/1_Daily Statistics.py", "Daily report", "📖")
+        # Will use the default icon and name based on the filename if you don't
+        # pass them
+        # You can also pass in_section=False to a page to make it un-indented
+        # Page("example_app/example_five.py", "Example Five", "🧰", in_section=False),
+    ]
+)
+
+add_page_title()  # Optional method to add title and icon to current page
