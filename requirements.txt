@@ -28,7 +28,7 @@ pyarrow
 
 ### Packages database
 pyodbc
-# psycopg2-binary
+psycopg2-binary         # production
 SQLAlchemy
 
 
