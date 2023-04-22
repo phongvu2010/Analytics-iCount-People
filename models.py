@@ -101,21 +101,21 @@ class Status(Base):
         return {c.key: getattr(self, c.key)
             for c in inspect(self).mapper.column_attrs}
 
-class Setting(Base):
-    __tablename__ = 'setting'
-    tid = Column(Integer, primary_key = True)
-    companyname = Column(CHAR(50), nullable = False)
-    companyaddress = Column(CHAR(128))
-    companytel = Column(CHAR(20))
-    companyip = Column(CHAR(50), nullable = False)
-    setupdate = Column(DateTime)
-    salername = Column(CHAR(50))
-    saleraddress = Column(CHAR(50))
-    salertel = Column(CHAR(50))
+# class Setting(Base):
+#     __tablename__ = 'setting'
+#     tid = Column(Integer, primary_key = True)
+#     companyname = Column(CHAR(50), nullable = False)
+#     companyaddress = Column(CHAR(128))
+#     companytel = Column(CHAR(20))
+#     companyip = Column(CHAR(50), nullable = False)
+#     setupdate = Column(DateTime)
+#     salername = Column(CHAR(50))
+#     saleraddress = Column(CHAR(50))
+#     salertel = Column(CHAR(50))
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
+#     def _asdict(self):
+#         return {c.key: getattr(self, c.key)
+#             for c in inspect(self).mapper.column_attrs}
 
 # class User(Base):
 #     __tablename__ = 'users'
