@@ -19,22 +19,24 @@ def hidden_style():
         <style>
             #MainMenu { visibility: hidden; }
             footer  { visibility: hidden; }
+            # .appview-container {
+            #     margin-top: -140px;
+            # }
         </style>
     ''', unsafe_allow_html = True)
 
 def add_logo(): # .element-container
     st.markdown('''
         <style>
-            .appview-container {
-                margin-top: -140px;
-            }
-            [data-testid="stForm"].css-1p05t8e {
-                margin-top: 140px;
-            }
+            # [data-testid="stForm"].css-1p05t8e {
+            #     margin-top: 140px;
+            # }
             [data-testid="stImage"].css-1v0mbdj {
-                margin: 0px -5px auto;
-                padding-top: 40px;
+                margin: -80px -5px auto;
             }
+            # .css-1rs6os {
+            #     margin-top: 140px;
+            # }
         </style>
     ''', unsafe_allow_html = True)
 
