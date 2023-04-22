@@ -22,14 +22,18 @@ def hidden_style():
         </style>
     ''', unsafe_allow_html = True)
 
-def add_logo():
+def add_logo(): # .element-container
     st.markdown('''
         <style>
-            [data-testid="stSidebarNav"] {
-                background-image: url(https://static.ybox.vn/2021/5/4/1622090809441-logo%20Vanhanhmall%20-%20tagline-01.png);
-                background-repeat: no-repeat;
-                margin-top: 25px;
-                background-position: center top;;
+            .appview-container {
+                margin-top: -140px;
+            }
+            [data-testid="stForm"].css-1p05t8e {
+                margin-top: 140px;
+            }
+            [data-testid="stImage"].css-1v0mbdj {
+                margin: 0px -5px auto;
+                padding-top: 40px;
             }
         </style>
     ''', unsafe_allow_html = True)
