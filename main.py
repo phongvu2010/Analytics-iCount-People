@@ -39,22 +39,17 @@ def getWeekNums(year):
     return group
 
 def filter_data(data, store, date = None, year = None, week = None, month = None, quarter = None):
-    if (not year) and date:
-        # print('Daily')
+    if date:
         data = data[data.recordtime.dt.date == date]
     else:
-        # print('Yearly')
         data = data[data.recordtime.dt.year == year]
-        if week:
-            # print('Weekly')
-            data = data[(data.recordtime.dt.isocalendar().year == week[0]) & (data.recordtime.dt.isocalendar().week == week[1])]
+        if isinstance(week, int):
+            data = data[data.recordtime.dt.strftime('%W').astype(int) == week]
         elif month:
-            # print('Monthly')
             data = data[data.recordtime.dt.strftime('%B') == month]
-        elif quarter:
-            # print('Quarter')
-            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == (quarter + 1)]
-
+        elif isinstance(quarter, int):
+            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == quarter + 1]
+    
     if store > 0:
         data = data[data.storeid == store]
 
@@ -64,8 +59,7 @@ mockups.set_pages()
 mockups.style()
 mockups.add_logo()
 
-if 'authentication_status' not in  st.session_state:
-    st.session_state.authentication_status = ''
+if 'authentication_status' not in  st.session_state: st.session_state.authentication_status = ''
 
 authen = mockups.login()
 authen_status = st.session_state['authentication_status']
@@ -99,7 +93,6 @@ if authen_status:
                 display = tuple(weeks['week'])
                 options = list(range(len(display)))
                 week_selected = st.selectbox('Week:', options, format_func = lambda x: display[x])
-                week_selected = (weeks.loc(0)[week_selected][0], weeks.loc(0)[week_selected][1])
             elif option_selected == 'Monthly':
                 month_selected = st.selectbox('Month:', calendar.month_name[1:], \
                                               index = date.today().month - 1)
@@ -114,20 +107,9 @@ if authen_status:
         st.title('People Counting System')
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            num_rowd = getNumCrowd()
+            st.write(f'Store : { store_selected } - { type(store_selected) }')        
             if store_selected > 0:
-                data = filter_data(num_rowd.copy(), stores.loc[store_selected - 1, 'tid'], \
-                        date = date_selected, year = year_selected, \
-                        week = week_selected, month = month_selected, quarter = quarter_selected + 1)
-            else:
-                data = filter_data(num_rowd.copy(), 0, date = date_selected, year = year_selected, \
-                        week = week_selected, month = month_selected, quarter = quarter_selected + 1)
-
-            st.dataframe(data)
-
-            # st.write(f'Store : { store_selected } - { type(store_selected) }')        
-            # if store_selected > 0:
-            #     st.write(stores.loc[store_selected - 1, 'tid'])
+                st.write(stores.loc[store_selected - 1, 'tid'])
 
             # st.write(f'Daily : { date_selected } - { type(date_selected) }')
             # st.write(f'Weekly : { week_selected } - { type(week_selected) }')
@@ -135,3 +117,13 @@ if authen_status:
             # st.write(f'Quarter : { quarter_selected } - { type(quarter_selected) }')
             # st.write(f'Yearly : { year_selected } - { type(year_selected) }')
 
+            num_rowd = getNumCrowd()
+            if store_selected > 0:
+                data = filter_data(num_rowd.copy(), \
+                                   stores.loc[store_selected - 1, 'tid'], date_selected, \
+                                   year_selected, week_selected, month_selected, quarter_selected)
+            else:
+                data = filter_data(num_rowd.copy(), 0, date_selected, year_selected, \
+                                   week_selected, month_selected, quarter_selected)
+
+            st.dataframe(data)
