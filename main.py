@@ -53,12 +53,12 @@ def filter_data(data, store, date = None, year = None, week = None, month = None
             data = data[data.recordtime.dt.strftime('%B') == month]
         elif quarter:
             # print('Quarter')
-            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == quarter + 1]
+            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == (quarter + 1)]
 
     if store > 0:
         data = data[data.storeid == store]
 
-    return data.reset_index(drop = True)
+    return data.sort_values(by = 'recordtime', ascending = True).reset_index(drop = True)
 
 mockups.set_pages()
 mockups.style()
@@ -114,13 +114,24 @@ if authen_status:
         st.title('People Counting System')
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            st.write(f'Store : { store_selected } - { type(store_selected) }')        
+            num_rowd = getNumCrowd()
             if store_selected > 0:
-                st.write(stores.loc[store_selected - 1, 'tid'])
+                data = filter_data(num_rowd.copy(), stores.loc[store_selected - 1, 'tid'], \
+                        date = date_selected, year = year_selected, \
+                        week = week_selected, month = month_selected, quarter = quarter_selected + 1)
+            else:
+                data = filter_data(num_rowd.copy(), 0, date = date_selected, year = year_selected, \
+                        week = week_selected, month = month_selected, quarter = quarter_selected + 1)
 
-            st.write(f'Daily : { date_selected } - { type(date_selected) }')
-            st.write(f'Weekly : { week_selected } - { type(week_selected) }')
-            st.write(f'Monthly : { month_selected } - { type(month_selected) }')
-            st.write(f'Quarter : { quarter_selected } - { type(quarter_selected) }')
-            st.write(f'Yearly : { year_selected } - { type(year_selected) }')
+            st.dataframe(data)
+
+            # st.write(f'Store : { store_selected } - { type(store_selected) }')        
+            # if store_selected > 0:
+            #     st.write(stores.loc[store_selected - 1, 'tid'])
+
+            # st.write(f'Daily : { date_selected } - { type(date_selected) }')
+            # st.write(f'Weekly : { week_selected } - { type(week_selected) }')
+            # st.write(f'Monthly : { month_selected } - { type(month_selected) }')
+            # st.write(f'Quarter : { quarter_selected } - { type(quarter_selected) }')
+            # st.write(f'Yearly : { year_selected } - { type(year_selected) }')
 
