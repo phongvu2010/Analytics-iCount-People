@@ -1,3 +1,39 @@
+import numpy as np
+import pandas as pd
+
+# date = datetime.date(2023, 12, 31)
+# week_number_new = date.isocalendar().week
+# year = date.isocalendar().year
+# print(str(year) + '-' + str(week_number_new))
+
+def getWeekNums(year):
+    start_date = '1/1/' + year
+    end_date = '12/31/' + year
+    data = pd.date_range(start = start_date, end = end_date, freq = 'D')
+    data = pd.DataFrame(data, columns = ['date'])
+    data['year_calendar'] = data['date'].dt.isocalendar().year
+    data['week_calendar'] = data['date'].dt.isocalendar().week
+
+    group = data.groupby(['year_calendar', 'week_calendar']).agg({'date': ['min', 'max']}).reset_index()
+
+    group['week_num'] = np.where(group['week_calendar'][0] == 52,
+                                 group['week_calendar'] + 1, group['week_calendar'])
+    if group['week_num'][0] == 53: group.at[0, 'week_num'] = 1
+
+    group['week'] = 'WK' + group['week_num'].astype(str) + \
+                    ' (' + group['date']['min'].dt.strftime('%d/%m') + \
+                    ' - ' + group['date']['max'].dt.strftime('%d/%m') + ')'
+
+    return group.drop(['year_calendar', 'week_calendar'], axis = 1)
+
+df = getWeekNums('2023')
+print(df)
+# print(df['week_num'][0])
+# df.at[0, 'week_num'] = 10
+# print(df['week_num'][0])
+# print(df.loc(0)[0]['week_num'])
+
+
 # import database as db
 # import pandas as pd
 
@@ -48,24 +84,3 @@
 
 
 
-
-from st_pages import Page, Section, show_pages, add_page_title
-
-show_pages(
-    [
-        Page("test.py", "Home", "🏠"),
-        # Can use :<icon-name>: or the actual icon
-        # Page("example_app/example_one.py", "Example One", ":books:"),
-        # Since this is a Section, all the pages underneath it will be indented
-        # The section itself will look like a normal page, but it won't be clickable
-        Section(name="Reports", icon=":pig:"),
-        # The pages appear in the order you pass them
-        Page("pages/1_Daily Statistics.py", "Daily report", "📖")
-        # Will use the default icon and name based on the filename if you don't
-        # pass them
-        # You can also pass in_section=False to a page to make it un-indented
-        # Page("example_app/example_five.py", "Example Five", "🧰", in_section=False),
-    ]
-)
-
-add_page_title()  # Optional method to add title and icon to current page
