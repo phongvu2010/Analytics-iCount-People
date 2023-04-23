@@ -14,29 +14,24 @@ def set_pages(sidebar: str = 'expanded'):   # 'collapsed'
         initial_sidebar_state = sidebar
     )
 
-def hidden_style():
+def style():
     st.markdown('''
         <style>
             #MainMenu { visibility: hidden; }
             footer  { visibility: hidden; }
-            # .appview-container {
-            #     margin-top: -140px;
-            # }
+            .appview-container .main .block-container { margin-top: -140px; }
         </style>
     ''', unsafe_allow_html = True)
 
 def add_logo(): # .element-container
     st.markdown('''
         <style>
-            # [data-testid="stForm"].css-1p05t8e {
-            #     margin-top: 140px;
-            # }
+            [data-testid="stForm"].css-1p05t8e {
+                margin-top: 140px;
+            }
             [data-testid="stImage"].css-1v0mbdj {
                 margin: -80px -5px auto;
             }
-            # .css-1rs6os {
-            #     margin-top: 140px;
-            # }
         </style>
     ''', unsafe_allow_html = True)
 
