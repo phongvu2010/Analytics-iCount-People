@@ -20,15 +20,16 @@ def style():
             #MainMenu { visibility: hidden; }
             footer  { visibility: hidden; }
             .appview-container .main .block-container { margin-top: -140px; }
+            /* style form login */
+            .appview-container .main .block-container [data-testid="stForm"] {
+                margin-top: 140px;
+            }
         </style>
     ''', unsafe_allow_html = True)
 
-def add_logo(): # .element-container
+def add_logo():
     st.markdown('''
         <style>
-            [data-testid="stForm"].css-1p05t8e {
-                margin-top: 140px;
-            }
             [data-testid="stImage"].css-1v0mbdj {
                 margin: -80px -5px auto;
             }
