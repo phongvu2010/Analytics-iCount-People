@@ -18,6 +18,10 @@ def getStore():
 def getNumCrowd():
     return db.dbNumCrowd()
 
+@st.cache_data
+def getErrLog():
+    return db.dbErrLog()
+
 def getWeekNums(year):
     start_date = '1/1/' + year
     end_date = '12/31/' + year
@@ -137,6 +141,18 @@ if authen_status:
 
     with st.container():
         st.title('People Counting System')
+
+        with st.expander('**_ERROR LOG_**', expanded = False):
+            err_log = getErrLog()
+            err_log = err_log.groupby(['storeid', 'ErrorMessage']).max()
+            err_log = err_log.drop(columns = ['ID', 'Errorcode', 'DeviceCode'], axis = 1).reset_index()
+            err_log = err_log.merge(stores[['tid', 'name']].rename(columns = {'tid': 'storeid'}),
+                                    on = 'storeid', how = 'left').set_index('LogTime')
+            err_log.drop('storeid', axis = 1, inplace = True)
+            err_log.insert(0, 'Name', err_log.pop('name'))
+            err_log.sort_index(ascending = False, inplace = True)
+
+            st.dataframe(err_log.head(30), use_container_width = True)
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
             num_rowd = getNumCrowd()
