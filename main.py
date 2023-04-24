@@ -35,9 +35,9 @@ def getWeekNums(year):
     group['week'] = 'WK' + group['week_num'].astype(str) + \
                     ' (' + group['date']['min'].dt.strftime('%d/%m/%y') + \
                     ' - ' + group['date']['max'].dt.strftime('%d/%m/%y') + ')'
-
     return group
 
+@st.cache_data
 def filter_data(data, store, date = None, year = None, week = None, month = None, quarter = None):
     if date:
         data = data[data.recordtime.dt.date == date]
@@ -52,8 +52,31 @@ def filter_data(data, store, date = None, year = None, week = None, month = None
     
     if store > 0:
         data = data[data.storeid == store]
-
     return data.sort_values(by = 'recordtime', ascending = True).reset_index(drop = True)
+
+@st.cache_data
+def clean_data(data, option, period = None):
+    if not data.empty:
+        data.drop(columns = ['position', 'storeid'], axis = 1, inplace = True)
+
+        data['in_num'] = data.in_num.where(data.in_num < 200, data.in_num * 0.01).apply(np.int64)
+        data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.01).apply(np.int64)
+
+        if option == 'Daily':
+            freqs = ['5min', '15min', '30min', 'H']
+            data = data.resample(freqs[period], on = 'recordtime').sum()
+        elif option == 'Weekly':
+            data = data.resample('D', on = 'recordtime').sum().reset_index()
+            data['day_name'] = data.recordtime.dt.day_name()
+            data.set_index(['recordtime', 'day_name'], inplace = True)
+        elif option == 'Monthly':
+            data = data.resample('D', on = 'recordtime').sum()
+        else:
+            data = data.resample('M', on = 'recordtime').sum().reset_index()
+            data['recordtime'] = data.recordtime.dt.strftime('%Y-%m')
+            data.set_index('recordtime', inplace = True)
+        return data
+    return None
 
 mockups.set_pages()
 mockups.style()
@@ -66,7 +89,9 @@ authen_status = st.session_state['authentication_status']
 
 if authen_status:
     stores = getStore()
+    option_selected = None
     date_selected = None
+    period_selected = None
     year_selected = None
     week_selected = None
     month_selected = None
@@ -86,6 +111,9 @@ if authen_status:
 
         if option_selected == 'Daily':
             date_selected = st.date_input('Date:', date.today())
+            display = ('By every 5 minutes', 'By every 15 minutes', 'By every 30 minutes', 'By every hour')
+            options = list(range(len(display)))
+            period_selected = st.radio( 'Period', options, format_func = lambda x: display[x], index = 3)
         else:
             year_selected = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
             if option_selected == 'Weekly':
@@ -107,11 +135,12 @@ if authen_status:
         st.title('People Counting System')
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            st.write(f'Store : { store_selected } - { type(store_selected) }')        
-            if store_selected > 0:
-                st.write(stores.loc[store_selected - 1, 'tid'])
+            # st.write(f'Store : { store_selected } - { type(store_selected) }')
+            # if store_selected > 0:
+            #     st.write(stores.loc[store_selected - 1, 'tid'])
 
             # st.write(f'Daily : { date_selected } - { type(date_selected) }')
+            # st.write(f'Period : { period_selected } - { type(period_selected) }')
             # st.write(f'Weekly : { week_selected } - { type(week_selected) }')
             # st.write(f'Monthly : { month_selected } - { type(month_selected) }')
             # st.write(f'Quarter : { quarter_selected } - { type(quarter_selected) }')
@@ -125,5 +154,6 @@ if authen_status:
             else:
                 data = filter_data(num_rowd.copy(), 0, date_selected, year_selected, \
                                    week_selected, month_selected, quarter_selected)
+            df = clean_data(data, option_selected, period_selected)
 
-            st.dataframe(data)
+            st.dataframe(df)
