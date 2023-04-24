@@ -1,57 +1,21 @@
-import numpy as np
-import pandas as pd
+# import database as db
+# import pandas as pd
 
-# date = datetime.date(2023, 12, 31)
-# week_number_new = date.isocalendar().week
-# year = date.isocalendar().year
-# print(str(year) + '-' + str(week_number_new))
+# from database import engine, getSession
+# from models import Store, NumCrowd, ErrLog, Status
 
-# def getWeekNums(year):
-#     start_date = '1/1/' + year
-#     end_date = '12/31/' + year
-#     data = pd.date_range(start = start_date, end = end_date, freq = 'D')
-#     data = pd.DataFrame(data, columns = ['date'])
-#     data['year_calendar'] = data['date'].dt.isocalendar().year
-#     data['week_calendar'] = data['date'].dt.isocalendar().week
-
-#     group = data.groupby(['year_calendar', 'week_calendar']).agg({'date': ['min', 'max']}).reset_index()
-
-#     group['week_num'] = np.where(group['week_calendar'][0] == 52,
-#                                  group['week_calendar'] + 1, group['week_calendar'])
-#     if group['week_num'][0] == 53: group.at[0, 'week_num'] = 1
-
-#     group['week'] = 'WK' + group['week_num'].astype(str) + \
-#                     ' (' + group['date']['min'].dt.strftime('%d/%m') + \
-#                     ' - ' + group['date']['max'].dt.strftime('%d/%m') + ')'
-
-#     return group.drop(['year_calendar', 'week_calendar'], axis = 1)
-
-# df = getWeekNums('2023')
-# print(df)
-# print(df['week_num'][0])
-# df.at[0, 'week_num'] = 10
-# print(df['week_num'][0])
-# print(df.loc(0)[0]['week_num'])
-
-
-import database as db
-import pandas as pd
-
-from database import engine, getSession
-from models import Store, NumCrowd, ErrLog, Status
-
-results = db.getSession().query(NumCrowd).all() #.all() #.filter(m.Store.id>2)
+# results = db.getSession().query(NumCrowd).all() #.all() #.filter(m.Store.id>2)
 # print(results.companyname)
 
-# # for r in results:
-#     # print(r.companyname)
+# for r in results:
+#     print(r.companyname)
 
-df = pd.DataFrame([r._asdict() for r in results])
-df.to_feather('temp/NumCrowd.feather')
+# df = pd.DataFrame([r._asdict() for r in results])
+# df.to_feather('temp/NumCrowd.feather')
 
-df = pd.read_feather('temp/NumCrowd.feather')
+# df = pd.read_feather('temp/NumCrowd.feather')
 
-print(df.head())
+# print(df.head())
 
 
 
@@ -82,5 +46,39 @@ print(df.head())
 # m = calendar.month_name[1:]
 # print(m)
 
+
+
+# import pandas as pd
+# import numpy as np
+# import plotly.graph_objects as go
+
+# # data
+# np.random.seed(42)
+# feature = pd.DataFrame({'ds': pd.date_range('20200101', periods = 100*24, freq = 'H'),
+#                         'y': np.random.randint(0, 20, 100*24),
+#                         'yhat': np.random.randint(0, 20, 100*24),
+#                         'price': np.random.choice([6600, 7000, 5500, 7800], 100*24)})
+
+# # resampling
+# y = feature.set_index('ds').resample('D')['y'].sum().to_frame()
+# y.reset_index(inplace = True)
+
+# # plotly setup
+# fig = go.Figure()
+# fig.add_trace(go.Scatter(x = y.index, y = y.y))
+
+# # x-ticks preparations
+# x_dates = y.ds
+# tickvals = np.arange(0, y.shape[0]).astype(int)#[0::40]
+# ticktext = x_dates
+
+# # update tickmarks
+# fig.update_xaxes(
+#                  # tickangle = 45,
+#                  tickmode = 'array',
+#                  tickvals = tickvals,
+#                  ticktext = [d.strftime('%Y-%m-%d') for d in ticktext])
+
+# fig.show()
 
 
