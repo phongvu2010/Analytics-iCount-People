@@ -23,16 +23,17 @@
 ### Packages
 load_dotenv
 pandas
-pyarrow
+# pyarrow
 
 
 ### Packages database
 pyodbc
-psycopg2-binary         # production
+# psycopg2-binary         # production
 SQLAlchemy
 
 
 ### Streamlit
+plotly
 # st-pages
 streamlit
 streamlit-authenticator

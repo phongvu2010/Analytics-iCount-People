@@ -1,21 +1,22 @@
 # streamlit run main.py
 
 import calendar
-import dataset as ds
+import dataset as db
 import mockups
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from datetime import date
+from datetime import date, datetime
+from plotly import graph_objs as go
 
 @st.cache_data
 def getStore():
-    return ds.dbStore()
+    return db.dbStore()
 
 @st.cache_data
 def getNumCrowd():
-    return ds.dbNumCrowd()
+    return db.dbNumCrowd()
 
 def getWeekNums(year):
     start_date = '1/1/' + year
@@ -37,7 +38,6 @@ def getWeekNums(year):
                     ' - ' + group['date']['max'].dt.strftime('%d/%m/%y') + ')'
     return group
 
-@st.cache_data
 def filter_data(data, store, date = None, year = None, week = None, month = None, quarter = None):
     if date:
         data = data[data.recordtime.dt.date == date]
@@ -49,40 +49,44 @@ def filter_data(data, store, date = None, year = None, week = None, month = None
             data = data[data.recordtime.dt.strftime('%B') == month]
         elif isinstance(quarter, int):
             data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == quarter + 1]
-    
+
     if store > 0:
         data = data[data.storeid == store]
     return data.sort_values(by = 'recordtime', ascending = True).reset_index(drop = True)
 
-@st.cache_data
 def clean_data(data, option, period = None):
     if not data.empty:
         data.drop(columns = ['position', 'storeid'], axis = 1, inplace = True)
 
-        data['in_num'] = data.in_num.where(data.in_num < 200, data.in_num * 0.01).apply(np.int64)
-        data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.01).apply(np.int64)
+        data['in_num'] = data.in_num.where(data.in_num < 200, data.in_num * 0.001).apply(np.int64)
+        data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.001).apply(np.int64)
 
         if option == 'Daily':
             freqs = ['5min', '15min', '30min', 'H']
-            data = data.resample(freqs[period], on = 'recordtime').sum()
+            data = data.resample(freqs[period], on = 'recordtime').sum().reset_index()
+            data['recordtime'] = data.recordtime.dt.strftime('%H:%M')
+            data.set_index('recordtime', inplace = True)
         elif option == 'Weekly':
             data = data.resample('D', on = 'recordtime').sum().reset_index()
             data['day_name'] = data.recordtime.dt.day_name()
+            data['recordtime'] = data.recordtime.dt.strftime('%d/%m/%Y')
             data.set_index(['recordtime', 'day_name'], inplace = True)
         elif option == 'Monthly':
-            data = data.resample('D', on = 'recordtime').sum()
+            data = data.resample('D', on = 'recordtime').sum().reset_index()
+            data['recordtime'] = data.recordtime.dt.strftime('%d/%m/%Y')
+            data.set_index('recordtime', inplace = True)
         else:
             data = data.resample('M', on = 'recordtime').sum().reset_index()
-            data['recordtime'] = data.recordtime.dt.strftime('%Y-%m')
+            data['recordtime'] = data.recordtime.dt.strftime('%m/%Y')
             data.set_index('recordtime', inplace = True)
-        return data
-    return None
+    return data
 
 mockups.set_pages()
 mockups.style()
 mockups.add_logo()
 
-if 'authentication_status' not in  st.session_state: st.session_state.authentication_status = ''
+if 'authentication_status' not in  st.session_state:
+    st.session_state.authentication_status = ''
 
 authen = mockups.login()
 authen_status = st.session_state['authentication_status']
@@ -107,7 +111,7 @@ if authen_status:
         options = list(range(len(display)))
         store_selected = st.selectbox('Store:', options, format_func = lambda x: display[x])
 
-        option_selected = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 2)
+        option_selected = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 1)
 
         if option_selected == 'Daily':
             date_selected = st.date_input('Date:', date.today())
@@ -135,17 +139,6 @@ if authen_status:
         st.title('People Counting System')
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            # st.write(f'Store : { store_selected } - { type(store_selected) }')
-            # if store_selected > 0:
-            #     st.write(stores.loc[store_selected - 1, 'tid'])
-
-            # st.write(f'Daily : { date_selected } - { type(date_selected) }')
-            # st.write(f'Period : { period_selected } - { type(period_selected) }')
-            # st.write(f'Weekly : { week_selected } - { type(week_selected) }')
-            # st.write(f'Monthly : { month_selected } - { type(month_selected) }')
-            # st.write(f'Quarter : { quarter_selected } - { type(quarter_selected) }')
-            # st.write(f'Yearly : { year_selected } - { type(year_selected) }')
-
             num_rowd = getNumCrowd()
             if store_selected > 0:
                 data = filter_data(num_rowd.copy(), \
@@ -154,6 +147,30 @@ if authen_status:
             else:
                 data = filter_data(num_rowd.copy(), 0, date_selected, year_selected, \
                                    week_selected, month_selected, quarter_selected)
-            df = clean_data(data, option_selected, period_selected)
+            data = clean_data(data, option_selected, period_selected)
 
-            st.dataframe(df)
+            if not data.empty:
+                fig = go.Figure()
+
+                if option_selected == 'Weekly':
+                    fig.add_trace(go.Bar(x = data.index.levels[0], y = data.in_num, name = 'In', showlegend = False))
+                    fig.add_trace(go.Bar(x = data.index.levels[0], y = data.out_num, name = 'Out', showlegend = False))
+
+                    fig.update_xaxes(tickmode = 'array',
+                                    tickvals = data.index.levels[0],
+                                    ticktext = [datetime.strptime(d, '%d/%m/%Y').strftime('%A') for d in data.index.levels[0]])
+                else:
+                    fig.add_trace(go.Bar(x = data.index, y = data.in_num, name = 'In', showlegend = False))
+                    fig.add_trace(go.Bar(x = data.index, y = data.out_num, name = 'Out', showlegend = False))
+
+                layout = go.Layout(
+                    autosize = True,
+                    height = 300,
+                    margin = go.layout.Margin(l = 10, r = 10, b = 5, t = 30, pad = 0)
+                )
+                fig.update_layout(layout)
+
+                st.plotly_chart(fig, use_container_width = True)
+                st.dataframe(data, use_container_width = True)
+            else:
+                st.warning('No data ...')
