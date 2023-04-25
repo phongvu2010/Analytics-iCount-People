@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from urllib import parse
 
-env = 'production'
+env = 'development'
 
 db_host = st.secrets[env]['DB_HOST']
 db_port = parse.quote_plus(str(st.secrets[env]['DB_PORT']))
