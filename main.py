@@ -113,7 +113,7 @@ if authen_status:
         options = list(range(len(display)))
         store_selected = st.selectbox('Store:', options, format_func = lambda x: display[x])
 
-        option_selected = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 1)
+        option_selected = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 2)
 
         if option_selected == 'Daily':
             date_selected = st.date_input('Date:', date.today())
