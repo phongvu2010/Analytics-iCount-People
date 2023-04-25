@@ -10,15 +10,12 @@ import streamlit as st
 from datetime import date, datetime
 from plotly import graph_objs as go
 
-# @st.cache_data
 def getStore():
     return db.dbStore()
 
-# @st.cache_data
 def getNumCrowd():
     return db.dbNumCrowd()
 
-# @st.cache_data
 def getErrLog():
     return db.dbErrLog()
 
