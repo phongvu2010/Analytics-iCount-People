@@ -11,27 +11,23 @@ def dbErrLog():
     return pd.DataFrame([r._asdict() for r in results])
     # return pd.read_feather('temp/ErrLog.feather')
 
-# Uses st.cache_data to only rerun when the query changes or after 15 min.
 @st.cache_data(ttl = 900)
 def dbNumCrowd():
     results = db.getSession().query(NumCrowd).all()
     return pd.DataFrame([r._asdict() for r in results])
     # return pd.read_feather('temp/NumCrowd.feather')
 
-# Uses st.cache_data to only rerun when the query changes or after 15 min.
 # @st.cache_data(ttl = 900)
 # def dbSetting():
 #     return db.getSession().query(Setting).first()
 #     return pd.read_feather('temp/Setting.feather')
 
-# Uses st.cache_data to only rerun when the query changes or after 15 min.
 @st.cache_data(ttl = 900)
 def dbStatus():
     results = db.getSession().query(Status).all()
     return pd.DataFrame([r._asdict() for r in results])
     # return pd.read_feather('temp/Status.feather')
 
-# Uses st.cache_data to only rerun when the query changes or after 15 min.
 @st.cache_data(ttl = 86400)
 def dbStore():
     results = db.getSession().query(Store).all()
