@@ -7,7 +7,7 @@ from models import Store, NumCrowd, ErrLog, Status
 # Uses st.cache_data to only rerun when the query changes or after 15 min.
 @st.cache_data(ttl = 900)
 def dbErrLog():
-    results = db.getSession().query(ErrLog).all()
+    results = db.getSession().query(ErrLog).order_by(ErrLog.LogTime.desc()).limit(500).all()
     return pd.DataFrame([r._asdict() for r in results])
     # return pd.read_feather('temp/ErrLog.feather')
 
