@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from models import Store, NumCrowd, ErrLog, Status
+from sqlalchemy import extract
 
 # Uses st.cache_data to only rerun when the query changes or after 15 min.
 @st.cache_data(ttl = 900)
@@ -12,8 +13,10 @@ def dbErrLog():
     # return pd.read_feather('temp/ErrLog.feather')
 
 @st.cache_data(ttl = 900)
-def dbNumCrowd():
-    results = db.getSession().query(NumCrowd).all()
+def dbNumCrowd(year = None):
+    results = db.getSession().query(NumCrowd)
+    if year: results = results.filter(extract('year', NumCrowd.recordtime) == year)
+    results = results.all()
     return pd.DataFrame([r._asdict() for r in results])
     # return pd.read_feather('temp/NumCrowd.feather')
 

@@ -13,8 +13,9 @@ from plotly import graph_objs as go
 def getStore():
     return db.dbStore()
 
-def getNumCrowd():
-    return db.dbNumCrowd()
+def getNumCrowd(year = None):
+    if not year: year = date.today().year
+    return db.dbNumCrowd(year)
 
 def getErrLog():
     return db.dbErrLog()
@@ -57,10 +58,11 @@ def filter_data(data, store, date = None, year = None, week = None, month = None
 
 def clean_data(data, option, period = None):
     if not data.empty:
-        data.drop(columns = ['position', 'storeid'], axis = 1, inplace = True)
+        # data.drop(columns = ['position', 'storeid'], axis = 1, inplace = True)
+        data.drop(columns = ['position', 'storeid', 'out_num'], axis = 1, inplace = True)
 
         data['in_num'] = data.in_num.where(data.in_num < 200, data.in_num * 0.001).apply(np.int64)
-        data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.001).apply(np.int64)
+        # data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.001).apply(np.int64)
 
         if option == 'Daily':
             freqs = ['5min', '15min', '30min', 'H']
@@ -80,6 +82,13 @@ def clean_data(data, option, period = None):
             data = data.resample('M', on = 'recordtime').sum().reset_index()
             data['recordtime'] = data.recordtime.dt.strftime('%m/%Y')
             data.set_index('recordtime', inplace = True)
+
+        data['Percentage'] = (data.in_num / data.in_num.sum()).map('{:.2%}'.format)
+        data['Relative Ratio'] = data.in_num.pct_change().map('{:.2%}'.format, na_action = 'ignore')
+
+        data.rename(columns = {'in_num': 'Quantity'}, inplace = True)
+        data.index.names = ['Time']
+
     return data
 
 mockups.set_pages()
@@ -119,14 +128,17 @@ if authen_status:
             date_selected = st.date_input('Date:', date.today())
             display = ('By every 5 minutes', 'By every 15 minutes', 'By every 30 minutes', 'By every hour')
             options = list(range(len(display)))
-            period_selected = st.radio( 'Period', options, format_func = lambda x: display[x], index = 3)
+            period_selected = st.radio( 'Period', options,
+                                       format_func = lambda x: display[x], index = 3)
         else:
             year_selected = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
             if option_selected == 'Weekly':
                 weeks = getWeekNums(str(year_selected))
                 display = tuple(weeks['week'])
                 options = list(range(len(display)))
-                week_selected = st.selectbox('Week:', options, format_func = lambda x: display[x])
+                week_selected = st.selectbox('Week:', options,
+                                             format_func = lambda x: display[x],
+                                             index = int(date.today().strftime('%W')))
             elif option_selected == 'Monthly':
                 month_selected = st.selectbox('Month:', calendar.month_name[1:], \
                                               index = date.today().month - 1)
@@ -150,11 +162,13 @@ if authen_status:
                 err_log.drop('storeid', axis = 1, inplace = True)
                 err_log.insert(0, 'Name', err_log.pop('name'))
                 err_log.sort_index(ascending = False, inplace = True)
+                err_log.Name = err_log.Name.replace(r'\s+', ' ', regex = True)
+                err_log.ErrorMessage = err_log.ErrorMessage.replace(r'\s+', ' ', regex = True)
 
-                st.dataframe(err_log.head(30), use_container_width = True)
+                st.dataframe(err_log, use_container_width = True)
 
         with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            num_rowd = getNumCrowd()
+            num_rowd = getNumCrowd(year_selected)
             if store_selected > 0:
                 data = filter_data(num_rowd.copy(), \
                                    stores.loc[store_selected - 1, 'tid'], date_selected, \
@@ -168,15 +182,15 @@ if authen_status:
                 fig = go.Figure()
 
                 if option_selected == 'Weekly':
-                    fig.add_trace(go.Bar(x = data.index.levels[0], y = data.in_num, name = 'In', showlegend = False))
-                    fig.add_trace(go.Bar(x = data.index.levels[0], y = data.out_num, name = 'Out', showlegend = False))
+                    fig.add_trace(go.Bar(x = data.index.levels[0], y = data.Quantity, name = 'Quantity', showlegend = False))
+                    # fig.add_trace(go.Bar(x = data.index.levels[0], y = data.out_num, name = 'Out', showlegend = False))
 
                     fig.update_xaxes(tickmode = 'array',
                                     tickvals = data.index.levels[0],
                                     ticktext = [datetime.strptime(d, '%d/%m/%Y').strftime('%A') for d in data.index.levels[0]])
                 else:
-                    fig.add_trace(go.Bar(x = data.index, y = data.in_num, name = 'In', showlegend = False))
-                    fig.add_trace(go.Bar(x = data.index, y = data.out_num, name = 'Out', showlegend = False))
+                    fig.add_trace(go.Bar(x = data.index, y = data.Quantity, name = 'Quantity', showlegend = False))
+                    # fig.add_trace(go.Bar(x = data.index, y = data.out_num, name = 'Out', showlegend = False))
 
                 layout = go.Layout(
                     autosize = True,
