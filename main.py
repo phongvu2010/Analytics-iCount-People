@@ -61,7 +61,7 @@ def clean_data(data, option, period = None):
         # data.drop(columns = ['position', 'storeid'], axis = 1, inplace = True)
         data.drop(columns = ['position', 'storeid', 'out_num'], axis = 1, inplace = True)
 
-        data['in_num'] = data.in_num.where(data.in_num < 200, data.in_num * 0.001).apply(np.int64)
+        data['in_num'] = data.in_num.where(data.in_num < 500, data.in_num * 0.0001).apply(np.int64)
         # data['out_num'] = data.out_num.where(data.out_num < 200, data.out_num * 0.001).apply(np.int64)
 
         if option == 'Daily':

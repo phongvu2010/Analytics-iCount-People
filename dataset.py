@@ -25,11 +25,11 @@ def dbNumCrowd(year = None):
 #     return db.getSession().query(Setting).first()
 #     return pd.read_feather('temp/Setting.feather')
 
-@st.cache_data(ttl = 900)
-def dbStatus():
-    results = db.getSession().query(Status).all()
-    return pd.DataFrame([r._asdict() for r in results])
-    # return pd.read_feather('temp/Status.feather')
+# @st.cache_data(ttl = 900)
+# def dbStatus():
+#     results = db.getSession().query(Status).all()
+#     return pd.DataFrame([r._asdict() for r in results])
+#     return pd.read_feather('temp/Status.feather')
 
 @st.cache_data(ttl = 86400)
 def dbStore():
