@@ -47,7 +47,7 @@ def filter(data, store = 0, date = None, year = None, week = None, month = None,
 
 @st.cache_data(ttl = 900, show_spinner = False)
 def clean(data, option, period = None):
-    data = data[['recordtime', 'in_num']]
+    data.drop(['out_num', 'position', 'storeid'], axis = 1, inplace = True)
 
     data['in_num'] = data.in_num.where(data.in_num < 500, data.in_num * 0.0001).apply(np.int64)
 
