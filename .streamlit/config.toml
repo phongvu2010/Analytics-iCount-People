@@ -16,7 +16,6 @@ showWarningOnDirectExecution = true
 # Default: 'arrow'
 dataFrameSerialization = 'arrow'
 
-
 [logger]
 # Level of logging: 'error', 'warning', 'info', or 'debug'.
 # Default: 'info'
@@ -25,7 +24,6 @@ level = 'info'
 # String format for logging messages. If logger.datetimeFormat is set, logger messages will default to `%(asctime)s.%(msecs)03d %(message)s`. See [Python's documentation](https://docs.python.org/2.6/library/logging.html#formatter-objects) for available attributes.
 # Default: '%(asctime)s %(message)s'
 messageFormat = '%(asctime)s %(message)s'
-
 
 [client]
 # Whether to enable st.cache.
@@ -40,7 +38,6 @@ displayEnabled = true
 # If set to False, an exception will result in a generic message being shown in the browser, and exceptions and tracebacks will be printed to the console only.
 # Default: true
 showErrorDetails = true
-
 
 [runner]
 # Allows you to type a variable or string by itself in a single line of Python code to write it to the app.
@@ -67,7 +64,6 @@ fastReruns = true
 # Default: false
 #enforceSerializableSessionState = false
 
-
 [server]
 # List of folders that should not be watched for changes. This impacts both "Run on Save" and @st.cache.
 # Relative paths will be taken as relative to the current working directory.
@@ -86,7 +82,7 @@ fileWatcherType = 'auto'
 
 # If false, will attempt to open a browser window on start.
 # Default: false unless (1) we are on a Linux box where DISPLAY is unset, or (2) we are running in the Streamlit Atom plugin.
-headless = false
+headless = true
 
 # Automatically rerun script when the file is modified on disk.
 # Default: false
@@ -138,12 +134,11 @@ enableStaticServing = false
 # ['DO NOT USE THIS OPTION IN A PRODUCTION ENVIRONMENT. It has not gone through security audits or performance tests. For the production environment, we recommend performing SSL termination by the load balancer or the reverse proxy.']
 #sslKeyFile =
 
-
 [browser]
 # Internet address where users should point their browsers in order to connect to the app. Can be IP address or DNS name and path.
 # This is used to: - Set the correct URL for CORS and XSRF protection purposes. - Show the URL on the terminal - Open the browser.
 # Default: 'localhost'
-#serverAddress = 'localhost'
+serverAddress = 'localhost'
 
 # Whether to send usage statistics to Streamlit.
 # If you'd like to opt out of usage statistics.
@@ -155,12 +150,10 @@ gatherUsageStats = false
 # Default: whatever value is set in server.port.
 serverPort = 8020
 
-
 [mapbox]
 # Configure Streamlit to use a custom Mapbox token for elements like st.pydeck_chart and st.map. To get a token for yourself, create an account at https://mapbox.com. It's free (for moderate usage levels)!
 # Default: ''
 token = ''
-
 
 [deprecation]
 # Set to false to disable the deprecation warning for the file uploader encoding.
@@ -170,7 +163,6 @@ showfileUploaderEncoding = true
 # Set to false to disable the deprecation warning for using the global pyplot instance.
 # Default: true
 showPyplotGlobalUse = true
-
 
 [theme]
 # The preset Streamlit theme that your custom theme inherits from. One of "light" or "dark".

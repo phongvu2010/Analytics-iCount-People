@@ -1,8 +1,9 @@
-from database import Base
-
-from sqlalchemy import inspect, Column, ForeignKey, Integer, SmallInteger, BigInteger, CHAR, NCHAR, Boolean, DateTime
+from sqlalchemy import Column, ForeignKey, Integer, SmallInteger, BigInteger, CHAR, NCHAR, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import PrimaryKeyConstraint
+
+Base = declarative_base()
 
 class Store(Base):
     __tablename__ = 'store'
@@ -21,24 +22,8 @@ class Store(Base):
     lastEditDate = Column(DateTime)
     formula = Column(CHAR(64))
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
-
-# class Camera(Base):
-#     __tablename__ = 'camera'
-#     tid = Column(Integer, primary_key = True)
-#     storeid = Column(Integer, ForeignKey('store.tid'), nullable = False)
-#     DeviceID = Column(SmallInteger)
-#     address = Column(CHAR(50), nullable = False)
-#     date = Column(DateTime)
-#     status = Column(Integer)
-
-#     store = relationship(Store)
-
-#     def _asdict(self):
-#         return {c.key: getattr(self, c.key)
-#             for c in inspect(self).mapper.column_attrs}
+    # def _asdict(self):
+    #     return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}
 
 class NumCrowd(Base):
     __tablename__ = 'num_crowd'
@@ -53,10 +38,6 @@ class NumCrowd(Base):
         PrimaryKeyConstraint(recordtime, in_num, out_num, storeid),
     )
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
-
 class ErrLog(Base):
     __tablename__ = 'ErrLog'
     ID = Column(BigInteger, primary_key = True)
@@ -67,10 +48,6 @@ class ErrLog(Base):
     ErrorMessage = Column(NCHAR(120))
 
     store = relationship(Store)
-
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
 
 class Status(Base):
     __tablename__ = 'Status'
@@ -96,44 +73,3 @@ class Status(Base):
     T = Column(DateTime)
 
     store = relationship(Store)
-
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-            for c in inspect(self).mapper.column_attrs}
-
-# class Setting(Base):
-#     __tablename__ = 'setting'
-#     tid = Column(Integer, primary_key = True)
-#     companyname = Column(CHAR(50), nullable = False)
-#     companyaddress = Column(CHAR(128))
-#     companytel = Column(CHAR(20))
-#     companyip = Column(CHAR(50), nullable = False)
-#     setupdate = Column(DateTime)
-#     salername = Column(CHAR(50))
-#     saleraddress = Column(CHAR(50))
-#     salertel = Column(CHAR(50))
-
-#     def _asdict(self):
-#         return {c.key: getattr(self, c.key)
-#             for c in inspect(self).mapper.column_attrs}
-
-# class User(Base):
-#     __tablename__ = 'users'
-#     tid = Column(Integer, primary_key = True)
-#     name = Column(CHAR(20), nullable = False)
-#     password = Column(CHAR(32), nullable = False)
-#     realname = Column(CHAR(50), nullable = False)
-#     sex = Column(CHAR(6))
-#     tel = Column(CHAR(20))
-#     address = Column(CHAR(128))
-#     country = Column(CHAR(20))
-#     area = Column(CHAR(20))
-#     province = Column(CHAR(20))
-#     city = Column(CHAR(20))
-#     storeid = Column(Integer, ForeignKey('store.tid'))
-
-#     store = relationship(Store)
-
-#     def _asdict(self):
-#         return {c.key: getattr(self, c.key)
-#             for c in inspect(self).mapper.column_attrs}
