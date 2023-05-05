@@ -1,5 +1,2 @@
-__pycache__/
 .venv/
-temp/
-
-models.mwb.bak
+__pycache__/
