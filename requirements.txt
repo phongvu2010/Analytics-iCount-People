@@ -6,7 +6,7 @@
 ### On Windows (cmd)
 ### Run project in venv
 # .venv\Scripts\activate.bat
-# .venv\Scripts\python.exe -m pip install --upgrade pip     # wheel
+# .venv\Scripts\python.exe -m pip install --upgrade pip
 # .venv\Scripts\python.exe -m pip install --upgrade -r requirements.txt
 
 # pip freeze > requirements.txt
@@ -14,7 +14,7 @@
 ### On MacOS
 ### Run project in venv
 # source .venv/bin/activate
-# pip3 install --upgrade pip     # wheel
+# pip3 install --upgrade pip
 # pip3 install --upgrade -r requirements.txt
 
 # pip3 freeze > requirements.txt

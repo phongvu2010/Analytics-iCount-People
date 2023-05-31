@@ -48,7 +48,11 @@ def filter(data, store = 0, date = None, year = None, week = None, month = None,
 @st.cache_data(ttl = 900, show_spinner = False)
 def clean(data, option, period = None):
     data.drop(['out_num', 'position', 'storeid'], axis = 1, inplace = True)
-    data['in_num'] = data.in_num.where(data.in_num < 500, data.in_num * 0.0001).apply(np.int64)
+
+    data = data.set_index('recordtime').between_time('6:30:00', '23:59:59').reset_index()
+
+    data['in_num'] = data.in_num.where(data.in_num < 100, 1).apply(np.int64)
+    # data['in_num'] = data.in_num.where(data.in_num < 500, data.in_num * 0.0001).apply(np.int64)
 
     if option == 'Daily':
         freqs = ['15min', '30min', 'H']
