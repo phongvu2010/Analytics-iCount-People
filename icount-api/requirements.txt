@@ -21,11 +21,12 @@
 
 
 ### Packages
+bcrypt==4.0.1
 fastapi
 pandas
-# passlib[bcrypt]
-# pydantic-settings
-# pyodbc
-# python-jose[cryptography]
+passlib[bcrypt]
+pydantic-settings
+pyodbc
+python-jose[cryptography]
 sqlalchemy
-# uvicorn[standard]
+uvicorn[standard]

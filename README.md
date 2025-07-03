@@ -1,5 +1,7 @@
 # iCount-People 📦
 
+## Sơ đồ
+
 ```
 iCount-People/
 ├── icount-api/                     # Backend FastAPI

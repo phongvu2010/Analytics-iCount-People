@@ -15,22 +15,20 @@ class Settings(BaseSettings):
     MSSQL_USER: str
     MSSQL_PASSWORD: str
     MSSQL_DB: str
-    MSSQL_DRIVER: str = 'ODBC Driver 17 for SQL Server'
+    # MSSQL_DRIVER: str = 'ODBC Driver 17 for SQL Server'
+    MSSQL_DRIVER: str = 'SQL Server'
 
     @computed_field  # type: ignore[misc]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        # Mã hóa driver để tránh lỗi URL-Encoding
-        encoded_driver = parse.quote_plus(self.MSSQL_DRIVER)
-
         return str(MultiHostUrl.build(
             scheme = 'mssql+pyodbc',
             username = self.MSSQL_USER,
-            password = self.MSSQL_PASSWORD,
+            password = parse.quote_plus(self.MSSQL_PASSWORD),
             host = self.MSSQL_HOST,
             port = self.MSSQL_PORT,
             path = self.MSSQL_DB,
-            query = f'driver={encoded_driver}'
+            query = f'driver={self.MSSQL_DRIVER}'
         ))
 
     class Config:
