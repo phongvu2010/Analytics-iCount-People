@@ -21,24 +21,11 @@
 
 
 ### Packages
+fastapi
 pandas
-
-
-### Packages web
-Django
-djangorestframework
-
-
-### Packages database
-pyodbc
-mssql-django
-# SQLAlchemy
-
-
-### Streamlit
-# plotly
-# st-pages
-# streamlit
-# streamlit-authenticator
-# streamlit-option-menu
-# watchdog
+# passlib[bcrypt]
+# pydantic-settings
+# pyodbc
+# python-jose[cryptography]
+sqlalchemy
+# uvicorn[standard]
