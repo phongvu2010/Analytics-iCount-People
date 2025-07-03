@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from .config import settings
 
 # Tạo engine kết nối tới DB
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI), client_encoding='utf8')
+engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 
 # Tạo một phiên (session) để tương tác với DB
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

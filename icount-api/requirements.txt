@@ -25,7 +25,7 @@
 fastapi
 pandas
 # passlib[bcrypt]
-# pydantic-settings
+pydantic-settings
 # pyodbc
 # python-jose[cryptography]
 sqlalchemy

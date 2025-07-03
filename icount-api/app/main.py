@@ -1,8 +1,9 @@
+# uvicorn app.main:app --reload
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 # from .api.routers import data, logs, auth
-from core.config import settings
+from .core.config import settings
 
 app = FastAPI(
     title = settings.PROJECT_NAME,
@@ -29,9 +30,9 @@ if settings.BACKEND_CORS_ORIGINS:
 # app.include_router(data.router, prefix='/api/v1', tags=['Crowd Data'])
 # app.include_router(logs.router, prefix='/api/v1', tags=['Error Logs'])
 
-@app.get('/', tags = ['Root'])
+@app.get("/", tags = ["Root"])
 def read_root():
     return {
-        'message': 'Welcome to iCount API!',
-        # 'DATABASE_URI': settings.SQLALCHEMY_DATABASE_URI
+        "message": "Welcome to iCount API!",
+        "DATABASE_URI": settings.SQLALCHEMY_DATABASE_URI
     }
