@@ -24,15 +24,21 @@
 pandas
 
 
+### Packages web
+Django
+djangorestframework
+
+
 ### Packages database
 pyodbc
-SQLAlchemy
+mssql-django
+# SQLAlchemy
 
 
 ### Streamlit
-plotly
+# plotly
 # st-pages
-streamlit
-streamlit-authenticator
+# streamlit
+# streamlit-authenticator
 # streamlit-option-menu
-watchdog
+# watchdog
