@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     MSSQL_HOST: str
     MSSQL_PORT: int = 1433  # Cổng mặc định của MSSQL
     MSSQL_USER: str
-    MSSQL_PASSWORD: str
+    MSSQL_PASS: str
     MSSQL_DB: str
     # MSSQL_DRIVER: str = "ODBC Driver 17 for SQL Server"
     MSSQL_DRIVER: str = "SQL Server"
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         return str(MultiHostUrl.build(
             scheme = "mssql+pyodbc",
             username = self.MSSQL_USER,
-            password = parse.quote_plus(self.MSSQL_PASSWORD),
+            password = parse.quote_plus(self.MSSQL_PASS),
             host = self.MSSQL_HOST,
             port = self.MSSQL_PORT,
             path = self.MSSQL_DB,
