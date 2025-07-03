@@ -1,4 +1,7 @@
-iCount-Project/
+# iCount-People 📦
+
+```
+iCount-People/
 ├── icount-api/                     # Backend FastAPI
 │   ├── app/
 │   │   ├── __init__.py
@@ -58,3 +61,4 @@ iCount-Project/
 │   ├── .gitignore
 │   └── package.json
 └── README.md
+```
