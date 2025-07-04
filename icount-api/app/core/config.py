@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings
 from typing import Annotated, Any
 from urllib import parse
 
-
 class Settings(BaseSettings):
     API_VERSION: str = '/api/v1'
     PROJECT_NAME: str
@@ -32,7 +31,6 @@ class Settings(BaseSettings):
     DATA_USER: str
     DATA_PASS: str
     DATA_DB: str
-    # DATA_DRIVER: str = 'ODBC+Driver+17+for+SQL+Server'
     DATA_DRIVER: str = 'SQL+Server'
 
     @computed_field  # type: ignore[misc]

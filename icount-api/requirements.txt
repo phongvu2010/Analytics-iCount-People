@@ -28,5 +28,5 @@ fastapi
 pydantic-settings
 # pyodbc
 # python-jose[cryptography]
-# sqlalchemy
+sqlalchemy
 uvicorn[standard]
