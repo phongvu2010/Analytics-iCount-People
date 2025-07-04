@@ -33,7 +33,4 @@ def read_root():
     return {
         'MESSAGE': settings.DESCRIPTION,
         'SQLALCHEMY_DATABASE_URI': settings.SQLALCHEMY_DATABASE_URI,
-        'BACKEND_CORS_ORIGINS': [
-            str(origin).strip('/') for origin in settings.BACKEND_CORS_ORIGINS
-        ]
     }

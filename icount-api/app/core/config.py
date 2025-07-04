@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DATA_USER: str
     DATA_PASS: str
     DATA_DB: str
-    DATA_DRIVER: str = 'SQL+Server'
+    DATA_DRIVER: str = 'SQL Server'
 
     @computed_field  # type: ignore[misc]
     @property
