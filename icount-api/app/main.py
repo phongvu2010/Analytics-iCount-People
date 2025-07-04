@@ -10,6 +10,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Thêm các router vào ứng dụng với tiền tố /api/v1
 # app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 # app.include_router(data.router, prefix="/api/v1", tags=["Crowd Data"])
 # app.include_router(logs.router, prefix="/api/v1", tags=["Error Logs"])
@@ -20,6 +21,10 @@ def read_root():
         "message": "Welcome to API iCount People Application!",
         # "database_uri": settings.SQLALCHEMY_DATA_URI
     }
+
+
+
+
 
 
 

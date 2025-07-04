@@ -11,18 +11,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-# ======== User Schemas ========
-class UserBase(BaseModel):
-    username: str
-
-class UserCreate(UserBase):
-    password: str
-
-class User(UserBase):
-    id: int
-    class Config:
-        from_attributes = True
-
 # ======== Store Schemas ========
 class Store(BaseModel):
     id: int
