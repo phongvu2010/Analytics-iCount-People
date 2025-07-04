@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
 
+
 # ======== Token Schemas ========
 class Token(BaseModel):
     access_token: str
@@ -42,7 +43,7 @@ class AggregatedCrowdData(BaseModel):
     period: str # Sẽ là ngày, tuần, hoặc tháng
     in_num: int
     out_num: int
-    
+
 # ======== Error Log Schemas ========
 class ErrLog(BaseModel):
     LogTime: datetime
