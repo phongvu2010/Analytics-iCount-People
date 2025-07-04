@@ -32,7 +32,7 @@ app.include_router(api_router, prefix = settings.API_VERSION)
 def read_root():
     return {
         'MESSAGE': settings.DESCRIPTION,
-        'SQLALCHEMY_DATA_URI': settings.SQLALCHEMY_DATA_URI,
+        'SQLALCHEMY_DATABASE_URI': settings.SQLALCHEMY_DATABASE_URI,
         'BACKEND_CORS_ORIGINS': [
             str(origin).strip('/') for origin in settings.BACKEND_CORS_ORIGINS
         ]

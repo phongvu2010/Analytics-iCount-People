@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[misc]
     @property
-    def SQLALCHEMY_DATA_URI(self) -> str:
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
         return str(MultiHostUrl.build(
             scheme = 'mssql+pyodbc',
             username = self.DATA_USER,
