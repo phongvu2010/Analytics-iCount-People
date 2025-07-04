@@ -26,7 +26,7 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Thêm các router vào ứng dụng với tiền tố /api/v1
-app.include_router(api_router, prefix = settings.API_V1_STR)
+app.include_router(api_router, prefix = settings.API_VERSION)
 
 @app.get('/', tags = ['Root'])
 def read_root():
