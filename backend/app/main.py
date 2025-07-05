@@ -3,9 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# from .api.main import api_router
+from .api.main import api_router
 from .core.config import settings
-# from .routers import store, crowd, error_log
 
 app = FastAPI(
     title = settings.PROJECT_NAME,
@@ -28,12 +27,8 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers = ['*']           # Cho phép tất cả các header
     )
 
-# # Include các routers
-# # Thêm các router vào ứng dụng với tiền tố /api/v1
-# app.include_router(api_router, prefix = settings.API_VERSION)
-# app.include_router(store.router)
-# app.include_router(crowd.router)
-# app.include_router(error_log.router)
+# Thêm các router vào ứng dụng với tiền tố /api/v1
+app.include_router(api_router, prefix = settings.API_VERSION)
 
 @app.get('/', tags = ['Root'])
 def read_root():
