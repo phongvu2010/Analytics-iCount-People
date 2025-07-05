@@ -1,20 +1,5 @@
-from sqlalchemy import Column, Integer, String #, DateTime, Float, ForeignKey
+# from sqlalchemy import #, DateTime, Float, ForeignKey
 # from sqlalchemy.orm import relationship
-# from typing import List, Optional
-
-from .core.database import Base
-
-# --- SQLAlchemy Models (ánh xạ tới bảng trong DB) ---
-class Store(Base):
-    __tablename__ = 'store'
-    # Ánh xạ tới schema dbo.store
-    __table_args__ = {'schema': 'dbo'}
-
-    tid = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-
-    # crowd_data = relationship('NumCrowd', back_populates='store')
-    # error_logs = relationship('ErrLog', back_populates='store')
 
 # class NumCrowd(Base):
 #     __tablename__ = 'num_crowd'

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
-# from .routers import store, crowd, error_log
+from .routers import store, crowd, error_log
 
 app = FastAPI(
     title = settings.PROJECT_NAME,
@@ -27,17 +27,14 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers = ['*']           # Cho phép tất cả các header
     )
 
-# # Include các routers
-# app.include_router(store.router)
-# app.include_router(crowd.router)
-# app.include_router(error_log.router)
-# app.include_router(store.router, prefix = f'{settings.API_VERSION}/stores', tags = ['Stores'])
-# app.include_router(crowd.router, prefix = f'{settings.API_VERSION}/crowds', tags = ['Crowds Data'])
-# app.include_router(error_log.router, prefix = f'{settings.API_VERSION}/errors', tags = ['Errors'])
+# Include các routers
+app.include_router(store.router, prefix = f'{settings.API_VERSION}/stores', tags = ['Stores'])
+app.include_router(crowd.router, prefix = f'{settings.API_VERSION}/crowds', tags = ['Crowds Data'])
+app.include_router(error_log.router, prefix = f'{settings.API_VERSION}/errors', tags = ['Errors'])
 
 @app.get('/', tags = ['Root'])
 def read_root():
     return {
         'message': settings.DESCRIPTION,
-        # 'sqlalchemy_database_uri': settings.SQLALCHEMY_DATABASE_URI
+        'sqlalchemy_database_uri': settings.SQLALCHEMY_DATABASE_URI
     }

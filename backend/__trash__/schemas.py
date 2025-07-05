@@ -1,36 +1,3 @@
-from datetime import datetime
-from pydantic import BaseModel
-from typing import Optional # , List
-
-# --- Pydantic Models (dùng cho API request/response) ---
-class StoreSchema(BaseModel):
-    tid: int
-    name: str
-    class Config:
-        from_attributes = True
-
-class ErrLogSchema(BaseModel):
-    store_name: Optional[str] = "N/A"
-    log_time: datetime
-    error_code: str
-    error_message: str
-    class Config:
-        from_attributes = True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # # ======== Token Schemas ========
 # class Token(BaseModel):
 #     access_token: str
