@@ -1,0 +1,1 @@
+// # Component layout chung (thanh điều hướng, footer)
