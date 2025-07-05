@@ -13,7 +13,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class cho các ORM models
 Base = declarative_base()
 
-# Dependency để cung cấp DB session cho mỗi request
+# Dependency để inject session vào mỗi request
 def get_db():
     db = SessionLocal()
     try:
