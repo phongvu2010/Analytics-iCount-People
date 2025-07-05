@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, String #, DateTime, Float
-from typing import List, Optional
+from sqlalchemy import Column, Integer, String, DateTime
+from typing import Optional
 
 from .core.database import Base
 
@@ -16,24 +16,24 @@ class Store(Base):
     # crowd_data = relationship('NumCrowd', back_populates='store')
     # error_logs = relationship('ErrLog', back_populates='store')
 
-# class NumCrowd(Base):
-#     __tablename__ = "num_crowd"
-#     __table_args__ = {'schema': 'dbo'}
+class NumCrowd(Base):
+    __tablename__ = 'num_crowd'
+    __table_args__ = {'schema': 'dbo'}
 
-#     recordtime = Column(DateTime, primary_key=True, index=True)
-#     in_num = Column(Integer)
-#     out_num = Column(Integer)
-#     storeid = Column(Integer, primary_key=True)
+    recordtime = Column(DateTime, primary_key=True, index=True)
+    in_num = Column(Integer)
+    out_num = Column(Integer)
+    storeid = Column(Integer, primary_key=True)
 
-# class ErrLog(Base):
-#     __tablename__ = "ErrLog"
-#     __table_args__ = {'schema': 'dbo'}
+class ErrLog(Base):
+    __tablename__ = 'ErrLog'
+    __table_args__ = {'schema': 'dbo'}
 
-#     ID = Column(Integer, primary_key=True, index=True)
-#     storeid = Column(Integer)
-#     LogTime = Column(DateTime, index=True)
-#     Errorcode = Column(String)
-#     ErrorMessage = Column(String)
+    ID = Column(Integer, primary_key=True, index=True)
+    storeid = Column(Integer)
+    LogTime = Column(DateTime, index=True)
+    Errorcode = Column(String)
+    ErrorMessage = Column(String)
 
 
 # --- Pydantic Models (dùng cho API request/response) ---
