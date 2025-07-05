@@ -25,11 +25,11 @@ class Store(BaseModel):
 #     class Config:
 #         from_attributes = True
 
-# # ======== Aggregated Data Schema ========
-# class AggregatedCrowdData(BaseModel):
-#     period: str # Sẽ là ngày, tuần, hoặc tháng
-#     in_num: int
-#     out_num: int
+# ======== Aggregated Data Schema ========
+class AggregatedCrowdData(BaseModel):
+    period: str # Sẽ là ngày, tuần, hoặc tháng
+    in_num: int
+    out_num: int
 
 # # ======== Error Log Schemas ========
 # class ErrLog(BaseModel):

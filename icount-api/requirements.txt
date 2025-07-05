@@ -23,7 +23,7 @@
 ### Packages
 # bcrypt==4.0.1
 fastapi
-# pandas
+pandas
 # passlib[bcrypt]
 pydantic-settings
 pyodbc

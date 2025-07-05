@@ -5,7 +5,7 @@ from .core.database import Base
 class Store(Base):
     __tablename__ = 'store'
     # Ánh xạ tới cột `tid` nhưng dùng `id` trong code cho tiện
-    id = Column('tid', Integer, primary_key=True, index=True)
+    tid = Column(Integer, primary_key=True, index=True)
     name = Column(String)
 
     crowd_data = relationship('NumCrowd', back_populates='store')
@@ -13,7 +13,7 @@ class Store(Base):
 
 class NumCrowd(Base):
     __tablename__ = 'num_crowd'
-    id = Column(Integer, primary_key=True, index=True) # Giả sử có cột id để dễ quản lý
+    # id = Column(Integer, primary_key=True, index=True) # Giả sử có cột id để dễ quản lý
     recordtime = Column(DateTime, index=True)
     in_num = Column(Integer)
     out_num = Column(Integer)
@@ -23,7 +23,7 @@ class NumCrowd(Base):
 
 class ErrLog(Base):
     __tablename__ = 'ErrLog'
-    id = Column(Integer, primary_key=True, index=True) # Giả sử có cột id
+    # id = Column(Integer, primary_key=True, index=True) # Giả sử có cột id
     storeid = Column(Integer, ForeignKey('store.tid'))
     LogTime = Column(DateTime)
     Errorcode = Column(String)
