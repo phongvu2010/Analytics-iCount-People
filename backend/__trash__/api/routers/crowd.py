@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from ... import services
-from ...core.database import get_db
+from .. import services
+from ..core.database import get_db
 
 router = APIRouter()
 

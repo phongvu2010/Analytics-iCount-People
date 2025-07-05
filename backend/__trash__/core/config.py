@@ -21,9 +21,9 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
-#     SECRET_KEY: str
-#     ALGORITHM: str
-#     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    # SECRET_KEY: str
+    # ALGORITHM: str
+    # ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     # --- Cấu hình cho DB ---
     DATA_HOST: str
