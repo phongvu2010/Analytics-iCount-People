@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from .. import services
-from ..database import get_db
+from ... import services
+from ...core.database import get_db
 
-router = APIRouter(prefix="/api/crowd", tags=["Crowd Data"])
+router = APIRouter()
 
-@router.get("/")
+@router.get('/')
 def read_crowd_data(
     start_date: date = Query(default_factory=lambda: date.today()),
     end_date: date = Query(default_factory=lambda: date.today() + timedelta(days=1)),
@@ -19,24 +19,30 @@ def read_crowd_data(
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.min.time())
 
-    data = services.get_crowd_data(db, start_date=start_datetime, end_date=end_datetime, store_id=store_id)
-    return data
+    return services.get_crowd_data(db, start_date=start_datetime, end_date=end_datetime, store_id=store_id)
 
 
 
 
 
 
-# from datetime import datetime, date
-# from fastapi import APIRouter, Depends, Query
-# from sqlalchemy.orm import Session
+
+
+
+
+
+
+
+
+
+
+
 # from typing import List
 
 # from ... import crud, schemas
 # from ...core.database import get_db
 # from ...services import analysis
 
-# router = APIRouter()
 
 # @router.get('/data/crowd', response_model = List[schemas.AggregatedCrowdData])
 # def read_crowd_data(
