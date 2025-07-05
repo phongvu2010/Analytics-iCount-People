@@ -4,7 +4,7 @@ import { Box, Grid, Typography, CircularProgress } from '@mui/material';
 import Filters from '../components/Filters';
 import CrowdChart from '../components/CrowdChart';
 import SummaryTable from '../components/SummaryTable';
-import * as apiClient from '../api/v1/apiClient';
+import * as apiClient from '../api/apiClient';
 
 function Dashboard() {
   const [filters, setFilters] = useState({
