@@ -1,10 +1,10 @@
-// # Cấu hình Axios và định nghĩa các hàm gọi API
+// Cấu hình Axios và định nghĩa các hàm gọi API
 import axios from 'axios';
 
 // Tạo một instance của axios với cấu hình mặc định
 const apiClient = axios.create({
-//   baseURL: 'http://127.0.0.1:8000/api', // Địa chỉ API backend
-  baseURL: 'https://mcqnqdtn-8000.asse.devtunnels.ms/api/v1', // Địa chỉ API backend
+  baseURL: 'http://127.0.0.1:8000/api/v1', // Địa chỉ API backend
+//   baseURL: 'https://1tlw4xrk-8000.asse.devtunnels.ms/api/v1', // Địa chỉ API backend
   headers: {
     'Content-Type': 'application/json',
   },

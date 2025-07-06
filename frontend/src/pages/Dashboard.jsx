@@ -1,5 +1,6 @@
-// # Trang chính, nơi lắp ráp các component lại
+// Trang chính, nơi lắp ráp các component lại
 import React, { useState, useEffect } from 'react';
+// import { Box, Grid, CircularProgress, Typography } from '@mui/material';
 import { Box, Grid, Typography, CircularProgress } from '@mui/material';
 import Filters from '../components/Filters';
 import CrowdChart from '../components/CrowdChart';
@@ -20,6 +21,8 @@ function Dashboard() {
   useEffect(() => {
     apiClient.getStores().then(response => {
       setStores(response.data);
+    }).catch(error => {
+      console.error("Lỗi khi tải danh sách cửa hàng:", error);
     });
   }, []);
 
@@ -31,9 +34,14 @@ function Dashboard() {
       end_date: filters.endDate.toISOString().split('T')[0],
       store_id: filters.storeId || null,
     };
+
     apiClient.getCrowdData(params)
       .then(response => {
         setCrowdData(response.data);
+      })
+      .catch(error => {
+        console.error("Lỗi khi tải dữ liệu đếm người:", error);
+        setCrowdData(null); // Reset data nếu có lỗi
       })
       .finally(() => {
         setLoading(false);
@@ -41,29 +49,27 @@ function Dashboard() {
   }, [filters]);
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      <Typography variant="h4" gutterBottom>iCount People Dashboard</Typography>
+    <Box>
+      <Filters stores={stores} filters={filters} onFilterChange={setFilters} />
       
       <Grid container spacing={3}>
-        {/* Bộ lọc */}
-        <Grid item xs={12}>
-          <Filters stores={stores} filters={filters} onFilterChange={setFilters} />
-        </Grid>
-
-        {/* Biểu đồ và Bảng */}
         {loading ? (
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
             <CircularProgress />
           </Grid>
-        ) : crowdData && (
+        ) : crowdData ? (
           <>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} lg={8}>
               <CrowdChart data={crowdData.summary_by_hour} />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} lg={4}>
               <SummaryTable data={crowdData.summary_by_day} />
             </Grid>
           </>
+        ) : (
+          <Grid item xs={12}>
+            <Typography sx={{ textAlign: 'center', mt: 5 }}>Không có dữ liệu để hiển thị.</Typography>
+          </Grid>
         )}
       </Grid>
     </Box>

@@ -1,4 +1,4 @@
-// # Component layout chung (thanh điều hướng, footer)
+// Component layout chung (thanh điều hướng, footer)
 import React from 'react';
 import { AppBar, Toolbar, Typography, Box, Container } from '@mui/material';
 import AssessmentIcon from '@mui/icons-material/Assessment'; // Icon cho đẹp
@@ -15,7 +15,7 @@ function Layout({ children }) {
           </Typography>
         </Toolbar>
       </AppBar>
-      
+
       {/* Container chính cho nội dung trang */}
       <Container component="main" sx={{ mt: '80px', flexGrow: 1, p: 3 }}>
         {children}
