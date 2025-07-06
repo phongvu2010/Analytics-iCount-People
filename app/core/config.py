@@ -5,7 +5,6 @@ from typing import Annotated, Any
 from urllib import parse
 
 class Settings(BaseSettings):
-    API_VERSION: str = '/api/v1'
     PROJECT_NAME: str
     DESCRIPTION: str
 

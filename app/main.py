@@ -6,12 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
 from .routers import store, crowd, error_log
 
-app = FastAPI(
-    title = settings.PROJECT_NAME,
-    description = settings.DESCRIPTION,
-    openapi_url = f'{settings.API_VERSION}/openapi.json',
-    version = '1.1.0'
-)
+app = FastAPI(title = settings.PROJECT_NAME, description = settings.DESCRIPTION)
 
 # Set all CORS enabled origins
 if settings.BACKEND_CORS_ORIGINS:
@@ -28,9 +23,9 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Include các routers
-app.include_router(store.router, prefix = f'{settings.API_VERSION}/stores', tags = ['Stores'])
-app.include_router(crowd.router, prefix = f'{settings.API_VERSION}/crowds', tags = ['Crowds Data'])
-app.include_router(error_log.router, prefix = f'{settings.API_VERSION}/errors', tags = ['Errors'])
+app.include_router(store.router, prefix = '/api/stores', tags = ['Stores'])
+app.include_router(crowd.router, prefix = '/api/crowds', tags = ['Crowds Data'])
+app.include_router(error_log.router, prefix = '/api/errors', tags = ['Errors'])
 
 @app.get('/', tags = ['Root'])
 def read_root():
