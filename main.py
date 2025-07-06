@@ -86,11 +86,7 @@ st.set_page_config(
 
 from database import dbStore, dbNumCrowd, dbErrLog
 
-<<<<<<< HEAD
 with open('style.css') as f: st.markdown(f'<style>{ f.read() }</style>', unsafe_allow_html = True)
-=======
-with open('assets/style.css') as f: st.markdown(f'<style>{ f.read() }</style>', unsafe_allow_html = True)
->>>>>>> 8d766bdf444cca5dedded4e566d39e4e5760c936
 
 if 'authentication_status' not in  st.session_state:
     st.session_state.authentication_status = ''
