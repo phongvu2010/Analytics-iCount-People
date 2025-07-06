@@ -1,318 +1,424 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iCount People Dashboard</title>
-    <!-- Tailwind CSS -->
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <!-- Alpine.js for interactivity -->
-    <script src="[https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js](https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js)"></script>
-    <!-- Chart.js for charts -->
-    <script src="[https://cdn.jsdelivr.net/npm/chart.js](https://cdn.jsdelivr.net/npm/chart.js)"></script>
-    <!-- Custom Styles -->
+    <title>iCount People - Dashboard Phân Tích</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Lucide Icons for modern icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
-        :root {
-            --primary-color: #1e40af; /* blue-800 */
-            --secondary-color: #3b82f6; /* blue-500 */
+        /* Use Inter as the default font */
+        body {
+            font-family: 'Inter', sans-serif;
         }
-        .bg-primary { background-color: var(--primary-color); }
-        .text-primary { color: var(--primary-color); }
-        .border-primary { border-color: var(--primary-color); }
-        .btn-primary {
-            background-color: var(--secondary-color);
-            transition: background-color 0.3s ease;
+        /* Custom scrollbar for a better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-        .btn-primary:hover {
-            background-color: var(--primary-color);
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
         }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Style for disabled elements */
+        select:disabled, button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
     </style>
 </head>
-<body class="bg-gray-100 font-sans" x-data="dashboard()">
-    <!-- Loading Overlay -->
-    <div x-show="isLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
-    </div>
+<body class="bg-gray-50 text-gray-800">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-40">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <!-- Logo and Title -->
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-indigo-600 p-2 rounded-lg">
+                            <i data-lucide="users" class="text-white"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-900">iCount People Analytics</h1>
+                    </div>
 
-    <!-- Error Notifications -->
-    <div class="fixed top-5 right-5 z-40 w-full max-w-sm">
-        <template x-for="(error, index) in errors" :key="index">
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-3 rounded-md shadow-lg" role="alert">
-                <div class="flex">
-                    <div class="py-1"><svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8v2h2v-2H9z"/></svg></div>
-                    <div>
-                        <p class="font-bold" x-text="`Lỗi tại: ${error.store_name || 'Không xác định'}`"></p>
-                        <p class="text-sm" x-text="error.error_message"></p>
-                        <p class="text-xs text-gray-600" x-text="new Date(error.log_time).toLocaleString('vi-VN')"></p>
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <button id="notification-button" class="relative p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <i data-lucide="bell" class="text-gray-600"></i>
+                            <!-- Notification Badge -->
+                            <span class="absolute top-0 right-0 flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-white text-[8px] items-center justify-center">3</span>
+                            </span>
+                        </button>
+                        <!-- Notification Dropdown -->
+                        <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl overflow-hidden z-50 border">
+                            <div class="p-3 font-semibold text-sm border-b">Thông báo lỗi (ErrLog)</div>
+                            <ul class="divide-y max-h-80 overflow-y-auto">
+                                <!-- Dummy Error Log Items -->
+                                <li class="p-3 hover:bg-gray-50">
+                                    <p class="text-sm font-medium text-red-600">[Store 1] - Error 503</p>
+                                    <p class="text-xs text-gray-500 mt-1">Camera connection lost</p>
+                                    <p class="text-xs text-gray-400 mt-1">2025-07-21 10:30:15</p>
+                                </li>
+                                <li class="p-3 hover:bg-gray-50">
+                                    <p class="text-sm font-medium text-orange-500">[Store 2] - Error 408</p>
+                                    <p class="text-xs text-gray-500 mt-1">Data sync timeout</p>
+                                    <p class="text-xs text-gray-400 mt-1">2025-07-21 09:15:02</p>
+                                </li>
+                                <li class="p-3 hover:bg-gray-50">
+                                    <p class="text-sm font-medium text-red-600">[Store 1] - Error 500</p>
+                                    <p class="text-xs text-gray-500 mt-1">Internal server error on device</p>
+                                    <p class="text-xs text-gray-400 mt-1">2025-07-20 18:05:45</p>
+                                </li>
+                            </ul>
+                            <a href="#" class="block text-center p-2 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-indigo-600">Xem tất cả</a>
+                        </div>
                     </div>
                 </div>
             </div>
-        </template>
-    </div>
-
-    <div class="container mx-auto p-4 md:p-6 lg:p-8">
-        <!-- Header -->
-        <header class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">iCount People Dashboard</h1>
-            <p class="text-gray-500">Phân tích dữ liệu ra vào cửa hàng</p>
         </header>
 
-        <!-- Filters -->
-        <div class="bg-white p-4 rounded-lg shadow-md mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <!-- Store Filter -->
-                <div>
-                    <label for="store" class="block text-sm font-medium text-gray-700">Cửa hàng</label>
-                    <select id="store" x-model="filters.storeId" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="">Tất cả cửa hàng</option>
-                        <template x-for="store in stores" :key="store.tid">
-                            <option :value="store.tid" x-text="store.name"></option>
-                        </template>
-                    </select>
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Filter Section -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border mb-8">
+                <h2 class="text-lg font-semibold mb-4 text-gray-700">Bộ lọc dữ liệu</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+                    <!-- Store Filter -->
+                    <div>
+                        <label for="store-filter" class="block text-sm font-medium text-gray-700 mb-1">Cửa hàng</label>
+                        <select id="store-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Tất cả cửa hàng</option>
+                            <!-- Dummy store data. This should be populated from the API /stores -->
+                            <option value="1">Store 1 - Vincom Landmark 81</option>
+                            <option value="2">Store 2 - Crescent Mall</option>
+                            <option value="3">Store 3 - SC VivoCity</option>
+                        </select>
+                    </div>
+
+                    <!-- Year Filter -->
+                    <div>
+                        <label for="year-filter" class="block text-sm font-medium text-gray-700 mb-1">Năm</label>
+                        <select id="year-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Tất cả năm</option>
+                            <option value="2025" selected>2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                        </select>
+                    </div>
+
+                    <!-- Month Filter -->
+                    <div>
+                        <label for="month-filter" class="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
+                        <select id="month-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Tất cả tháng</option>
+                            <option value="7" selected>Tháng 7</option>
+                            <!-- Other months would be populated by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Week Filter -->
+                    <div>
+                        <label for="week-filter" class="block text-sm font-medium text-gray-700 mb-1">Tuần</label>
+                        <select id="week-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Tất cả tuần</option>
+                            <option value="1">Tuần 1 (1-7)</option>
+                            <option value="2">Tuần 2 (8-14)</option>
+                            <option value="3" selected>Tuần 3 (15-21)</option>
+                            <option value="4">Tuần 4 (22-28)</option>
+                            <option value="5">Tuần 5 (29-31)</option>
+                        </select>
+                    </div>
+
+                    <!-- Day Filter -->
+                    <div>
+                        <label for="day-filter" class="block text-sm font-medium text-gray-700 mb-1">Ngày</label>
+                        <select id="day-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="all">Tất cả ngày</option>
+                            <option value="21" selected>Ngày 21</option>
+                            <!-- Other days populated by JS -->
+                        </select>
+                    </div>
+
+                    <!-- Apply Button -->
+                    <button class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center space-x-2">
+                        <i data-lucide="filter"></i>
+                        <span>Áp dụng</span>
+                    </button>
                 </div>
-                <!-- Start Date -->
-                <div>
-                    <label for="start_date" class="block text-sm font-medium text-gray-700">Từ ngày</label>
-                    <input type="date" id="start_date" x-model="filters.startDate" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                </div>
-                <!-- End Date -->
-                <div>
-                    <label for="end_date" class="block text-sm font-medium text-gray-700">Đến ngày</label>
-                    <input type="date" id="end_date" x-model="filters.endDate" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                </div>
-                <!-- Action Button -->
-                <button @click="fetchCrowdData()" class="w-full btn-primary text-white font-bold py-2 px-4 rounded-md shadow-md hover:shadow-lg">
-                    Lọc dữ liệu
-                </button>
             </div>
-        </div>
 
-        <!-- Main Content Grid -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i data-lucide="log-in" class="text-green-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Tổng lượt vào</p>
+                        <p class="text-3xl font-bold text-gray-900">1,280</p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i data-lucide="log-out" class="text-red-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Tổng lượt ra</p>
+                        <p class="text-3xl font-bold text-gray-900">1,150</p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i data-lucide="users-2" class="text-blue-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Khách trong cửa hàng (hiện tại)</p>
+                        <p class="text-3xl font-bold text-gray-900">130</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Chart Section -->
-            <section class="lg:col-span-2 bg-white p-4 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Biểu đồ lưu lượng</h2>
+            <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700">Biểu đồ lưu lượng khách (Theo giờ)</h3>
                 <div class="h-96">
-                    <canvas id="crowdChart"></canvas>
+                    <canvas id="trafficChart"></canvas>
                 </div>
-            </section>
+            </div>
 
-            <!-- Summary Tables Section -->
-            <section class="lg:col-span-1 space-y-6">
-                <!-- Daily Summary -->
-                <div class="bg-white p-4 rounded-lg shadow-md">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Tổng hợp theo ngày</h3>
-                    <div class="max-h-96 overflow-y-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vào</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ra</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <template x-if="!crowdData.summary_by_day || crowdData.summary_by_day.length === 0">
-                                    <tr><td colspan="3" class="text-center py-4 text-gray-500">Không có dữ liệu.</td></tr>
-                                </template>
-                                <template x-for="day in crowdData.summary_by_day" :key="day.date">
-                                    <tr>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800" x-text="day.date"></td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-green-600 font-semibold" x-text="day.in_num"></td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-red-600 font-semibold" x-text="day.out_num"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Data Table Section -->
+            <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold text-gray-700">Bảng dữ liệu chi tiết (num_crowd)</h3>
+                    <p class="text-sm text-gray-500">Hiển thị dữ liệu theo bộ lọc đã chọn.</p>
                 </div>
-
-                <!-- Hourly Summary (for single day view) -->
-                <div class="bg-white p-4 rounded-lg shadow-md" x-show="isSingleDayView()">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Tổng hợp theo giờ</h3>
-                    <div class="max-h-96 overflow-y-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giờ</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vào</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ra</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <template x-if="!crowdData.summary_by_hour || crowdData.summary_by_hour.length === 0">
-                                     <tr><td colspan="3" class="text-center py-4 text-gray-500">Không có dữ liệu.</td></tr>
-                                </template>
-                                <template x-for="hour in crowdData.summary_by_hour" :key="hour.hour">
-                                    <tr>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-800" x-text="new Date(hour.hour).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})"></td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-green-600 font-semibold" x-text="hour.in_num"></td>
-                                        <td class="px-4 py-2 whitespace-nowrap text-sm text-red-600 font-semibold" x-text="hour.out_num"></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Thời gian (recordtime)</th>
+                                <th scope="col" class="px-6 py-3">Cửa hàng (storeid)</th>
+                                <th scope="col" class="px-6 py-3 text-center text-green-600">Lượt vào (in_num)</th>
+                                <th scope="col" class="px-6 py-3 text-center text-red-600">Lượt ra (out_num)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dummy data rows. This should be populated by API call to /crowd -->
+                            <tr class="bg-white border-b hover:bg-gray-50">
+                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 15:00:00</th>
+                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
+                                <td class="px-6 py-4 text-center font-semibold text-green-700">25</td>
+                                <td class="px-6 py-4 text-center font-semibold text-red-700">18</td>
+                            </tr>
+                            <tr class="bg-gray-50 border-b hover:bg-gray-100">
+                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 14:00:00</th>
+                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
+                                <td class="px-6 py-4 text-center font-semibold text-green-700">32</td>
+                                <td class="px-6 py-4 text-center font-semibold text-red-700">28</td>
+                            </tr>
+                            <tr class="bg-white border-b hover:bg-gray-50">
+                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 13:00:00</th>
+                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
+                                <td class="px-6 py-4 text-center font-semibold text-green-700">45</td>
+                                <td class="px-6 py-4 text-center font-semibold text-red-700">40</td>
+                            </tr>
+                            <tr class="bg-gray-50 border-b hover:bg-gray-100">
+                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 12:00:00</th>
+                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
+                                <td class="px-6 py-4 text-center font-semibold text-green-700">60</td>
+                                <td class="px-6 py-4 text-center font-semibold text-red-700">55</td>
+                            </tr>
+                            <tr class="bg-white border-b hover:bg-gray-50">
+                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 11:00:00</th>
+                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
+                                <td class="px-6 py-4 text-center font-semibold text-green-700">38</td>
+                                <td class="px-6 py-4 text-center font-semibold text-red-700">30</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </section>
+                <!-- Pagination -->
+                <nav class="flex items-center justify-between p-4" aria-label="Table navigation">
+                    <span class="text-sm font-normal text-gray-500">Showing <span class="font-semibold text-gray-900">1-5</span> of <span class="font-semibold text-gray-900">100</span></span>
+                    <ul class="inline-flex items-center -space-x-px">
+                        <li>
+                            <a href="#" class="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700">Previous</a>
+                        </li>
+                        <li>
+                            <a href="#" class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </main>
+
+        <!-- Footer -->
+        <footer class="bg-white mt-8">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
+                &copy; 2025 iCount People Application. All Rights Reserved.
+            </div>
+        </footer>
     </div>
 
     <script>
-        function dashboard() {
-            return {
-                // --- State ---
-                isLoading: true,
-                stores: [],
-                errors: [],
-                crowdData: {
-                    raw_data: [],
-                    summary_by_day: [],
-                    summary_by_hour: []
-                },
-                filters: {
-                    storeId: '',
-                    startDate: '',
-                    endDate: ''
-                },
-                chart: null,
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Lucide Icons Initialization ---
+            lucide.createIcons();
 
-                // --- Initialization ---
-                init() {
-                    // Set default dates
-                    const today = new Date();
-                    this.filters.startDate = today.toISOString().split('T')[0];
-                    this.filters.endDate = today.toISOString().split('T')[0];
+            // --- Notification Dropdown Logic ---
+            const notificationButton = document.getElementById('notification-button');
+            const notificationDropdown = document.getElementById('notification-dropdown');
 
-                    // Initial data fetch
-                    Promise.all([
-                        this.fetchStores(),
-                        this.fetchRecentErrors(),
-                        this.fetchCrowdData()
-                    ]).finally(() => {
-                        this.isLoading = false;
-                    });
+            notificationButton.addEventListener('click', () => {
+                notificationDropdown.classList.toggle('hidden');
+            });
 
-                    // Auto-refresh errors every 60 seconds
-                    setInterval(() => this.fetchRecentErrors(), 60000);
-                },
-
-                // --- Data Fetching Methods ---
-                async fetchStores() {
-                    try {
-                        const response = await fetch('/api/stores');
-                        if (!response.ok) throw new Error('Network response was not ok');
-                        this.stores = await response.json();
-                    } catch (error) {
-                        console.error('Failed to fetch stores:', error);
-                        alert('Không thể tải danh sách cửa hàng.');
-                    }
-                },
-                async fetchRecentErrors() {
-                    try {
-                        const response = await fetch('/api/errors/recent');
-                        if (!response.ok) throw new Error('Network response was not ok');
-                        this.errors = await response.json();
-                    } catch (error) {
-                        console.error('Failed to fetch errors:', error);
-                    }
-                },
-                async fetchCrowdData() {
-                    this.isLoading = true;
-                    const params = new URLSearchParams();
-                    // FastAPI expects end_date to be the day after the selected end date for a full day query
-                    const endDateForQuery = new Date(this.filters.endDate);
-                    endDateForQuery.setDate(endDateForQuery.getDate() + 1);
-
-                    params.append('start_date', this.filters.startDate);
-                    params.append('end_date', endDateForQuery.toISOString().split('T')[0]);
-                    if (this.filters.storeId) {
-                        params.append('store_id', this.filters.storeId);
-                    }
-
-                    try {
-                        const response = await fetch(`/api/crowds?${params.toString()}`);
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                        this.crowdData = await response.json();
-                        this.updateChart();
-                    } catch (error) {
-                        console.error('Failed to fetch crowd data:', error);
-                        alert('Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại.');
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                // --- UI Logic ---
-                isSingleDayView() {
-                    return this.filters.startDate === this.filters.endDate;
-                },
-
-                // --- Charting ---
-                updateChart() {
-                    const ctx = document.getElementById('crowdChart').getContext('2d');
-                    let labels, inData, outData, chartTitle;
-
-                    if (this.isSingleDayView()) {
-                        // Use hourly data for single day view
-                        const hourlySummary = this.crowdData.summary_by_hour.sort((a,b) => new Date(a.hour) - new Date(b.hour));
-                        labels = hourlySummary.map(d => new Date(d.hour).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
-                        inData = hourlySummary.map(d => d.in_num);
-                        outData = hourlySummary.map(d => d.out_num);
-                        chartTitle = `Lưu lượng trong ngày ${new Date(this.filters.startDate).toLocaleDateString('vi-VN')}`;
-                    } else {
-                        // Use daily data for date range view
-                        const dailySummary = this.crowdData.summary_by_day.sort((a,b) => new Date(a.date) - new Date(b.date));
-                        labels = dailySummary.map(d => d.date);
-                        inData = dailySummary.map(d => d.in_num);
-                        outData = dailySummary.map(d => d.out_num);
-                        chartTitle = 'Tổng hợp lưu lượng theo ngày';
-                    }
-
-                    if (this.chart) {
-                        this.chart.destroy();
-                    }
-
-                    this.chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Lượt vào',
-                                data: inData,
-                                borderColor: 'rgb(54, 162, 235)',
-                                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                                tension: 0.1,
-                                fill: true,
-                            }, {
-                                label: 'Lượt ra',
-                                data: outData,
-                                borderColor: 'rgb(255, 99, 132)',
-                                backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                                tension: 0.1,
-                                fill: true,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'top' },
-                                title: { display: true, text: chartTitle, font: { size: 16 } }
-                            },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
+            // Close dropdown if clicked outside
+            window.addEventListener('click', function(e) {
+                if (!notificationButton.contains(e.target) && !notificationDropdown.contains(e.target)) {
+                    notificationDropdown.classList.add('hidden');
                 }
+            });
+
+            // --- Filter Logic (Placeholder) ---
+            // In a real application, you would add event listeners to the select elements.
+            // When a filter changes, you would make an API call to your FastAPI backend
+            // to get the updated data and then re-render the chart and table.
+
+            const yearFilter = document.getElementById('year-filter');
+            const monthFilter = document.getElementById('month-filter');
+            const dayFilter = document.getElementById('day-filter');
+
+            yearFilter.addEventListener('change', (e) => {
+                console.log(`Year changed to: ${e.target.value}`);
+                // TODO: API call to fetch available months for the selected year
+                // Then populate the monthFilter select element.
+                // For now, we just enable/disable it.
+                monthFilter.disabled = e.target.value === 'all';
+                dayFilter.disabled = true; // Day should be disabled until a month is chosen
+            });
+
+            monthFilter.addEventListener('change', (e) => {
+                console.log(`Month changed to: ${e.target.value}`);
+                // TODO: API call to fetch available days for the selected month and year
+                // Then populate the dayFilter select element.
+                dayFilter.disabled = e.target.value === 'all';
+            });
+
+            // --- Chart.js Implementation ---
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+
+            // Dummy data for the chart. This should be fetched from your API.
+            const chartData = {
+                labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'],
+                datasets: [
+                    {
+                        label: 'Lượt vào (In)',
+                        data: [12, 19, 38, 60, 45, 32, 25, 35, 55, 70, 85, 65],
+                        borderColor: 'rgba(16, 185, 129, 1)', // green-500
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                    },
+                    {
+                        label: 'Lượt ra (Out)',
+                        data: [8, 15, 30, 55, 40, 28, 18, 28, 48, 65, 80, 60],
+                        borderColor: 'rgba(239, 68, 68, 1)', // red-500
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                    }
+                ]
+            };
+
+            const trafficChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#e5e7eb' // gray-200
+                            }
+                        },
+                        x: {
+                           grid: {
+                                display: false
+                           }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                usePointStyle: true,
+                                boxWidth: 8
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#1f2937', // gray-800
+                            titleFont: {
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 14
+                            },
+                            padding: 12,
+                            cornerRadius: 6
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+
+            // Function to update chart (example)
+            // In a real app, you'd call this after a successful API fetch
+            function updateDashboard(newData) {
+                // Update summary cards
+                // ...
+
+                // Update chart
+                trafficChart.data.labels = newData.labels;
+                trafficChart.data.datasets[0].data = newData.in_num;
+                trafficChart.data.datasets[1].data = newData.out_num;
+                trafficChart.update();
+
+                // Update data table
+                // ...
             }
-        }
+        });
     </script>
 </body>
 </html>
