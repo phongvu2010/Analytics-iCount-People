@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from typing import Optional
 
 from . import models
 
@@ -22,7 +23,7 @@ def get_recent_errors(db: Session, limit: int = 10):
     """
     return db.execute(text(query), {'limit': limit}).fetchall()
 
-def get_crowd_data(db: Session, start_date: datetime, end_date: datetime, store_id: int = None):
+def get_crowd_data(db: Session, start_date: Optional[datetime], end_date: Optional[datetime], store_id: int = None):
     """ Lấy dữ liệu ra vào thô và tổng hợp """
     base_query = """
     SELECT
@@ -32,13 +33,26 @@ def get_crowd_data(db: Session, start_date: datetime, end_date: datetime, store_
         s.name as store_name
     FROM dbo.num_crowd nc
     JOIN dbo.store s ON nc.storeid = s.tid
-    WHERE nc.recordtime BETWEEN :start_date AND :end_date
     """
-    params = {'start_date': start_date, 'end_date': end_date}
+    params = {}
+    conditions = []
+
+    # Thay đổi: Xây dựng query một cách linh hoạt
+    if start_date:
+        conditions.append('nc.recordtime >= :start_date')
+        params['start_date'] = start_date
+    
+    if end_date:
+        # Thay đổi: Sử dụng '<' thay vì BETWEEN để chính xác hơn
+        conditions.append('nc.recordtime < :end_date')
+        params['end_date'] = end_date
 
     if store_id:
-        base_query += " AND nc.storeid = :store_id"
+        conditions.append('nc.storeid = :store_id')
         params['store_id'] = store_id
+
+    if conditions:
+        base_query += ' WHERE ' + ' AND '.join(conditions)
 
     # Đọc dữ liệu vào Pandas DataFrame
     df = pd.read_sql(text(base_query), db.bind, params=params, parse_dates=['recordtime'])

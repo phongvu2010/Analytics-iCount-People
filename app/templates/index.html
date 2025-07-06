@@ -234,10 +234,14 @@
         document.addEventListener('DOMContentLoaded', function () {
             // --- Configuration ---
             // FIXED: Provide an absolute URL for the backend API to prevent parsing errors.
-            const API_BASE_URL = 'http://127.0.0.1:8000';
-            const STORES_API = `${API_BASE_URL}/api/stores/`;
-            const CROWD_API = `${API_BASE_URL}/api/crowds/`;
-            const ERRORS_API = `${API_BASE_URL}/api/errors/recent`; // UPDATED: Correct endpoint from error_log.py
+            // const API_BASE_URL = 'http://127.0.0.1:8000';
+            // const STORES_API = `${API_BASE_URL}/api/stores/`;
+            // const CROWD_API = `${API_BASE_URL}/api/crowds/`;
+            // const ERRORS_API = `${API_BASE_URL}/api/errors/recent`; // UPDATED: Correct endpoint from error_log.py
+            const STORES_API = `/api/stores/`;
+            const CROWD_API = `/api/crowds/`;
+            const ERRORS_API = `/api/errors/recent/`; // Thêm dấu / cuối cho nhất quán
+
             const ITEMS_PER_PAGE = 10;
 
             // --- Element References ---
