@@ -12,10 +12,10 @@ def connectDB():
     env = st.secrets['development']
 
     db_host = env['DB_HOST']
-    db_port = parse.quote_plus(str(env['DB_PORT']))
+    db_port = env['DB_PORT']
     db_name = env['DB_NAME']
-    db_user = parse.quote_plus(env['DB_USER'])
-    db_pass = parse.quote_plus(env['DB_PASS'])
+    db_user = env['DB_USER']
+    db_pass = parse.quote_plus(str(env['DB_PASS']))
 
     DATABASE_URL = f'mssql+pyodbc://{ db_user }:{ db_pass }@{ db_host }:{ db_port }/{ db_name }?driver=SQL Server'
 
