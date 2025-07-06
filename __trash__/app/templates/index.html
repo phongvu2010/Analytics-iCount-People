@@ -16,6 +16,8 @@
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/locale/vi/index.js"></script>
+
 
     <!-- Lucide Icons for modern icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -70,6 +72,15 @@
             justify-content: center;
             z-index: 50;
         }
+        /* Styles for View Mode Switcher */
+        .view-mode-btn {
+            @apply px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-indigo-700 focus:z-10 focus:ring-2 focus:ring-indigo-700 focus:text-indigo-700;
+        }
+        .view-mode-btn:first-child { @apply rounded-l-lg; }
+        .view-mode-btn:last-child { @apply rounded-r-lg border-r; }
+        .view-mode-btn.active-view {
+            @apply bg-indigo-600 text-white hover:bg-indigo-700;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -90,17 +101,14 @@
                     <div class="relative">
                         <button id="notification-button" class="relative p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             <i data-lucide="bell" class="text-gray-600"></i>
-                            <!-- Notification Badge -->
                             <span id="notification-badge-container" class="absolute top-0 right-0 flex h-3 w-3 hidden">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span id="notification-count" class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-white text-[8px] items-center justify-center">0</span>
                             </span>
                         </button>
-                        <!-- Notification Dropdown -->
                         <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl overflow-hidden z-50 border">
                             <div class="p-3 font-semibold text-sm border-b">Thông báo lỗi (ErrLog)</div>
                             <ul id="error-log-list" class="divide-y max-h-80 overflow-y-auto">
-                                <!-- Error log items will be populated by JS -->
                                 <li class="p-4 text-center text-gray-500">Không có lỗi mới.</li>
                             </ul>
                             <a href="#" class="block text-center p-2 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-indigo-600">Xem tất cả</a>
@@ -114,51 +122,55 @@
         <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Filter Section -->
             <div class="bg-white p-4 rounded-lg shadow-sm border mb-8">
-                <h2 class="text-lg font-semibold mb-4 text-gray-700">Bộ lọc dữ liệu</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-                    <!-- Store Filter -->
-                    <div>
+                <div class="flex justify-between items-center mb-4">
+                     <h2 class="text-lg font-semibold text-gray-700">Bộ lọc dữ liệu</h2>
+                     <div id="view-mode-switcher" class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" data-view="year" class="view-mode-btn">Năm</button>
+                        <button type="button" data-view="month" class="view-mode-btn">Tháng</button>
+                        <button type="button" data-view="week" class="view-mode-btn">Tuần</button>
+                        <button type="button" data-view="day" class="view-mode-btn">Ngày</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+                    <div id="store-filter-container">
                         <label for="store-filter" class="block text-sm font-medium text-gray-700 mb-1">Cửa hàng</label>
                         <select id="store-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="all">Tất cả cửa hàng</option>
-                            <!-- Populated by JS from /api/stores -->
                         </select>
                     </div>
 
-                    <!-- Year, Month, Week, Day Filters -->
-                    <div>
+                    <div id="year-filter-container">
                         <label for="year-filter" class="block text-sm font-medium text-gray-700 mb-1">Năm</label>
                         <select id="year-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-                    <div>
+                    <div id="month-filter-container">
                         <label for="month-filter" class="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
                         <select id="month-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-                    <div>
+                    <div id="week-filter-container">
                         <label for="week-filter" class="block text-sm font-medium text-gray-700 mb-1">Tuần</label>
                         <select id="week-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-                    <div>
+                    <div id="day-filter-container">
                         <label for="day-filter" class="block text-sm font-medium text-gray-700 mb-1">Ngày</label>
                         <select id="day-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
 
-                    <!-- Apply Button -->
                     <button id="apply-filter-button" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center space-x-2">
                         <i data-lucide="filter"></i>
                         <span>Áp dụng</span>
                     </button>
                 </div>
+                 <p id="filter-error-message" class="text-red-600 text-sm mt-2 hidden"></p>
             </div>
 
             <div id="dashboard-content" class="relative">
-                 <!-- Loading Overlay -->
                 <div id="loading-overlay" class="loading-overlay hidden">
                     <div class="loader"></div>
                 </div>
 
-                <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="max-w-sm mx-auto mb-8">
                     <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
                         <div class="bg-green-100 p-3 rounded-full"><i data-lucide="log-in" class="text-green-600"></i></div>
                         <div>
@@ -166,51 +178,32 @@
                             <p id="total-in" class="text-3xl font-bold text-gray-900">0</p>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
-                        <div class="bg-red-100 p-3 rounded-full"><i data-lucide="log-out" class="text-red-600"></i></div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">Tổng lượt ra</p>
-                            <p id="total-out" class="text-3xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
-                        <div class="bg-blue-100 p-3 rounded-full"><i data-lucide="users-2" class="text-blue-600"></i></div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">Chênh lệch</p>
-                            <p id="total-diff" class="text-3xl font-bold text-gray-900">0</p>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Chart Section -->
                 <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
-                    <h3 id="chart-title" class="text-lg font-semibold mb-4 text-gray-700">Biểu đồ lưu lượng khách</h3>
+                    <h3 id="chart-title" class="text-lg font-semibold mb-4 text-gray-700">Biểu đồ lưu lượng khách (Lượt vào)</h3>
                     <div class="h-96"><canvas id="trafficChart"></canvas></div>
                 </div>
 
-                <!-- Data Table Section -->
                 <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
                     <div class="p-4 border-b">
-                        <h3 class="text-lg font-semibold text-gray-700">Bảng dữ liệu chi tiết (num_crowd)</h3>
-                        <p class="text-sm text-gray-500">Hiển thị dữ liệu thô theo bộ lọc đã chọn (tối đa 1000 dòng gần nhất).</p>
+                        <h3 class="text-lg font-semibold text-gray-700">Bảng dữ liệu chi tiết (Lượt vào)</h3>
+                        <p class="text-sm text-gray-500">Hiển thị dữ liệu thô (tối đa 1000 dòng gần nhất).</p>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left text-gray-500">
                             <thead class="text-xs text-gray-700 uppercase bg-gray-100">
                                 <tr>
                                     <th scope="col" class="px-6 py-3">Thời gian (recordtime)</th>
-                                    <th scope="col" class="px-6 py-3">Cửa hàng</th>
-                                    <th scope="col" class="px-6 py-3 text-center text-green-600">Lượt vào (in_num)</th>
-                                    <th scope="col" class="px-6 py-3 text-center text-red-600">Lượt ra (out_num)</th>
+                                    <th scope="col" class="px-6 py-3 text-center">Lượt vào (in_num)</th>
+                                    <th scope="col" class="px-6 py-3 text-center">Chênh lệch (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="crowd-data-table-body">
-                                <!-- Data rows populated by JS -->
-                                <tr><td colspan="4" class="text-center p-8 text-gray-500">Vui lòng chọn bộ lọc và nhấn "Áp dụng".</td></tr>
+                                <tr><td colspan="3" class="text-center p-8 text-gray-500">Vui lòng chọn bộ lọc và nhấn "Áp dụng".</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <!-- Pagination -->
                     <nav id="pagination-nav" class="flex items-center justify-between p-4" aria-label="Table navigation">
                         <span id="pagination-info" class="text-sm font-normal text-gray-500">Showing <span class="font-semibold text-gray-900">0-0</span> of <span class="font-semibold text-gray-900">0</span></span>
                         <ul class="inline-flex items-center -space-x-px">
@@ -222,7 +215,6 @@
             </div>
         </main>
 
-        <!-- Footer -->
         <footer class="bg-white mt-8">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
                 &copy; 2025 iCount People Application. All Rights Reserved.
@@ -254,19 +246,21 @@
             const loadingOverlay = document.getElementById('loading-overlay');
             const tableBody = document.getElementById('crowd-data-table-body');
             const chartTitle = document.getElementById('chart-title');
-
             const totalInEl = document.getElementById('total-in');
-            const totalOutEl = document.getElementById('total-out');
-            const totalDiffEl = document.getElementById('total-diff');
-
             const paginationInfo = document.getElementById('pagination-info');
             const prevPageBtn = document.getElementById('prev-page');
             const nextPageBtn = document.getElementById('next-page');
+            const viewModeSwitcher = document.getElementById('view-mode-switcher');
+            const filterErrorMessage = document.getElementById('filter-error-message');
 
+            // --- State ---
             let trafficChart;
             let currentPage = 1;
             let totalPages = 1;
             let currentRawData = [];
+            let currentSummaryDay = [];
+            let currentSummaryHour = [];
+            let currentView = 'year'; 
 
             // --- Helper Functions ---
             const showLoading = () => loadingOverlay.classList.remove('hidden');
@@ -279,6 +273,11 @@
                 const day = d.getDate().toString().padStart(2, '0');
                 return `${year}-${month}-${day}`;
             }
+            const showFilterError = (message) => {
+                filterErrorMessage.textContent = message;
+                filterErrorMessage.classList.remove('hidden');
+            }
+            const hideFilterError = () => filterErrorMessage.classList.add('hidden');
 
             // --- API Fetch Functions ---
             async function fetchAndPopulateStores() {
@@ -286,7 +285,6 @@
                     const response = await fetch(STORES_API);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const data = await response.json();
-
                     storeFilter.innerHTML = `<option value="all">Tất cả cửa hàng</option>`;
                     data.forEach(item => {
                         const option = document.createElement('option');
@@ -305,33 +303,23 @@
                     const response = await fetch(ERRORS_API);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const errors = await response.json();
-
                     const errorList = document.getElementById('error-log-list');
                     const badgeContainer = document.getElementById('notification-badge-container');
                     const countBadge = document.getElementById('notification-count');
-
                     errorList.innerHTML = '';
                     if (errors.length === 0) {
                         errorList.innerHTML = '<li class="p-4 text-center text-gray-500">Không có lỗi mới.</li>';
                         badgeContainer.classList.add('hidden');
                         return;
                     }
-
                     errors.forEach(err => {
                         const li = document.createElement('li');
                         li.className = 'p-3 hover:bg-gray-50';
-                        // UPDATED: Match the response from services.get_recent_errors
-                        li.innerHTML = `
-                            <p class="text-sm font-medium text-red-600">[${err.store_name}]</p>
-                            <p class="text-xs text-gray-500 mt-1">${err.error_message}</p>
-                            <p class="text-xs text-gray-400 mt-1">${new Date(err.log_time).toLocaleString('vi-VN')}</p>
-                        `;
+                        li.innerHTML = `<p class="text-sm font-medium text-red-600">[${err.store_name}]</p><p class="text-xs text-gray-500 mt-1">${err.error_message}</p><p class="text-xs text-gray-400 mt-1">${new Date(err.log_time).toLocaleString('vi-VN')}</p>`;
                         errorList.appendChild(li);
                     });
-
                     countBadge.textContent = errors.length;
                     badgeContainer.classList.remove('hidden');
-
                 } catch (error) {
                     console.error('Error fetching error logs:', error);
                 }
@@ -341,41 +329,37 @@
             function populateDateFilters() {
                 const now = new Date();
                 const currentYear = now.getFullYear();
-
-                yearFilter.innerHTML = '<option value="all">Tất cả năm</option>';
+                yearFilter.innerHTML = ''; 
                 for (let y = currentYear; y >= currentYear - 5; y--) {
                     yearFilter.innerHTML += `<option value="${y}">${y}</option>`;
                 }
-                yearFilter.value = 'all'; // Default to all
-
-                monthFilter.innerHTML = '<option value="all">Tất cả tháng</option>';
+                monthFilter.innerHTML = '<option value="all" selected>Chọn tháng</option>';
                 for (let m = 1; m <= 12; m++) {
                     monthFilter.innerHTML += `<option value="${m}">Tháng ${m}</option>`;
                 }
-                monthFilter.value = 'all';
-
-                dayFilter.innerHTML = '<option value="all">Tất cả ngày</option>';
-                weekFilter.innerHTML = '<option value="all">Tất cả tuần</option>';
-
-                handleFilterDependencies();
+                dayFilter.innerHTML = '<option value="all" selected>Chọn ngày</option>';
+                weekFilter.innerHTML = '<option value="all" selected>Chọn tuần</option>';
             }
 
             function updateDays() {
                 const year = yearFilter.value;
                 const month = monthFilter.value;
-                const daysInMonth = (year === 'all' || month === 'all') ? 31 : new Date(year, month, 0).getDate();
                 const currentDay = dayFilter.value;
-                dayFilter.innerHTML = '<option value="all">Tất cả ngày</option>';
-                for (let d = 1; d <= daysInMonth; d++) {
-                    dayFilter.innerHTML += `<option value="${d}">Ngày ${d}</option>`;
+                dayFilter.innerHTML = '<option value="all" selected>Chọn ngày</option>';
+                if (year !== 'all' && month !== 'all') {
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        dayFilter.innerHTML += `<option value="${d}">Ngày ${d}</option>`;
+                    }
+                    dayFilter.value = currentDay <= daysInMonth ? currentDay : 'all';
                 }
-                dayFilter.value = currentDay <= daysInMonth ? currentDay : 'all';
             }
 
             function updateWeeks() {
                 const year = yearFilter.value;
                 const month = monthFilter.value;
-                weekFilter.innerHTML = '<option value="all">Tất cả tuần</option>';
+                const currentWeek = weekFilter.value;
+                weekFilter.innerHTML = '<option value="all" selected>Chọn tuần</option>';
                 if (year !== 'all' && month !== 'all') {
                     const lastDayOfMonth = new Date(year, month, 0).getDate();
                     let weekNumber = 1;
@@ -383,60 +367,60 @@
                     while(dayCounter <= lastDayOfMonth) {
                         let endOfWeek = dayCounter + 6;
                         if (endOfWeek > lastDayOfMonth) endOfWeek = lastDayOfMonth;
-                        // Store start and end dates in the option value
                         const weekValue = `${dayCounter}-${endOfWeek}`;
                         weekFilter.innerHTML += `<option value="${weekValue}">Tuần ${weekNumber} (${dayCounter}-${endOfWeek})</option>`;
                         dayCounter = endOfWeek + 1;
                         weekNumber++;
                     }
+                    weekFilter.value = currentWeek;
                 }
             }
-
-            function handleFilterDependencies() {
-                const year = yearFilter.value;
-                const month = monthFilter.value;
-                const week = weekFilter.value;
-                const day = dayFilter.value;
-
-                monthFilter.disabled = year === 'all';
-                weekFilter.disabled = year === 'all' || month === 'all';
-                dayFilter.disabled = year === 'all' || month === 'all' || week !== 'all';
-
-                if (week !== 'all') {
-                    dayFilter.value = 'all';
-                    dayFilter.disabled = true;
+            
+            function updateFilterVisibility() {
+                const containers = {
+                    month: document.getElementById('month-filter-container'),
+                    week: document.getElementById('week-filter-container'),
+                    day: document.getElementById('day-filter-container'),
+                };
+                Object.values(containers).forEach(c => c.style.display = 'none');
+                
+                if (currentView === 'month' || currentView === 'week' || currentView === 'day') {
+                    containers.month.style.display = 'block';
                 }
-                if (day !== 'all') {
-                    weekFilter.value = 'all';
-                    weekFilter.disabled = true;
+                if (currentView === 'week') {
+                    containers.week.style.display = 'block';
+                }
+                if (currentView === 'day') {
+                    containers.day.style.display = 'block';
                 }
             }
 
             // --- Main Data Handling ---
             async function fetchData() {
+                hideFilterError();
+                const range = calculateDateRange();
+
+                // Validate range before fetching
+                if (!range) {
+                    showFilterError('Vui lòng chọn đầy đủ thông tin (Tháng, Tuần, hoặc Ngày) cho chế độ xem này.');
+                    return;
+                }
+
                 showLoading();
-
-                // NEW: Calculate date range from filters
-                const { start_date, end_date } = calculateDateRange();
-
                 const params = new URLSearchParams();
                 if (storeFilter.value !== 'all') params.append('store_id', storeFilter.value);
-                // The API handles null/empty start_date and end_date
-                if (start_date) params.append('start_date', start_date);
-                if (end_date) params.append('end_date', end_date);
+                params.append('start_date', range.start_date);
+                params.append('end_date', range.end_date);
 
                 try {
                     const response = await fetch(`${CROWD_API}?${params.toString()}`);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const data = await response.json();
-
-                    // UPDATED: Handle the new data structure from the API
                     updateDashboard(data);
-
                 } catch (error) {
                     console.error('Error fetching crowd data:', error);
-                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-red-500">Lỗi khi tải dữ liệu. Vui lòng kiểm tra console.</td></tr>`;
-                    updateDashboard({ raw_data: [], summary_by_day: [], summary_by_hour: [] }); // Clear dashboard
+                    tableBody.innerHTML = `<tr><td colspan="3" class="text-center p-8 text-red-500">Lỗi khi tải dữ liệu. Vui lòng kiểm tra console.</td></tr>`;
+                    updateDashboard({ raw_data: [], summary_by_day: [], summary_by_hour: [] });
                 } finally {
                     hideLoading();
                 }
@@ -448,59 +432,54 @@
                 const week = weekFilter.value;
                 const day = dayFilter.value;
 
-                // If year is 'all', the API will fetch for today by default, so we send nulls.
-                if (year === 'all') return { start_date: null, end_date: null };
-
                 let startDate, endDate;
 
-                if (month === 'all') { // Year only
-                    startDate = new Date(year, 0, 1);
-                    endDate = new Date(year, 11, 32); // Day 32 becomes next month's day 1
-                } else if (week !== 'all') { // Week selected
-                    const [startDay, endDay] = week.split('-').map(Number);
-                    startDate = new Date(year, month - 1, startDay);
-                    endDate = new Date(year, month - 1, endDay + 1);
-                } else if (day !== 'all') { // Day selected
-                    startDate = new Date(year, month - 1, day);
-                    endDate = new Date(year, month - 1, Number(day) + 1);
-                } else { // Month selected
-                    startDate = new Date(year, month - 1, 1);
-                    endDate = new Date(year, month, 1);
+                switch (currentView) {
+                    case 'year':
+                        startDate = new Date(year, 0, 1);
+                        endDate = new Date(year, 11, 32);
+                        break;
+                    case 'month':
+                        if (month === 'all') return null; // Must select a month
+                        startDate = new Date(year, month - 1, 1);
+                        endDate = new Date(year, month, 1);
+                        break;
+                    case 'week':
+                         if (month === 'all' || week === 'all') return null; // Must select month and week
+                        const [startDay, endDay] = week.split('-').map(Number);
+                        startDate = new Date(year, month - 1, startDay);
+                        endDate = new Date(year, month - 1, endDay + 1);
+                        break;
+                    case 'day':
+                        if (month === 'all' || day === 'all') return null; // Must select month and day
+                        startDate = new Date(year, month - 1, day);
+                        endDate = new Date(year, month - 1, Number(day) + 1);
+                        break;
                 }
-
-                return {
-                    start_date: formatDate(startDate),
-                    end_date: formatDate(endDate)
-                };
+                return { start_date: formatDate(startDate), end_date: formatDate(endDate) };
             }
 
             function updateDashboard(data) {
-                // The API returns { raw_data, summary_by_day, summary_by_hour }
                 currentRawData = data.raw_data || [];
+                currentSummaryDay = data.summary_by_day || [];
+                currentSummaryHour = data.summary_by_hour || [];
+                
                 updateSummaryCards(currentRawData);
-                updateChart(data);
-
+                updateChart();
                 currentPage = 1;
                 totalPages = Math.ceil(currentRawData.length / ITEMS_PER_PAGE);
                 renderTablePage();
             }
 
             function updateSummaryCards(rawData) {
-                const totals = rawData.reduce((acc, item) => {
-                    acc.in += item.in_num;
-                    acc.out += item.out_num;
-                    return acc;
-                }, { in: 0, out: 0 });
-
-                totalInEl.textContent = formatNumber(totals.in);
-                totalOutEl.textContent = formatNumber(totals.out);
-                totalDiffEl.textContent = formatNumber(totals.in - totals.out);
+                const totalIn = rawData.reduce((acc, item) => acc + item.in_num, 0);
+                totalInEl.textContent = formatNumber(totalIn);
             }
 
             function renderTablePage() {
                 tableBody.innerHTML = '';
                 if (currentRawData.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500">Không tìm thấy dữ liệu phù hợp.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="3" class="text-center p-8 text-gray-500">Không tìm thấy dữ liệu phù hợp.</td></tr>`;
                     updatePaginationUI(0, 0, 0);
                     return;
                 }
@@ -510,15 +489,28 @@
                 const pageData = currentRawData.slice(start, end);
 
                 pageData.forEach((row, index) => {
+                    const fullDataIndex = start + index;
+                    const previousRow = currentRawData[fullDataIndex + 1];
+                    let percentageCell = '<td class="px-6 py-4 text-center text-gray-500">-</td>';
+
+                    if (previousRow) {
+                        const currentIn = row.in_num;
+                        const previousIn = previousRow.in_num;
+                        if (previousIn > 0) {
+                            const diff = ((currentIn - previousIn) / previousIn) * 100;
+                            const diffText = (diff >= 0 ? '+' : '') + diff.toFixed(2) + '%';
+                            const colorClass = diff >= 0 ? 'text-green-600' : 'text-red-600';
+                            percentageCell = `<td class="px-6 py-4 text-center font-semibold ${colorClass}">${diffText}</td>`;
+                        } else if (currentIn > 0) {
+                            percentageCell = `<td class="px-6 py-4 text-center font-semibold text-green-600">+∞%</td>`;
+                        } else {
+                             percentageCell = `<td class="px-6 py-4 text-center text-gray-500">0.00%</td>`;
+                        }
+                    }
+
                     const tr = document.createElement('tr');
                     tr.className = index % 2 === 0 ? 'bg-white border-b hover:bg-gray-50' : 'bg-gray-50 border-b hover:bg-gray-100';
-                    // UPDATED: Use store_name directly from API response
-                    tr.innerHTML = `
-                        <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${new Date(row.recordtime).toLocaleString('vi-VN')}</th>
-                        <td class="px-6 py-4">${row.store_name}</td>
-                        <td class="px-6 py-4 text-center font-semibold text-green-700">${formatNumber(row.in_num)}</td>
-                        <td class="px-6 py-4 text-center font-semibold text-red-700">${formatNumber(row.out_num)}</td>
-                    `;
+                    tr.innerHTML = `<th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${new Date(row.recordtime).toLocaleString('vi-VN')}</th><td class="px-6 py-4 text-center font-semibold text-indigo-700">${formatNumber(row.in_num)}</td>${percentageCell}`;
                     tableBody.appendChild(tr);
                 });
                 updatePaginationUI(start + 1, Math.min(end, currentRawData.length), currentRawData.length);
@@ -534,73 +526,98 @@
             function initializeChart() {
                 const ctx = document.getElementById('trafficChart').getContext('2d');
                 trafficChart = new Chart(ctx, {
-                    type: 'bar', // Default to bar, can be changed
+                    type: 'line',
                     data: { labels: [], datasets: [] },
                     options: {
                         responsive: true, maintainAspectRatio: false,
                         scales: { 
                             y: { beginAtZero: true, grid: { color: '#e5e7eb' } }, 
-                            x: { 
-                                type: 'time',
-                                time: {
-                                    parser: 'yyyy-MM-dd HH:mm',
-                                    tooltipFormat: 'PPpp',
-                                    unit: 'hour'
-                                },
-                                grid: { display: false } 
-                            } 
+                            x: { type: 'time', grid: { display: false } } 
                         },
                         plugins: {
-                            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                            legend: { display: false },
                             tooltip: { mode: 'index', intersect: false, backgroundColor: '#1f2937', titleFont: { weight: 'bold' }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 6 }
                         },
-                        interaction: { mode: 'index', intersect: false }
+                        interaction: { mode: 'index', intersect: false },
+                        elements: { line: { tension: 0.4, borderWidth: 2 }, point: { radius: 4, hitRadius: 10, hoverRadius: 6 } }
                     }
                 });
             }
 
-            function updateChart(data) {
-                // UPDATED: Use pre-aggregated data from the backend
-                let summaryData, timeUnit, timeParser, tooltipFormat, title;
-                const filterLevel = dayFilter.value !== 'all' || weekFilter.value !== 'all' ? 'hour' : 'day';
+            function updateChart() {
+                let labels = [];
+                let dataPoints = [];
+                let title = 'Biểu đồ lưu lượng khách';
 
-                if (filterLevel === 'hour' && data.summary_by_hour) {
-                    summaryData = data.summary_by_hour;
-                    timeUnit = 'hour';
-                    timeParser = 'yyyy-MM-dd HH:mm';
-                    tooltipFormat = 'PPp'; // Day, Month, Year, Time
-                    title = "Lưu lượng khách theo giờ";
-                } else { // Default to day summary
-                    summaryData = data.summary_by_day || [];
-                    timeUnit = 'day';
-                    timeParser = 'yyyy-MM-dd';
-                    tooltipFormat = 'PP'; // Day, Month, Year
-                    title = "Lưu lượng khách theo ngày";
+                switch (currentView) {
+                    case 'year':
+                        const monthlyData = Array(12).fill(0);
+                        currentSummaryDay.forEach(d => {
+                            const month = new Date(d.date).getMonth();
+                            monthlyData[month] += d.in_num;
+                        });
+                        labels = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+                        dataPoints = monthlyData;
+                        title = `Tổng hợp lượt vào năm ${yearFilter.value}`;
+                        trafficChart.options.scales.x.type = 'category';
+                        delete trafficChart.options.scales.x.time;
+                        break;
+
+                    case 'month':
+                        labels = currentSummaryDay.map(d => d.date);
+                        dataPoints = currentSummaryDay.map(d => d.in_num);
+                        title = `Tổng hợp lượt vào tháng ${monthFilter.value}/${yearFilter.value}`;
+                        trafficChart.options.scales.x.type = 'time';
+                        trafficChart.options.scales.x.time = { unit: 'day', tooltipFormat: 'PP', displayFormats: { day: 'd' } };
+                        break;
+                    
+                    case 'week':
+                        labels = currentSummaryDay.map(d => d.date);
+                        dataPoints = currentSummaryDay.map(d => d.in_num);
+                        title = `Tổng hợp lượt vào ${weekFilter.options[weekFilter.selectedIndex].text}`;
+                        trafficChart.options.scales.x.type = 'time';
+                        trafficChart.options.scales.x.time = { unit: 'day', tooltipFormat: 'PP', displayFormats: { day: 'EEE, d' }, adapters: { date: { locale: dateFns.locale.vi } } };
+                        break;
+
+                    case 'day':
+                        labels = currentSummaryHour.map(d => d.hour);
+                        dataPoints = currentSummaryHour.map(d => d.in_num);
+                        title = `Tổng hợp lượt vào ngày ${dayFilter.value}/${monthFilter.value}/${yearFilter.value}`;
+                        trafficChart.options.scales.x.type = 'time';
+                        trafficChart.options.scales.x.time = { unit: 'hour', tooltipFormat: 'p', displayFormats: { hour: 'HH:mm' } };
+                        break;
                 }
 
                 chartTitle.textContent = title;
-                trafficChart.options.scales.x.time.unit = timeUnit;
-                trafficChart.options.scales.x.time.parser = timeParser;
-                trafficChart.options.scales.x.time.tooltipFormat = tooltipFormat;
-
-                trafficChart.data.labels = summaryData.map(d => d.date || d.hour);
-                trafficChart.data.datasets = [
-                    { label: 'Lượt vào (In)', data: summaryData.map(d => d.in_num), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)' },
-                    { label: 'Lượt ra (Out)', data: summaryData.map(d => d.out_num), backgroundColor: 'rgba(239, 68, 68, 0.7)', borderColor: 'rgba(239, 68, 68, 1)' }
-                ];
+                trafficChart.data.labels = labels;
+                trafficChart.data.datasets = [{ 
+                    label: 'Lượt vào', 
+                    data: dataPoints, 
+                    borderColor: 'rgb(79, 70, 229)',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true
+                }];
                 trafficChart.update();
             }
 
             // --- Event Listeners ---
             applyFilterButton.addEventListener('click', fetchData);
 
-            [yearFilter, monthFilter, weekFilter, dayFilter].forEach(el => {
-                el.addEventListener('change', handleFilterDependencies);
+            viewModeSwitcher.addEventListener('click', (e) => {
+                const button = e.target.closest('.view-mode-btn');
+                if (button) {
+                    currentView = button.dataset.view;
+                    viewModeSwitcher.querySelectorAll('.view-mode-btn').forEach(btn => btn.classList.remove('active-view'));
+                    button.classList.add('active-view');
+                    updateFilterVisibility();
+                }
             });
-
-            monthFilter.addEventListener('change', () => {
-                updateDays();
-                updateWeeks();
+            
+            [yearFilter, monthFilter].forEach(el => {
+                el.addEventListener('change', () => {
+                    updateDays();
+                    updateWeeks();
+                });
             });
 
             const notificationButton = document.getElementById('notification-button');
@@ -613,16 +630,10 @@
             });
 
             prevPageBtn.addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    renderTablePage();
-                }
+                if (currentPage > 1) { currentPage--; renderTablePage(); }
             });
             nextPageBtn.addEventListener('click', () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    renderTablePage();
-                }
+                if (currentPage < totalPages) { currentPage++; renderTablePage(); }
             });
 
             // --- Initialization ---
@@ -630,14 +641,16 @@
                 lucide.createIcons();
                 initializeChart();
                 populateDateFilters();
+
+                const today = new Date();
+                currentView = 'year';
+                yearFilter.value = today.getFullYear();
+                
+                viewModeSwitcher.querySelector(`[data-view="${currentView}"]`).classList.add('active-view');
+                updateFilterVisibility();
+                
                 await fetchAndPopulateStores();
                 await fetchErrorLogs();
-                // Initial data load for today
-                const today = new Date();
-                yearFilter.value = today.getFullYear();
-                monthFilter.value = today.getMonth() + 1;
-                dayFilter.value = today.getDate();
-                handleFilterDependencies();
                 await fetchData();
             }
 
