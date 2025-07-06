@@ -1,0 +1,17 @@
+credentials:
+  usernames:
+    admin:
+      email: 
+      name: Admin
+      password: $2b$12$QXLS7kV/woCCtQ3wagTtke2sNRNXBnEllYADKUjFIEr/fiIjRzJ/u # To be replaced with hashed password
+    user:
+      email: 
+      name: User
+      password: $2b$12$0j.JJorQThnKZeVXC7C5p.7FV7u3lrP9JDf3HAhs6XXGJFh0v2E36 # To be replaced with hashed password
+cookie:
+  expiry_days: 1
+  key: some_signature_key # Must be string
+  name: some_cookie_name
+preauthorized:
+  emails:
+  - phongvu2010@gmail.com
