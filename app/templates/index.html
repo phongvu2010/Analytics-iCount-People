@@ -15,6 +15,7 @@
 
     <!-- Chart.js for data visualization -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     <!-- Lucide Icons for modern icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -44,10 +45,35 @@
             cursor: not-allowed;
             opacity: 0.6;
         }
+        /* Loading spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #4f46e5; /* indigo-600 */
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
-    <div class="min-h-screen flex flex-col">
+    <div id="main-container" class="min-h-screen flex flex-col">
         <!-- Header -->
         <header class="bg-white shadow-sm sticky top-0 z-40">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,31 +91,17 @@
                         <button id="notification-button" class="relative p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                             <i data-lucide="bell" class="text-gray-600"></i>
                             <!-- Notification Badge -->
-                            <span class="absolute top-0 right-0 flex h-3 w-3">
+                            <span id="notification-badge-container" class="absolute top-0 right-0 flex h-3 w-3 hidden">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-white text-[8px] items-center justify-center">3</span>
+                                <span id="notification-count" class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-white text-[8px] items-center justify-center">0</span>
                             </span>
                         </button>
                         <!-- Notification Dropdown -->
                         <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl overflow-hidden z-50 border">
                             <div class="p-3 font-semibold text-sm border-b">Thông báo lỗi (ErrLog)</div>
-                            <ul class="divide-y max-h-80 overflow-y-auto">
-                                <!-- Dummy Error Log Items -->
-                                <li class="p-3 hover:bg-gray-50">
-                                    <p class="text-sm font-medium text-red-600">[Store 1] - Error 503</p>
-                                    <p class="text-xs text-gray-500 mt-1">Camera connection lost</p>
-                                    <p class="text-xs text-gray-400 mt-1">2025-07-21 10:30:15</p>
-                                </li>
-                                <li class="p-3 hover:bg-gray-50">
-                                    <p class="text-sm font-medium text-orange-500">[Store 2] - Error 408</p>
-                                    <p class="text-xs text-gray-500 mt-1">Data sync timeout</p>
-                                    <p class="text-xs text-gray-400 mt-1">2025-07-21 09:15:02</p>
-                                </li>
-                                <li class="p-3 hover:bg-gray-50">
-                                    <p class="text-sm font-medium text-red-600">[Store 1] - Error 500</p>
-                                    <p class="text-xs text-gray-500 mt-1">Internal server error on device</p>
-                                    <p class="text-xs text-gray-400 mt-1">2025-07-20 18:05:45</p>
-                                </li>
+                            <ul id="error-log-list" class="divide-y max-h-80 overflow-y-auto">
+                                <!-- Error log items will be populated by JS -->
+                                <li class="p-4 text-center text-gray-500">Không có lỗi mới.</li>
                             </ul>
                             <a href="#" class="block text-center p-2 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-indigo-600">Xem tất cả</a>
                         </div>
@@ -109,167 +121,104 @@
                         <label for="store-filter" class="block text-sm font-medium text-gray-700 mb-1">Cửa hàng</label>
                         <select id="store-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                             <option value="all">Tất cả cửa hàng</option>
-                            <!-- Dummy store data. This should be populated from the API /stores -->
-                            <option value="1">Store 1 - Vincom Landmark 81</option>
-                            <option value="2">Store 2 - Crescent Mall</option>
-                            <option value="3">Store 3 - SC VivoCity</option>
+                            <!-- Populated by JS from /api/stores -->
                         </select>
                     </div>
 
-                    <!-- Year Filter -->
+                    <!-- Year, Month, Week, Day Filters -->
                     <div>
                         <label for="year-filter" class="block text-sm font-medium text-gray-700 mb-1">Năm</label>
-                        <select id="year-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="all">Tất cả năm</option>
-                            <option value="2025" selected>2025</option>
-                            <option value="2024">2024</option>
-                            <option value="2023">2023</option>
-                        </select>
+                        <select id="year-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-
-                    <!-- Month Filter -->
                     <div>
                         <label for="month-filter" class="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
-                        <select id="month-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="all">Tất cả tháng</option>
-                            <option value="7" selected>Tháng 7</option>
-                            <!-- Other months would be populated by JS -->
-                        </select>
+                        <select id="month-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-
-                    <!-- Week Filter -->
                     <div>
                         <label for="week-filter" class="block text-sm font-medium text-gray-700 mb-1">Tuần</label>
-                        <select id="week-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="all">Tất cả tuần</option>
-                            <option value="1">Tuần 1 (1-7)</option>
-                            <option value="2">Tuần 2 (8-14)</option>
-                            <option value="3" selected>Tuần 3 (15-21)</option>
-                            <option value="4">Tuần 4 (22-28)</option>
-                            <option value="5">Tuần 5 (29-31)</option>
-                        </select>
+                        <select id="week-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
-
-                    <!-- Day Filter -->
                     <div>
                         <label for="day-filter" class="block text-sm font-medium text-gray-700 mb-1">Ngày</label>
-                        <select id="day-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="all">Tất cả ngày</option>
-                            <option value="21" selected>Ngày 21</option>
-                            <!-- Other days populated by JS -->
-                        </select>
+                        <select id="day-filter" class="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></select>
                     </div>
 
                     <!-- Apply Button -->
-                    <button class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center space-x-2">
+                    <button id="apply-filter-button" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center space-x-2">
                         <i data-lucide="filter"></i>
                         <span>Áp dụng</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
-                    <div class="bg-green-100 p-3 rounded-full">
-                        <i data-lucide="log-in" class="text-green-600"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Tổng lượt vào</p>
-                        <p class="text-3xl font-bold text-gray-900">1,280</p>
-                    </div>
+            <div id="dashboard-content" class="relative">
+                 <!-- Loading Overlay -->
+                <div id="loading-overlay" class="loading-overlay hidden">
+                    <div class="loader"></div>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
-                    <div class="bg-red-100 p-3 rounded-full">
-                        <i data-lucide="log-out" class="text-red-600"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Tổng lượt ra</p>
-                        <p class="text-3xl font-bold text-gray-900">1,150</p>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
-                    <div class="bg-blue-100 p-3 rounded-full">
-                        <i data-lucide="users-2" class="text-blue-600"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Khách trong cửa hàng (hiện tại)</p>
-                        <p class="text-3xl font-bold text-gray-900">130</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Chart Section -->
-            <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
-                <h3 class="text-lg font-semibold mb-4 text-gray-700">Biểu đồ lưu lượng khách (Theo giờ)</h3>
-                <div class="h-96">
-                    <canvas id="trafficChart"></canvas>
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                        <div class="bg-green-100 p-3 rounded-full"><i data-lucide="log-in" class="text-green-600"></i></div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Tổng lượt vào</p>
+                            <p id="total-in" class="text-3xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                        <div class="bg-red-100 p-3 rounded-full"><i data-lucide="log-out" class="text-red-600"></i></div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Tổng lượt ra</p>
+                            <p id="total-out" class="text-3xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border flex items-center space-x-4">
+                        <div class="bg-blue-100 p-3 rounded-full"><i data-lucide="users-2" class="text-blue-600"></i></div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Chênh lệch</p>
+                            <p id="total-diff" class="text-3xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Data Table Section -->
-            <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold text-gray-700">Bảng dữ liệu chi tiết (num_crowd)</h3>
-                    <p class="text-sm text-gray-500">Hiển thị dữ liệu theo bộ lọc đã chọn.</p>
+                <!-- Chart Section -->
+                <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
+                    <h3 id="chart-title" class="text-lg font-semibold mb-4 text-gray-700">Biểu đồ lưu lượng khách</h3>
+                    <div class="h-96"><canvas id="trafficChart"></canvas></div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-500">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">Thời gian (recordtime)</th>
-                                <th scope="col" class="px-6 py-3">Cửa hàng (storeid)</th>
-                                <th scope="col" class="px-6 py-3 text-center text-green-600">Lượt vào (in_num)</th>
-                                <th scope="col" class="px-6 py-3 text-center text-red-600">Lượt ra (out_num)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Dummy data rows. This should be populated by API call to /crowd -->
-                            <tr class="bg-white border-b hover:bg-gray-50">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 15:00:00</th>
-                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
-                                <td class="px-6 py-4 text-center font-semibold text-green-700">25</td>
-                                <td class="px-6 py-4 text-center font-semibold text-red-700">18</td>
-                            </tr>
-                            <tr class="bg-gray-50 border-b hover:bg-gray-100">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 14:00:00</th>
-                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
-                                <td class="px-6 py-4 text-center font-semibold text-green-700">32</td>
-                                <td class="px-6 py-4 text-center font-semibold text-red-700">28</td>
-                            </tr>
-                            <tr class="bg-white border-b hover:bg-gray-50">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 13:00:00</th>
-                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
-                                <td class="px-6 py-4 text-center font-semibold text-green-700">45</td>
-                                <td class="px-6 py-4 text-center font-semibold text-red-700">40</td>
-                            </tr>
-                            <tr class="bg-gray-50 border-b hover:bg-gray-100">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 12:00:00</th>
-                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
-                                <td class="px-6 py-4 text-center font-semibold text-green-700">60</td>
-                                <td class="px-6 py-4 text-center font-semibold text-red-700">55</td>
-                            </tr>
-                            <tr class="bg-white border-b hover:bg-gray-50">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">2025-07-21 11:00:00</th>
-                                <td class="px-6 py-4">Store 1 - Vincom Landmark 81</td>
-                                <td class="px-6 py-4 text-center font-semibold text-green-700">38</td>
-                                <td class="px-6 py-4 text-center font-semibold text-red-700">30</td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- Data Table Section -->
+                <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-semibold text-gray-700">Bảng dữ liệu chi tiết (num_crowd)</h3>
+                        <p class="text-sm text-gray-500">Hiển thị dữ liệu thô theo bộ lọc đã chọn (tối đa 1000 dòng gần nhất).</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3">Thời gian (recordtime)</th>
+                                    <th scope="col" class="px-6 py-3">Cửa hàng</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-green-600">Lượt vào (in_num)</th>
+                                    <th scope="col" class="px-6 py-3 text-center text-red-600">Lượt ra (out_num)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crowd-data-table-body">
+                                <!-- Data rows populated by JS -->
+                                <tr><td colspan="4" class="text-center p-8 text-gray-500">Vui lòng chọn bộ lọc và nhấn "Áp dụng".</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <nav id="pagination-nav" class="flex items-center justify-between p-4" aria-label="Table navigation">
+                        <span id="pagination-info" class="text-sm font-normal text-gray-500">Showing <span class="font-semibold text-gray-900">0-0</span> of <span class="font-semibold text-gray-900">0</span></span>
+                        <ul class="inline-flex items-center -space-x-px">
+                            <li><button id="prev-page" class="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50" disabled>Previous</button></li>
+                            <li><button id="next-page" class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50" disabled>Next</button></li>
+                        </ul>
+                    </nav>
                 </div>
-                <!-- Pagination -->
-                <nav class="flex items-center justify-between p-4" aria-label="Table navigation">
-                    <span class="text-sm font-normal text-gray-500">Showing <span class="font-semibold text-gray-900">1-5</span> of <span class="font-semibold text-gray-900">100</span></span>
-                    <ul class="inline-flex items-center -space-x-px">
-                        <li>
-                            <a href="#" class="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700">Previous</a>
-                        </li>
-                        <li>
-                            <a href="#" class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700">Next</a>
-                        </li>
-                    </ul>
-                </nav>
             </div>
         </main>
 
@@ -283,141 +232,412 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // --- Lucide Icons Initialization ---
-            lucide.createIcons();
+            // --- Configuration ---
+            // FIXED: Provide an absolute URL for the backend API to prevent parsing errors.
+            const API_BASE_URL = 'http://127.0.0.1:8000';
+            const STORES_API = `${API_BASE_URL}/api/stores/`;
+            const CROWD_API = `${API_BASE_URL}/api/crowds/`;
+            const ERRORS_API = `${API_BASE_URL}/api/errors/recent`; // UPDATED: Correct endpoint from error_log.py
+            const ITEMS_PER_PAGE = 10;
 
-            // --- Notification Dropdown Logic ---
-            const notificationButton = document.getElementById('notification-button');
-            const notificationDropdown = document.getElementById('notification-dropdown');
+            // --- Element References ---
+            const storeFilter = document.getElementById('store-filter');
+            const yearFilter = document.getElementById('year-filter');
+            const monthFilter = document.getElementById('month-filter');
+            const weekFilter = document.getElementById('week-filter');
+            const dayFilter = document.getElementById('day-filter');
+            const applyFilterButton = document.getElementById('apply-filter-button');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const tableBody = document.getElementById('crowd-data-table-body');
+            const chartTitle = document.getElementById('chart-title');
 
-            notificationButton.addEventListener('click', () => {
-                notificationDropdown.classList.toggle('hidden');
+            const totalInEl = document.getElementById('total-in');
+            const totalOutEl = document.getElementById('total-out');
+            const totalDiffEl = document.getElementById('total-diff');
+
+            const paginationInfo = document.getElementById('pagination-info');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+
+            let trafficChart;
+            let currentPage = 1;
+            let totalPages = 1;
+            let currentRawData = [];
+
+            // --- Helper Functions ---
+            const showLoading = () => loadingOverlay.classList.remove('hidden');
+            const hideLoading = () => loadingOverlay.classList.add('hidden');
+            const formatNumber = (num) => num.toLocaleString('vi-VN');
+            const formatDate = (date) => {
+                const d = new Date(date);
+                const year = d.getFullYear();
+                const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                const day = d.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            // --- API Fetch Functions ---
+            async function fetchAndPopulateStores() {
+                try {
+                    const response = await fetch(STORES_API);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    storeFilter.innerHTML = `<option value="all">Tất cả cửa hàng</option>`;
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.tid;
+                        option.textContent = item.name;
+                        storeFilter.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error(`Error fetching from ${STORES_API}:`, error);
+                    storeFilter.innerHTML = `<option value="">Error loading stores</option>`;
+                }
+            }
+
+            async function fetchErrorLogs() {
+                try {
+                    const response = await fetch(ERRORS_API);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const errors = await response.json();
+
+                    const errorList = document.getElementById('error-log-list');
+                    const badgeContainer = document.getElementById('notification-badge-container');
+                    const countBadge = document.getElementById('notification-count');
+
+                    errorList.innerHTML = '';
+                    if (errors.length === 0) {
+                        errorList.innerHTML = '<li class="p-4 text-center text-gray-500">Không có lỗi mới.</li>';
+                        badgeContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    errors.forEach(err => {
+                        const li = document.createElement('li');
+                        li.className = 'p-3 hover:bg-gray-50';
+                        // UPDATED: Match the response from services.get_recent_errors
+                        li.innerHTML = `
+                            <p class="text-sm font-medium text-red-600">[${err.store_name}]</p>
+                            <p class="text-xs text-gray-500 mt-1">${err.error_message}</p>
+                            <p class="text-xs text-gray-400 mt-1">${new Date(err.log_time).toLocaleString('vi-VN')}</p>
+                        `;
+                        errorList.appendChild(li);
+                    });
+
+                    countBadge.textContent = errors.length;
+                    badgeContainer.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error fetching error logs:', error);
+                }
+            }
+
+            // --- Date Filter Population and Logic ---
+            function populateDateFilters() {
+                const now = new Date();
+                const currentYear = now.getFullYear();
+
+                yearFilter.innerHTML = '<option value="all">Tất cả năm</option>';
+                for (let y = currentYear; y >= currentYear - 5; y--) {
+                    yearFilter.innerHTML += `<option value="${y}">${y}</option>`;
+                }
+                yearFilter.value = 'all'; // Default to all
+
+                monthFilter.innerHTML = '<option value="all">Tất cả tháng</option>';
+                for (let m = 1; m <= 12; m++) {
+                    monthFilter.innerHTML += `<option value="${m}">Tháng ${m}</option>`;
+                }
+                monthFilter.value = 'all';
+
+                dayFilter.innerHTML = '<option value="all">Tất cả ngày</option>';
+                weekFilter.innerHTML = '<option value="all">Tất cả tuần</option>';
+
+                handleFilterDependencies();
+            }
+
+            function updateDays() {
+                const year = yearFilter.value;
+                const month = monthFilter.value;
+                const daysInMonth = (year === 'all' || month === 'all') ? 31 : new Date(year, month, 0).getDate();
+                const currentDay = dayFilter.value;
+                dayFilter.innerHTML = '<option value="all">Tất cả ngày</option>';
+                for (let d = 1; d <= daysInMonth; d++) {
+                    dayFilter.innerHTML += `<option value="${d}">Ngày ${d}</option>`;
+                }
+                dayFilter.value = currentDay <= daysInMonth ? currentDay : 'all';
+            }
+
+            function updateWeeks() {
+                const year = yearFilter.value;
+                const month = monthFilter.value;
+                weekFilter.innerHTML = '<option value="all">Tất cả tuần</option>';
+                if (year !== 'all' && month !== 'all') {
+                    const lastDayOfMonth = new Date(year, month, 0).getDate();
+                    let weekNumber = 1;
+                    let dayCounter = 1;
+                    while(dayCounter <= lastDayOfMonth) {
+                        let endOfWeek = dayCounter + 6;
+                        if (endOfWeek > lastDayOfMonth) endOfWeek = lastDayOfMonth;
+                        // Store start and end dates in the option value
+                        const weekValue = `${dayCounter}-${endOfWeek}`;
+                        weekFilter.innerHTML += `<option value="${weekValue}">Tuần ${weekNumber} (${dayCounter}-${endOfWeek})</option>`;
+                        dayCounter = endOfWeek + 1;
+                        weekNumber++;
+                    }
+                }
+            }
+
+            function handleFilterDependencies() {
+                const year = yearFilter.value;
+                const month = monthFilter.value;
+                const week = weekFilter.value;
+                const day = dayFilter.value;
+
+                monthFilter.disabled = year === 'all';
+                weekFilter.disabled = year === 'all' || month === 'all';
+                dayFilter.disabled = year === 'all' || month === 'all' || week !== 'all';
+
+                if (week !== 'all') {
+                    dayFilter.value = 'all';
+                    dayFilter.disabled = true;
+                }
+                if (day !== 'all') {
+                    weekFilter.value = 'all';
+                    weekFilter.disabled = true;
+                }
+            }
+
+            // --- Main Data Handling ---
+            async function fetchData() {
+                showLoading();
+
+                // NEW: Calculate date range from filters
+                const { start_date, end_date } = calculateDateRange();
+
+                const params = new URLSearchParams();
+                if (storeFilter.value !== 'all') params.append('store_id', storeFilter.value);
+                // The API handles null/empty start_date and end_date
+                if (start_date) params.append('start_date', start_date);
+                if (end_date) params.append('end_date', end_date);
+
+                try {
+                    const response = await fetch(`${CROWD_API}?${params.toString()}`);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    // UPDATED: Handle the new data structure from the API
+                    updateDashboard(data);
+
+                } catch (error) {
+                    console.error('Error fetching crowd data:', error);
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-red-500">Lỗi khi tải dữ liệu. Vui lòng kiểm tra console.</td></tr>`;
+                    updateDashboard({ raw_data: [], summary_by_day: [], summary_by_hour: [] }); // Clear dashboard
+                } finally {
+                    hideLoading();
+                }
+            }
+
+            function calculateDateRange() {
+                const year = yearFilter.value;
+                const month = monthFilter.value;
+                const week = weekFilter.value;
+                const day = dayFilter.value;
+
+                // If year is 'all', the API will fetch for today by default, so we send nulls.
+                if (year === 'all') return { start_date: null, end_date: null };
+
+                let startDate, endDate;
+
+                if (month === 'all') { // Year only
+                    startDate = new Date(year, 0, 1);
+                    endDate = new Date(year, 11, 32); // Day 32 becomes next month's day 1
+                } else if (week !== 'all') { // Week selected
+                    const [startDay, endDay] = week.split('-').map(Number);
+                    startDate = new Date(year, month - 1, startDay);
+                    endDate = new Date(year, month - 1, endDay + 1);
+                } else if (day !== 'all') { // Day selected
+                    startDate = new Date(year, month - 1, day);
+                    endDate = new Date(year, month - 1, Number(day) + 1);
+                } else { // Month selected
+                    startDate = new Date(year, month - 1, 1);
+                    endDate = new Date(year, month, 1);
+                }
+
+                return {
+                    start_date: formatDate(startDate),
+                    end_date: formatDate(endDate)
+                };
+            }
+
+            function updateDashboard(data) {
+                // The API returns { raw_data, summary_by_day, summary_by_hour }
+                currentRawData = data.raw_data || [];
+                updateSummaryCards(currentRawData);
+                updateChart(data);
+
+                currentPage = 1;
+                totalPages = Math.ceil(currentRawData.length / ITEMS_PER_PAGE);
+                renderTablePage();
+            }
+
+            function updateSummaryCards(rawData) {
+                const totals = rawData.reduce((acc, item) => {
+                    acc.in += item.in_num;
+                    acc.out += item.out_num;
+                    return acc;
+                }, { in: 0, out: 0 });
+
+                totalInEl.textContent = formatNumber(totals.in);
+                totalOutEl.textContent = formatNumber(totals.out);
+                totalDiffEl.textContent = formatNumber(totals.in - totals.out);
+            }
+
+            function renderTablePage() {
+                tableBody.innerHTML = '';
+                if (currentRawData.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500">Không tìm thấy dữ liệu phù hợp.</td></tr>`;
+                    updatePaginationUI(0, 0, 0);
+                    return;
+                }
+
+                const start = (currentPage - 1) * ITEMS_PER_PAGE;
+                const end = start + ITEMS_PER_PAGE;
+                const pageData = currentRawData.slice(start, end);
+
+                pageData.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    tr.className = index % 2 === 0 ? 'bg-white border-b hover:bg-gray-50' : 'bg-gray-50 border-b hover:bg-gray-100';
+                    // UPDATED: Use store_name directly from API response
+                    tr.innerHTML = `
+                        <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${new Date(row.recordtime).toLocaleString('vi-VN')}</th>
+                        <td class="px-6 py-4">${row.store_name}</td>
+                        <td class="px-6 py-4 text-center font-semibold text-green-700">${formatNumber(row.in_num)}</td>
+                        <td class="px-6 py-4 text-center font-semibold text-red-700">${formatNumber(row.out_num)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+                updatePaginationUI(start + 1, Math.min(end, currentRawData.length), currentRawData.length);
+            }
+
+            function updatePaginationUI(start, end, total) {
+                paginationInfo.innerHTML = `Showing <span class="font-semibold text-gray-900">${total > 0 ? start : 0}-${end}</span> of <span class="font-semibold text-gray-900">${total}</span>`;
+                prevPageBtn.disabled = currentPage === 1;
+                nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+            }
+
+            // --- Charting ---
+            function initializeChart() {
+                const ctx = document.getElementById('trafficChart').getContext('2d');
+                trafficChart = new Chart(ctx, {
+                    type: 'bar', // Default to bar, can be changed
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { 
+                            y: { beginAtZero: true, grid: { color: '#e5e7eb' } }, 
+                            x: { 
+                                type: 'time',
+                                time: {
+                                    parser: 'yyyy-MM-dd HH:mm',
+                                    tooltipFormat: 'PPpp',
+                                    unit: 'hour'
+                                },
+                                grid: { display: false } 
+                            } 
+                        },
+                        plugins: {
+                            legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                            tooltip: { mode: 'index', intersect: false, backgroundColor: '#1f2937', titleFont: { weight: 'bold' }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 6 }
+                        },
+                        interaction: { mode: 'index', intersect: false }
+                    }
+                });
+            }
+
+            function updateChart(data) {
+                // UPDATED: Use pre-aggregated data from the backend
+                let summaryData, timeUnit, timeParser, tooltipFormat, title;
+                const filterLevel = dayFilter.value !== 'all' || weekFilter.value !== 'all' ? 'hour' : 'day';
+
+                if (filterLevel === 'hour' && data.summary_by_hour) {
+                    summaryData = data.summary_by_hour;
+                    timeUnit = 'hour';
+                    timeParser = 'yyyy-MM-dd HH:mm';
+                    tooltipFormat = 'PPp'; // Day, Month, Year, Time
+                    title = "Lưu lượng khách theo giờ";
+                } else { // Default to day summary
+                    summaryData = data.summary_by_day || [];
+                    timeUnit = 'day';
+                    timeParser = 'yyyy-MM-dd';
+                    tooltipFormat = 'PP'; // Day, Month, Year
+                    title = "Lưu lượng khách theo ngày";
+                }
+
+                chartTitle.textContent = title;
+                trafficChart.options.scales.x.time.unit = timeUnit;
+                trafficChart.options.scales.x.time.parser = timeParser;
+                trafficChart.options.scales.x.time.tooltipFormat = tooltipFormat;
+
+                trafficChart.data.labels = summaryData.map(d => d.date || d.hour);
+                trafficChart.data.datasets = [
+                    { label: 'Lượt vào (In)', data: summaryData.map(d => d.in_num), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: 'rgba(16, 185, 129, 1)' },
+                    { label: 'Lượt ra (Out)', data: summaryData.map(d => d.out_num), backgroundColor: 'rgba(239, 68, 68, 0.7)', borderColor: 'rgba(239, 68, 68, 1)' }
+                ];
+                trafficChart.update();
+            }
+
+            // --- Event Listeners ---
+            applyFilterButton.addEventListener('click', fetchData);
+
+            [yearFilter, monthFilter, weekFilter, dayFilter].forEach(el => {
+                el.addEventListener('change', handleFilterDependencies);
             });
 
-            // Close dropdown if clicked outside
-            window.addEventListener('click', function(e) {
+            monthFilter.addEventListener('change', () => {
+                updateDays();
+                updateWeeks();
+            });
+
+            const notificationButton = document.getElementById('notification-button');
+            const notificationDropdown = document.getElementById('notification-dropdown');
+            notificationButton.addEventListener('click', () => notificationDropdown.classList.toggle('hidden'));
+            window.addEventListener('click', (e) => {
                 if (!notificationButton.contains(e.target) && !notificationDropdown.contains(e.target)) {
                     notificationDropdown.classList.add('hidden');
                 }
             });
 
-            // --- Filter Logic (Placeholder) ---
-            // In a real application, you would add event listeners to the select elements.
-            // When a filter changes, you would make an API call to your FastAPI backend
-            // to get the updated data and then re-render the chart and table.
-
-            const yearFilter = document.getElementById('year-filter');
-            const monthFilter = document.getElementById('month-filter');
-            const dayFilter = document.getElementById('day-filter');
-
-            yearFilter.addEventListener('change', (e) => {
-                console.log(`Year changed to: ${e.target.value}`);
-                // TODO: API call to fetch available months for the selected year
-                // Then populate the monthFilter select element.
-                // For now, we just enable/disable it.
-                monthFilter.disabled = e.target.value === 'all';
-                dayFilter.disabled = true; // Day should be disabled until a month is chosen
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTablePage();
+                }
             });
-
-            monthFilter.addEventListener('change', (e) => {
-                console.log(`Month changed to: ${e.target.value}`);
-                // TODO: API call to fetch available days for the selected month and year
-                // Then populate the dayFilter select element.
-                dayFilter.disabled = e.target.value === 'all';
-            });
-
-            // --- Chart.js Implementation ---
-            const ctx = document.getElementById('trafficChart').getContext('2d');
-
-            // Dummy data for the chart. This should be fetched from your API.
-            const chartData = {
-                labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'],
-                datasets: [
-                    {
-                        label: 'Lượt vào (In)',
-                        data: [12, 19, 38, 60, 45, 32, 25, 35, 55, 70, 85, 65],
-                        borderColor: 'rgba(16, 185, 129, 1)', // green-500
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
-                    },
-                    {
-                        label: 'Lượt ra (Out)',
-                        data: [8, 15, 30, 55, 40, 28, 18, 28, 48, 65, 80, 60],
-                        borderColor: 'rgba(239, 68, 68, 1)', // red-500
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: 'rgba(239, 68, 68, 1)',
-                    }
-                ]
-            };
-
-            const trafficChart = new Chart(ctx, {
-                type: 'line',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: '#e5e7eb' // gray-200
-                            }
-                        },
-                        x: {
-                           grid: {
-                                display: false
-                           }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            align: 'end',
-                            labels: {
-                                usePointStyle: true,
-                                boxWidth: 8
-                            }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: '#1f2937', // gray-800
-                            titleFont: {
-                                weight: 'bold'
-                            },
-                            bodyFont: {
-                                size: 14
-                            },
-                            padding: 12,
-                            cornerRadius: 6
-                        }
-                    },
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    }
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTablePage();
                 }
             });
 
-            // Function to update chart (example)
-            // In a real app, you'd call this after a successful API fetch
-            function updateDashboard(newData) {
-                // Update summary cards
-                // ...
-
-                // Update chart
-                trafficChart.data.labels = newData.labels;
-                trafficChart.data.datasets[0].data = newData.in_num;
-                trafficChart.data.datasets[1].data = newData.out_num;
-                trafficChart.update();
-
-                // Update data table
-                // ...
+            // --- Initialization ---
+            async function initializeApp() {
+                lucide.createIcons();
+                initializeChart();
+                populateDateFilters();
+                await fetchAndPopulateStores();
+                await fetchErrorLogs();
+                // Initial data load for today
+                const today = new Date();
+                yearFilter.value = today.getFullYear();
+                monthFilter.value = today.getMonth() + 1;
+                dayFilter.value = today.getDate();
+                handleFilterDependencies();
+                await fetchData();
             }
+
+            initializeApp();
         });
     </script>
 </body>

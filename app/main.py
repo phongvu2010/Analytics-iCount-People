@@ -29,30 +29,32 @@ BASE_DIR = Path(__file__).resolve().parent
 app.mount('/static', StaticFiles(directory = str(Path(BASE_DIR, 'static'))), name = 'static')
 templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
 
-# Set all CORS enabled origins
+# --- CORS Middleware Configuration ---
+# FIXED: Ensure CORS is always enabled for development.
+# This allows the frontend (even from a different origin) to make API calls to this backend.
+origins = []
 if settings.BACKEND_CORS_ORIGINS:
-    origins = [str(origin).strip('/') for origin in settings.BACKEND_CORS_ORIGINS]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins = origins if origins else ["*"],  # Cho phép các origin trong danh sách
-        allow_credentials = True,       # Cho phép gửi cookie
-        allow_methods = ['*'],          # Cho phép tất cả các phương thức (GET, POST, etc.)
-        allow_headers = ['*']           # Cho phép tất cả các header
-    )
+    # If the environment variable is set, use it.
+    origins.extend([str(origin).strip('/') for origin in settings.BACKEND_CORS_ORIGINS])
+else:
+    # For local development, allow all origins.
+    # In production, you should restrict this to your frontend's domain for security.
+    origins = ['*']
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,    # Cho phép các origin trong danh sách
+    allow_credentials = True,   # Cho phép gửi cookie
+    allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
+    allow_headers = ['*']       # Cho phép tất cả các header
+)
 
 # --- API Routers ---
+# Note: The trailing slash in the prefix is optional but can help avoid 307 redirects.
+# The frontend code has already been updated to include it.
 app.include_router(store.router, prefix = '/api/stores', tags = ['Stores'])
 app.include_router(crowd.router, prefix = '/api/crowds', tags = ['Crowds Data'])
 app.include_router(error_log.router, prefix = '/api/errors', tags = ['Errors'])
-
-# @app.get('/')
-# def read_root():
-#     # Trả về trang HTML chính
-#     templates = Jinja2Templates(directory='templates')
-
-#     # Logic để render trang ban đầu sẽ ở đây
-#     return templates.TemplateResponse('index.html', {'request': {}})
-
 
 # --- Frontend Route ---
 @app.get('/', response_class = HTMLResponse, tags = ['Frontend'])
