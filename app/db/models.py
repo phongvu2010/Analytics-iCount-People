@@ -1,3 +1,4 @@
+# Định nghĩa các SQLAlchemy models (Store, NumCrowd, ErrLog, Status)
 
 
 class Store(Base):
