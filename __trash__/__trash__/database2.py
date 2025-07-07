@@ -1,25 +1,3 @@
-"""
-SQLAlchemy models for an existing MSSQL database using Manual Definition.
-This script defines models explicitly to avoid reflection issues with certain drivers.
-"""
-import streamlit as st
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, BigInteger, SmallInteger, Boolean
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship
-from urllib import parse
-
-# 1. CHUỖI KẾT NỐI (CONNECTION STRING)
-# Driver 'ODBC Driver 17 for SQL Server' là phổ biến, hãy đảm bảo bạn đã cài đặt nó.
-# Nếu bạn sử dụng Windows Authentication, chuỗi kết nối sẽ có dạng khác.
-# Ví dụ Windows Auth: f'mssql+pyodbc://{db_host}:{db_port}/{db_name}?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes'
-db_host = 'MSSQL'
-db_port = 1433
-db_name = 'statistic'
-db_user = 'sa'
-db_pass = parse.quote_plus('Admin@123')
-db_driver = 'SQL+Server'
-
-connection_string = f'mssql+pyodbc://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}?driver={db_driver}'
-
 try:
     # 2. TẠO ENGINE
     # Engine là điểm khởi đầu cho mọi ứng dụng SQLAlchemy.
@@ -76,3 +54,45 @@ finally:
     if 'session' in locals() and session.is_active:
         session.close()
         print('\n[INFO] Session đã được đóng.')
+
+
+
+
+# import pandas as pd
+# import sqlalchemy
+# from datetime import date
+# from sqlalchemy import create_engine, extract, MetaData
+# from sqlalchemy.ext.automap import automap_base
+
+# from sqlalchemy.orm import sessionmaker, Session
+# from models import Store, NumCrowd, ErrLog, Status
+
+# @st.cache_data(ttl = 86400, show_spinner = False)
+# def dbStore():
+#     query = getSession().query(Store)
+
+#     return pd.read_sql(sql = query.statement, con = engine)
+#     # return pd.DataFrame([r._asdict() for r in results])
+
+# @st.cache_data(ttl = 900, show_spinner = False)
+# def dbNumCrowd(year = None):
+#     query = getSession().query(NumCrowd)
+#     if year: query = query.filter(extract('year', NumCrowd.recordtime) == year)
+
+#     return pd.read_sql(sql = query.statement, con = engine)
+
+# @st.cache_data(ttl = 3600, show_spinner = False)
+# def dbErrLog():
+#     query = getSession().query(ErrLog).order_by(ErrLog.LogTime.desc()).limit(500)
+
+#     return pd.read_sql(sql = query.statement, con = engine)
+
+# @st.cache_data(ttl = 3600, show_spinner = False)
+# def dbStatus():
+#     query = getSession().query(Status)
+
+#     return pd.read_sql(sql = query.statement, con = engine)
+
+
+
+

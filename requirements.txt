@@ -21,18 +21,12 @@
 
 
 ### Packages
-pandas
-plotly
-
-
-### Packages database
-pyodbc
-SQLAlchemy
-
-
-### Streamlit
-# st-pages
-streamlit
-# streamlit-authenticator
-# streamlit-option-menu
-watchdog
+fastapi[all]
+# jinja2
+# pandas
+# passlib[bcrypt] # Để hash mật khẩu
+# plotly
+# pyodbc  # Hoặc driver MSSQL phù hợp khác
+# python-dotenv
+# python-jose[cryptography] # Để tạo JWT
+# sqlalchemy
