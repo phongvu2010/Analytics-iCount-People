@@ -1,5 +1,3 @@
-# Quản lý cấu hình, đọc biến môi trường
-
 from pydantic import AnyUrl, BeforeValidator, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings
@@ -29,8 +27,8 @@ class Settings(BaseSettings):
     # --- Cấu hình cho DB ---
     DB_HOST: str
     DB_PORT: int = 1433  # Cổng mặc định của MSSQL
-    DB_DRIVER: str = 'SQL Server'
     DB_NAME: str
+    DB_DRIVER: str = 'SQL Server'
     DB_USER: str
     DB_PASS: str
 

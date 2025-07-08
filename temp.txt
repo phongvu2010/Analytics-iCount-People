@@ -1,0 +1,81 @@
+Promt
+Bạn là 1 Python Senior Dev & Data Analysic, hiện tôi có 1 CSDL liên quan đến dữ liệu đếm người ra - vào 1 trung tâm thương mại.
+Tôi muốn làm trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày. Có notication hiện thị cảnh báo ErrLog
+dbo.store
+├── tid:            (int, not_null, auto_increment) -> id thiết bị cửa ra - vào TTTM
+└── name:           (char(80), not_null)            -> tên thiết bị cửa ra - vào TTTM
+
+dbo.ErrLog
+├── ID:             (bigint, not_null, auto_increment)
+├── storeid:        (int, not_null) - (mapping dbo.store.tid)
+├── DeviceCode:     (smallint, )
+├── LogTime:        (datetime, )
+├── Errorcode:      (int, )
+└── ErrorMessage:   (nchar(120), )
+
+dbo.num_crowd
+├── recordtime:     (datetime, )
+├── in_num:         (int, not_null)
+├── out_num:        (int, not_null)
+└── storeid:        (int, not_null) - (mapping dbo.store.tid)
+
+- num_crowd thể hiện dữ liêu ra - vào theo thời gian (data sẽ có nhiều row bị lỗi tín hiệu nên sẽ bị tăng vọt bất thường, nên cần xử lý chia theo tỷ lệ tham số truyền vào).
+- mặc định là chọn tất cả các cửa ra - vào.
+
+
+
+
+
+
+
+
+
+
+
+
+### Hướng dẫn cài đặt và chạy
+
+1.  **Tạo cấu trúc thư mục:**
+    Tạo một thư mục dự án (ví dụ: `dashboard_backend`) và tạo các file/thư mục con như sau:
+    ```
+    dashboard_backend/
+    ├── static/
+    │   └── logo.png        # Đặt file logo của bạn vào đây
+    ├── templates/
+    │   └── dashboard.html  # File HTML giao diện
+    ├── .env                # File cấu hình CSDL
+    ├── database.py
+    ├── crud.py
+    ├── main.py
+    ├── models.py
+    ├── requirements.txt
+    └── schemas.py
+    ```
+
+2.  **Copy & Paste mã nguồn:**
+    Sao chép từng khối mã ở trên vào các file tương ứng đã tạo.
+
+3.  **Cài đặt thư viện:**
+    Mở terminal hoặc command prompt, điều hướng đến thư mục `dashboard_backend` và chạy lệnh:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Chạy ứng dụng:**
+    Vẫn trong terminal, chạy lệnh sau:
+    ```bash
+    uvicorn main:app --reload
+    ```
+
+5.  **Xem kết quả:**
+    Mở trình duyệt web và truy cập vào địa chỉ: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+
+### Giải thích kiến trúc
+
+* **`main.py`**: Là trái tim của ứng dụng, định nghĩa các "đường dẫn" (routes). Route `/` sẽ trả về trang HTML, trong khi route `/api/data` sẽ là nơi frontend gọi đến để lấy toàn bộ dữ liệu cần thiết dưới dạng JSON.
+* **`database.py`, `models.py`**: Sử dụng **SQLAlchemy ORM** để làm việc với CSDL một cách an toàn và có cấu trúc, thay vì viết các câu lệnh SQL thô.
+* **`crud.py`**: Tách biệt logic truy vấn CSDL ra khỏi logic xử lý request, giúp mã nguồn sạch sẽ và dễ kiểm thử hơn.
+* **`schemas.py`**: Dùng **Pydantic** để đảm bảo dữ liệu trả về cho frontend luôn đúng định dạng, giảm thiểu lỗi.
+* **`templates/` và `static/`**: Jinja2 và StaticFiles giúp FastAPI có thể phục vụ một trang web hoàn chỉnh, bao gồm cả HTML, CSS, JavaScript và hình ảnh.
+
+Kiến trúc này không chỉ đáp ứng yêu cầu hiện tại mà còn rất dễ dàng để bạn mở rộng thêm các tính năng phức tạp hơn trong tương l

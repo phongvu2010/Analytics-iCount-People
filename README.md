@@ -1,4 +1,4 @@
-## Models DB
+### Models DB
 ```
 dbo.store
 ├── tid:            (int, not_null, auto_increment)

@@ -21,7 +21,15 @@
 
 
 ### Packages
-# fastapi[all]
+fastapi[all]
+
+
+
+
+# pydantic-settings
+# uvicorn[standard]
+
+# bcrypt==4.0.1
 # jinja2
 # pandas
 # passlib[bcrypt] # Để hash mật khẩu
@@ -29,24 +37,7 @@
 # pyodbc  # Hoặc driver MSSQL phù hợp khác
 # python-dotenv
 # python-jose[cryptography] # Để tạo JWT
-# sqlalchemy
-
-
-dash
-dash-bootstrap-components
-pandas
-plotly
-numpy
-
-
-
-
-
-
-fastapi
-uvicorn[standard]
-Jinja2
-SQLAlchemy
-python-decouple
-# Nếu dùng SQL Server, bỏ comment dòng dưới và cài đặt driver ODBC
-# pyodbc
+# SQLAlchemy
+# numpy
+# Jinja2
+# python-decouple
