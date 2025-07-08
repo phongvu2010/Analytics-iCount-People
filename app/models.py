@@ -1,94 +1,104 @@
 # Định nghĩa các SQLAlchemy models (Store, NumCrowd, ErrLog, Status)
 
+from sqlalchemy import Column, BigInteger, Boolean, CHAR, DateTime, Integer, NCHAR, SmallInteger, String, ForeignKey
+from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.schema import PrimaryKeyConstraint
+
+# Base class cho tất cả các model
+Base = declarative_base()
 
 class Store(Base):
     __tablename__ = 'store'
 
     # Ánh xạ các cột trong bảng dbo.store
-    tid = Column(Integer, primary_key=True)
-    country = Column(String(20))
-    area = Column(String(20))
-    province = Column(String(20))
-    city = Column(String(20))
-    name = Column(String(80), nullable=False)
-    address = Column(String(80), nullable=False)
-    isbranch = Column(String(3))
-    code = Column(String(32), nullable=False)
-    cameranum = Column(Integer, nullable=False)
-    manager = Column(String(20))
-    managertel = Column(String(20))
-    lastEditDate = Column(DateTime)
-    formula = Column(String(64))
+    tid = Column(Integer, primary_key=True, index=True)
+    # country = Column(CHAR(20))
+    # area = Column(CHAR(20))
+    # province = Column(CHAR(20))
+    # city = Column(CHAR(20))
+    name = Column(CHAR(80), nullable=False)
+    # address = Column(CHAR(80), nullable=False)
+    # isbranch = Column(CHAR(3))
+    # code = Column(CHAR(32), nullable=False, unique=True)
+    # cameranum = Column(Integer, nullable=False, default=0)
+    # manager = Column(CHAR(20))
+    # managertel = Column(CHAR(20))
+    # lastEditDate = Column(DateTime)
+    # formula = Column(CHAR(64))
 
     # Chỉ định schema của bảng
     __table_args__ = {'schema': 'dbo'}
 
-    # Relationships để truy cập các bảng liên quan từ Store
-    err_logs = relationship('ErrLog', back_populates='store')
+    # Định nghĩa mối quan hệ một-nhiều với các bảng khác
     num_crowds = relationship('NumCrowd', back_populates='store')
+    error_logs = relationship('ErrLog', back_populates='store')
     statuses = relationship('Status', back_populates='store')
-
-class ErrLog(Base):
-    __tablename__ = 'ErrLog'
-
-    # Ánh xạ các cột trong bảng dbo.ErrLog
-    ID = Column(BigInteger, primary_key=True)
-    storeid = Column(Integer, ForeignKey('dbo.store.tid'), nullable=False)
-    DeviceCode = Column(SmallInteger)
-    LogTime = Column(DateTime)
-    Errorcode = Column(Integer)
-    ErrorMessage = Column(String(120))
-
-    # Chỉ định schema của bảng
-    __table_args__ = {'schema': 'dbo'}
-
-    # Relationship để truy cập từ Log đến Store
-    store = relationship('Store', back_populates='err_logs')
 
 class NumCrowd(Base):
     __tablename__ = 'num_crowd'
 
     # Ánh xạ các cột trong bảng dbo.ErrLog
-    recordtime = Column(DateTime, primary_key=True)
-    position = Column(String(30))
-    storeid = Column(Integer, ForeignKey('dbo.store.tid'), primary_key=True, nullable=False)
-
+    recordtime = Column(DateTime, nullable=False)
     in_num = Column(Integer, nullable=False)
     out_num = Column(Integer, nullable=False)
+    # position = Column(CHAR(30))
+    storeid = Column(Integer, ForeignKey('dbo.store.tid'), nullable=False)
 
     # Chỉ định schema của bảng
     __table_args__ = {'schema': 'dbo'}
 
-    # Relationship để truy cập từ Log đến Store
+    # Định nghĩa mối quan hệ nhiều-một ngược lại với Store
     store = relationship('Store', back_populates='num_crowds')
 
-class Status(Base):
-    __tablename__ = 'Status'
+    # Định nghĩa khóa chính phức hợp
+    __table_args__ = (
+        PrimaryKeyConstraint('recordtime', 'storeid'),
+    )
+
+class ErrLog(Base):
+    __tablename__ = 'ErrLog'
 
     # Ánh xạ các cột trong bảng dbo.ErrLog
-    ID = Column(Integer, primary_key=True)
+    ID = Column(BigInteger, primary_key=True, index=True)
     storeid = Column(Integer, ForeignKey('dbo.store.tid'), nullable=False)
-    FlashNum = Column(Integer)
-    RamNum = Column(Integer)
-    RC1 = Column(Boolean)
-    RC2 = Column(Boolean)
-    RC3 = Column(Boolean)
-    RC4 = Column(Boolean)
-    RC5 = Column(Boolean)
-    RC6 = Column(Boolean)
-    RC7 = Column(Boolean)
-    RC8 = Column(Boolean)
-    DcID = Column(SmallInteger)
-    FV = Column(String(20))
-    DcTime = Column(DateTime)
-    DeviceID = Column(SmallInteger)
-    IA = Column(Integer)
-    OA = Column(Integer)
-    S = Column(SmallInteger)
-    T = Column(DateTime)
+    # DeviceCode = Column(SmallInteger)
+    LogTime = Column(DateTime, nullable=False)
+    Errorcode = Column(Integer)
+    ErrorMessage = Column(NCHAR(120))
 
     # Chỉ định schema của bảng
     __table_args__ = {'schema': 'dbo'}
 
-    # Relationship để truy cập từ Log đến Store
-    store = relationship('Store', back_populates='statuses')
+    # Định nghĩa mối quan hệ nhiều-một ngược lại với Store
+    store = relationship('Store', back_populates='error_logs')
+
+# class Status(Base):
+#     __tablename__ = 'Status'
+
+#     # Ánh xạ các cột trong bảng dbo.ErrLog
+#     ID = Column(Integer, primary_key=True, index=True)
+#     storeid = Column(Integer, ForeignKey('dbo.store.tid'), nullable=False)
+#     FlashNum = Column(Integer)
+#     RamNum = Column(Integer)
+#     RC1 = Column(Boolean)
+#     RC2 = Column(Boolean)
+#     RC3 = Column(Boolean)
+#     RC4 = Column(Boolean)
+#     RC5 = Column(Boolean)
+#     RC6 = Column(Boolean)
+#     RC7 = Column(Boolean)
+#     RC8 = Column(Boolean)
+#     DcID = Column(SmallInteger)
+#     FV = Column(NCHAR(20))
+#     DcTime = Column(DateTime)
+#     DeviceID = Column(SmallInteger)
+#     IA = Column(Integer)
+#     OA = Column(Integer)
+#     S = Column(SmallInteger)
+#     T = Column(DateTime)
+
+#     # Chỉ định schema của bảng
+#     __table_args__ = {'schema': 'dbo'}
+
+#     # Định nghĩa mối quan hệ nhiều-một ngược lại với Store
+#     store = relationship('Store', back_populates='statuses')
