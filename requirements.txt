@@ -25,19 +25,20 @@ fastapi[all]
 SQLAlchemy
 
 
-
-
-# pydantic-settings
-# uvicorn[standard]
-
 # bcrypt==4.0.1
-# jinja2
 # pandas
 # passlib[bcrypt] # Để hash mật khẩu
 # plotly
+# pydantic-settings
 # pyodbc  # Hoặc driver MSSQL phù hợp khác
 # python-dotenv
 # python-jose[cryptography] # Để tạo JWT
 # numpy
 # Jinja2
 # python-decouple
+# uvicorn[standard]
+# st-pages
+# streamlit
+# streamlit-authenticator
+# streamlit-option-menu
+# watchdog

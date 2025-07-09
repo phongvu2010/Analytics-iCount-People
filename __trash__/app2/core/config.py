@@ -1,5 +1,3 @@
-# Quản lý cấu hình, đọc biến môi trường
-
 from pydantic import AnyUrl, BeforeValidator, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings
@@ -27,24 +25,24 @@ class Settings(BaseSettings):
     # ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     # --- Cấu hình cho DB ---
-    DB_HOST: str
-    DB_PORT: int = 1433  # Cổng mặc định của MSSQL
-    DB_DRIVER: str = 'SQL Server'
-    DB_NAME: str
-    DB_USER: str
-    DB_PASS: str
+    DATA_HOST: str
+    DATA_PORT: int = 1433  # Cổng mặc định của MSSQL
+    DATA_USER: str
+    DATA_PASS: str
+    DATA_DB: str
+    DATA_DRIVER: str = 'SQL Server'
 
     @computed_field  # type: ignore[misc]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return str(MultiHostUrl.build(
             scheme = 'mssql+pyodbc',
-            username = self.DB_USER,
-            password = parse.quote_plus(self.DB_PASS),
-            host = self.DB_HOST,
-            port = self.DB_PORT,
-            path = self.DB_NAME,
-            query = f'driver={self.DB_DRIVER}'
+            username = self.DATA_USER,
+            password = parse.quote_plus(self.DATA_PASS),
+            host = self.DATA_HOST,
+            port = self.DATA_PORT,
+            path = self.DATA_DB,
+            query = f'driver={self.DATA_DRIVER}'
         ))
 
     class Config:
