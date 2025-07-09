@@ -49,7 +49,7 @@
             padding-right: 2.5rem;
         }
         .dark .custom-select {
-             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
         }
         input[type="date"]::-webkit-calendar-picker-indicator {
             cursor: pointer;
@@ -65,14 +65,15 @@
     <div class="container mx-auto p-4 md:p-6 lg:p-8">
         <header class="mb-6 flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <img src="https://storage.googleapis.com/gemini-prod-us-west1-423907135896-assets/8b463510-1621-4f10-a292-7d2d3128e4e9" alt="Logo" class="h-10" onerror="this.style.display='none'">
+                <!-- Sử dụng đường dẫn tĩnh cho logo -->
+                <img src="/static/logo.png" alt="Logo" class="h-10" onerror="this.style.display='none'">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Lượt Khách</h1>
                     <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">Phân tích và thống kê lưu lượng người ra vào.</p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <!-- Settings -->
+                <!-- Các nút Cài đặt và Thông báo -->
                 <div class="relative">
                     <button id="settings-button" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
