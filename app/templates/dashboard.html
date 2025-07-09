@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Thống kê lượng khách</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Favicon -->
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        /* Custom styles nếu cần */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .notification {
+            transition: opacity 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-3">
+                <img src="/static/logo.png" alt="Logo" class="h-10 w-10" onerror="this.style.display='none'">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-700">Dashboard Thống Kê</h1>
+            </div>
+            <div id="notification-bell" class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span id="notification-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Chart Section -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                    <h2 class="text-xl font-semibold mb-2 sm:mb-0">Lượng khách vào</h2>
+                    <div id="time-period-selector" class="flex space-x-1 bg-gray-200 p-1 rounded-md">
+                        <button data-period="day" class="period-btn bg-white text-blue-600 py-1 px-3 rounded-md text-sm font-medium">Ngày</button>
+                        <button data-period="week" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tuần</button>
+                        <button data-period="month" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tháng</button>
+                        <button data-period="year" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Năm</button>
+                    </div>
+                </div>
+                <div id="chart-container" class="relative h-96">
+                    <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                    </div>
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Error Logs Section -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Nhật ký lỗi hệ thống (Mới nhất)</h2>
+                <div id="error-log-container" class="space-y-3">
+                    <!-- Error logs will be injected here by JavaScript -->
+                    <p id="loading-errors" class="text-gray-500">Đang tải dữ liệu lỗi...</p>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+            let trafficChart;
+            const periodButtons = document.querySelectorAll('.period-btn');
+            const loadingSpinner = document.getElementById('loading-spinner');
+
+            // --- Chart Logic ---
+            async function fetchAndRenderChart(period = 'day') {
+                loadingSpinner.style.display = 'flex';
+                try {
+                    const response = await fetch(`/api/stats?period=${period}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const result = await response.json();
+                    
+                    const chartData = {
+                        labels: result.data.map(d => d.label),
+                        datasets: [{
+                            label: 'Lượng khách vào',
+                            data: result.data.map(d => d.value),
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    };
+
+                    if (trafficChart) {
+                        trafficChart.destroy();
+                    }
+
+                    trafficChart = new Chart(ctx, {
+                        type: 'line',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Số lượng người'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false
+                                }
+                            },
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Không thể tải dữ liệu thống kê:', error);
+                    document.getElementById('chart-container').innerHTML = '<p class="text-center text-red-500">Đã xảy ra lỗi khi tải biểu đồ.</p>';
+                } finally {
+                    loadingSpinner.style.display = 'none';
+                }
+            }
+            
+            periodButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active button style
+                    periodButtons.forEach(btn => {
+                        btn.classList.remove('bg-white', 'text-blue-600');
+                    });
+                    button.classList.add('bg-white', 'text-blue-600');
+                    
+                    const period = button.getAttribute('data-period');
+                    fetchAndRenderChart(period);
+                });
+            });
+
+            // --- Error Log Logic ---
+            async function fetchErrorLogs() {
+                const errorContainer = document.getElementById('error-log-container');
+                const loadingErrors = document.getElementById('loading-errors');
+                const notificationCount = document.getElementById('notification-count');
+                try {
+                    const response = await fetch('/api/errors?limit=5');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const errors = await response.json();
+                    
+                    errorContainer.innerHTML = ''; // Clear loading message
+                    
+                    if (errors.length > 0) {
+                        notificationCount.textContent = errors.length;
+                        notificationCount.classList.remove('hidden');
+
+                        errors.forEach(err => {
+                            const errorElement = document.createElement('div');
+                            errorElement.className = 'notification bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg';
+                            
+                            const logTime = new Date(err.LogTime).toLocaleString('vi-VN');
+
+                            errorElement.innerHTML = `
+                                <p class="font-bold">Lỗi: ${err.ErrorMessage || 'Không xác định'}</p>
+                                <p class="text-sm">Thời gian: ${logTime} | Store ID: ${err.storeid} | Mã lỗi: ${err.Errorcode || 'N/A'}</p>
+                            `;
+                            errorContainer.appendChild(errorElement);
+                        });
+                    } else {
+                        errorContainer.innerHTML = '<p class="text-gray-500">Không có lỗi nào được ghi nhận gần đây.</p>';
+                        notificationCount.classList.add('hidden');
+                    }
+
+                } catch (error) {
+                    console.error('Không thể tải nhật ký lỗi:', error);
+                    errorContainer.innerHTML = '<p class="text-center text-red-500">Đã xảy ra lỗi khi tải nhật ký lỗi.</p>';
+                }
+            }
+
+            // Initial data load
+            fetchAndRenderChart('day');
+            fetchErrorLogs();
+
+            // Refresh error logs every 30 seconds
+            setInterval(fetchErrorLogs, 30000);
+        });
+    </script>
+</body>
+</html>

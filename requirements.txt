@@ -22,24 +22,24 @@
 
 ### Packages
 fastapi[all]
+pandas
 pyodbc  # Hoặc driver MSSQL phù hợp khác
 SQLAlchemy
 
 
 # bcrypt==4.0.1
-# pandas
+# Jinja2
+# numpy
 # passlib[bcrypt] # Để hash mật khẩu
 # plotly
+# pydantic[email]
 # pydantic-settings
-
+# python-decouple
 # python-dotenv
 # python-jose[cryptography] # Để tạo JWT
-# numpy
-# Jinja2
-# python-decouple
-# uvicorn[standard]
 # st-pages
 # streamlit
 # streamlit-authenticator
 # streamlit-option-menu
+# uvicorn[standard]
 # watchdog
