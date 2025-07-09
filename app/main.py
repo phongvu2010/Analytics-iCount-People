@@ -40,14 +40,12 @@ app.add_middleware(
 )
 
 # 1. Cấu hình để phục vụ các file tĩnh (CSS, JS, Images)
-# Các file trong thư mục 'app/static' sẽ được truy cập qua đường dẫn '/static'
-app.mount('/static', StaticFiles(directory='static'), name='static')
-# app.mount('/static', StaticFiles(directory='app/static'), name='static')
+# Các file trong thư mục 'app/static' sẽ được truy cập qua đường dẫn 'app/static'
+app.mount('/static', StaticFiles(directory='app/static'), name='static')
 
 # # 2. Cấu hình Jinja2 templates
 # # FastAPI sẽ tìm kiếm các file HTML trong thư mục 'app/templates'
-templates = Jinja2Templates(directory='templates')
-# templates = Jinja2Templates(directory='app/templates')
+templates = Jinja2Templates(directory='app/templates')
 
 @app.get('/health', tags = ['Root'])
 def read_root():
