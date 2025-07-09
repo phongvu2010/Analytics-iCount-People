@@ -1,37 +1,9 @@
 # # === FILENAME: schemas.py ===
 # # Module định nghĩa các schema Pydantic để validate và serialize dữ liệu.
 
-# from pydantic import BaseModel
-# from datetime import datetime
-# from typing import List, Optional
-
-# class Store(BaseModel):
-#     tid: int
-#     name: str
-#     class Config:
-#         orm_mode = True
-
-# class ErrLog(BaseModel):
-#     ID: int
-#     storeid: int
-#     LogTime: datetime
-#     ErrorMessage: str
-#     class Config:
-#         orm_mode = True
-
-
-
-
-
-
-
-
 
 # # Pydantic schemas (validate dữ liệu)
 
-# from datetime import datetime
-# from pydantic import BaseModel
-# from typing import Optional, List
 
 # # =======================================
 # # Schemas cho Token (Xác thực)
@@ -133,9 +105,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-# =======================================
-# Schemas cho Store
-# =======================================
 # Schema cơ bản cho Store
 class StoreBase(BaseModel):
     name: str
@@ -161,9 +130,6 @@ class NumCrowd(NumCrowdBase):
     class Config:
         orm_mode = True
 
-# =======================================
-# Schemas cho ErrLog
-# =======================================
 class ErrLogBase(BaseModel):
     storeid: int
     LogTime: datetime

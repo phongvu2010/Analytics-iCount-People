@@ -3,6 +3,9 @@ from sqlalchemy.orm import relationship
 
 from .core.database import Base
 
+# =======================================
+# SQLAlchemy Model cho Store
+# =======================================
 class Store(Base):
     """
     SQLAlchemy model for the 'dbo.store' table.
@@ -37,6 +40,9 @@ class Store(Base):
     def __repr__(self):
         return f"<Store(tid={self.tid}, name='{self.name}', code='{self.code}')>"
 
+# =======================================
+# SQLAlchemy Model cho ErrLog
+# =======================================
 class ErrLog(Base):
     """
     SQLAlchemy model for the 'dbo.ErrLog' table.
@@ -61,6 +67,9 @@ class ErrLog(Base):
     def __repr__(self):
         return f"<ErrLog(ID={self.ID}, storeid={self.storeid}, LogTime='{self.LogTime}')>"
 
+# =======================================
+# SQLAlchemy Model cho NumCrowd
+# =======================================
 class NumCrowd(Base):
     """
     SQLAlchemy model for the 'dbo.num_crowd' table.
@@ -84,6 +93,9 @@ class NumCrowd(Base):
     def __repr__(self):
         return f"<NumCrowd(storeid={self.storeid}, recordtime='{self.recordtime}', in={self.in_num}, out={self.out_num})>"
 
+# =======================================
+# SQLAlchemy Model cho Status
+# =======================================
 class Status(Base):
     """
     SQLAlchemy model for the 'dbo.Status' table.
