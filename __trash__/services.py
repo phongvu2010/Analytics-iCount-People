@@ -85,9 +85,6 @@ def get_crowd_data(db: Session, start_date: Optional[datetime], end_date: Option
 
 
 
-
-
-
 # from typing import List, Dict
 
 # def aggregate_crowd_data(data: List[Dict], period: str = 'daily') -> List[Dict]:
