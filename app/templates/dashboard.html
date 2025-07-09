@@ -4,32 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Thống Kê Lượt Khách (Pro)</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <script src="[https://cdn.jsdelivr.net/npm/chart.js](https://cdn.jsdelivr.net/npm/chart.js)"></script>
-    <script src="[https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns](https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns)"></script>
-    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
-    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
-    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
+        // Set theme on initial load
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
-        tailwind.config = { darkMode: 'class' }
+        tailwind.config = {
+            darkMode: 'class',
+        }
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         .dark ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
-        .filter-btn.active { background-color: #2563eb; color: white; font-weight: 600; }
-        .custom-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
-        .dark .custom-select { background-image: url("data:image/svg+xml,%3csvg xmlns='[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); }
-        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.5); }
-        .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+        .filter-btn.active {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+        }
+        .custom-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        .dark .custom-select {
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            filter: invert(0.5);
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
@@ -37,99 +65,610 @@
     <div class="container mx-auto p-4 md:p-6 lg:p-8">
         <header class="mb-6 flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <!-- Sử dụng đường dẫn tĩnh cho logo -->
-                <img src="/static/logo.png" alt="Logo" class="h-10" onerror="this.style.display='none'">
+                <img src="https://storage.googleapis.com/gemini-prod-us-west1-423907135896-assets/8b463510-1621-4f10-a292-7d2d3128e4e9" alt="Logo" class="h-10" onerror="this.style.display='none'">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Lượt Khách</h1>
                     <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">Phân tích và thống kê lưu lượng người ra vào.</p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                 <!-- Các nút Cài đặt và Thông báo -->
+                <!-- Settings -->
+                <div class="relative">
+                    <button id="settings-button" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </button>
+                    <div id="settings-panel" class="hidden absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                        <div class="p-4 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Giao diện</label>
+                                <div class="flex rounded-lg bg-slate-100 dark:bg-gray-700 p-1">
+                                    <button data-theme="light" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Sáng</button>
+                                    <button data-theme="dark" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Tối</button>
+                                    <button data-theme="auto" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Tự động</button>
+                                </div>
+                            </div>
+                            <div class="pt-2">
+                                <label for="anomaly-slider" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Ngưỡng xử lý đột biến</label>
+                                <div class="flex items-center gap-4 mt-2">
+                                    <input id="anomaly-slider" type="range" min="1.5" max="10" value="3" step="0.5" class="w-full h-2 bg-slate-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                                    <span id="anomaly-value" class="font-semibold text-blue-600 dark:text-blue-400 w-12 text-center">3.0x</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button id="notification-bell" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
+                        <span id="notification-badge" class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">0</span>
+                    </button>
+                    <div id="notification-panel" class="hidden absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                        <div class="p-4 border-b border-slate-200 dark:border-gray-700"><h3 class="font-semibold text-slate-900 dark:text-white">Cảnh Báo Hệ Thống</h3></div>
+                        <div id="error-log-container" class="p-2 space-y-2 overflow-y-auto" style="max-height: 400px;"></div>
+                    </div>
+                </div>
             </div>
         </header>
 
         <main class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg">
-            <!-- Toàn bộ phần còn lại của HTML giữ nguyên -->
-            <!-- ... -->
+            <!-- Filters -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button data-period="day" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Ngày</button>
+                    <button data-period="week" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tuần</button>
+                    <button data-period="month" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tháng</button>
+                    <button data-period="year" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Năm</button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                    <select id="store-selector" class="h-10 custom-select w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                    <div id="date-picker-container" class="flex gap-4 items-center flex-wrap"></div>
+                </div>
+            </div>
+            
+            <!-- Metrics -->
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Lượt Vào</h3>
+                    <p id="total-in" class="text-2xl xl:text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Lượt vào TB</h3>
+                    <p id="average-in" class="text-2xl xl:text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Giờ Cao Điểm</h3>
+                    <p id="peak-time" class="text-2xl xl:text-3xl font-bold text-slate-900 dark:text-white mt-1">--:--</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Số người hiện tại (Ước tính)</h3>
+                    <p id="occupancy" class="text-2xl xl:text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Cửa đông nhất</h3>
+                    <p id="busiest-store" class="text-lg xl:text-xl font-bold text-slate-900 dark:text-white mt-1 truncate">--</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tăng trưởng</h3>
+                    <div id="growth" class="text-2xl xl:text-3xl font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
+                        <span>--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                <!-- Line Chart -->
+                <div class="lg:col-span-3">
+                    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Xu hướng lượt vào</h3>
+                    <div class="h-96">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
+                <!-- Store Comparison Donut Chart -->
+                <div id="pie-chart-wrapper" class="lg:col-span-2">
+                    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Tỷ trọng theo cửa</h3>
+                    <div class="h-96 bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl flex items-center justify-center">
+                         <canvas id="storeComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div id="table-wrapper">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                     <div class="flex items-center gap-4">
+                        <h3 class="text-xl font-semibold text-slate-900 dark:text-white">Dữ liệu chi tiết</h3>
+                        <p id="time-range-display" class="text-sm font-semibold text-blue-600 dark:text-blue-400">Đang tải...</p>
+                     </div>
+                     <button id="download-csv-button" title="Tải xuống CSV" class="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Tải CSV</span>
+                    </button>
+                </div>
+                <div id="table-container" class="overflow-x-auto max-h-96 rounded-lg border border-slate-200 dark:border-gray-700">
+                    <!-- Table will be generated here -->
+                </div>
+            </div>
         </main>
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- UI ELEMENT REFERENCES ---
-        // Giữ nguyên phần tham chiếu UI
-        
-        let trafficChart, storeComparisonChart;
-        let currentPeriod = 'day';
-        let currentTableData = { labels: [], data: [] };
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- MOCK DATA GENERATION ---
+            const stores = [ { tid: 1, name: 'Cửa chính A1' }, { tid: 2, name: 'Cửa phụ A2' }, { tid: 3, name: 'Cửa hầm B1' }, { tid: 4, name: 'Cửa hầm B2' }];
+            function generateNumCrowdData() { /* ... same as before ... */ return []; }
+            function generateErrLogData() { /* ... same as before ... */ return []; }
+            try {
+                const generateNumCrowdData = () => {
+                    const data = [];
+                    for (let i = 0; i < 3 * 365 * 24; i++) {
+                        const recordTime = new Date(new Date().getTime() - i * 60 * 60 * 1000);
+                        let in_num = Math.floor(Math.random() * 150) + 10;
+                        const hour = recordTime.getHours();
+                        if (hour >= 11 && hour <= 13 || hour >= 18 && hour <= 20) { in_num = Math.floor(Math.random() * 250) + 50; }
+                        const day = recordTime.getDay();
+                        if (day === 0 || day === 6) { in_num *= 1.5; }
+                        if (Math.random() < 0.005) { in_num *= (Math.floor(Math.random() * 6) + 4); }
+                        data.push({
+                            recordtime: recordTime,
+                            in_num: Math.floor(in_num),
+                            out_num: Math.floor(in_num * (Math.random() * 0.4 + 0.5)), // Out is 50-90% of in
+                            storeid: stores[Math.floor(Math.random() * stores.length)].tid
+                        });
+                    }
+                    return data.reverse();
+                };
+                const generateErrLogData = () => {
+                    const errors = [];
+                    const now = new Date();
+                    const errorMessages = ['Mất kết nối cảm biến', 'Lỗi nguồn điện', 'Dữ liệu không hợp lệ', 'Cảm biến bị che khuất'];
+                    for (let i = 0; i < 8; i++) {
+                        if (Math.random() > 0.2) {
+                            errors.push({ ID: i + 1, storeid: stores[Math.floor(Math.random() * stores.length)].tid, LogTime: new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000), ErrorMessage: errorMessages[Math.floor(Math.random() * errorMessages.length)] });
+                        }
+                    }
+                    return errors.sort((a, b) => b.LogTime - a.LogTime);
+                };
+                var rawCrowdData = generateNumCrowdData();
+                var errorLogs = generateErrLogData();
+            } catch(e) { console.error("Data generation failed", e); }
 
-        // --- API CALL LOGIC ---
-        async function updateDashboard() {
-            const now = new Date();
-            const selectedDate = document.getElementById('day-selector')?.value || now.toISOString().split('T')[0];
+
+            // --- UI ELEMENT REFERENCES ---
+            const ui = {
+                chartCanvas: document.getElementById('trafficChart'),
+                storeComparisonCanvas: document.getElementById('storeComparisonChart'),
+                filterButtons: document.querySelectorAll('.filter-btn'),
+                anomalySlider: document.getElementById('anomaly-slider'),
+                anomalyValueSpan: document.getElementById('anomaly-value'),
+                timeRangeDisplay: document.getElementById('time-range-display'),
+                totalInDisplay: document.getElementById('total-in'),
+                averageInDisplay: document.getElementById('average-in'),
+                maxInDisplay: document.getElementById('max-in'),
+                peakTimeDisplay: document.getElementById('peak-time'),
+                occupancyDisplay: document.getElementById('occupancy'),
+                busiestStoreDisplay: document.getElementById('busiest-store'),
+                growthDisplay: document.getElementById('growth'),
+                storeSelector: document.getElementById('store-selector'),
+                datePickerContainer: document.getElementById('date-picker-container'),
+                tableContainer: document.getElementById('table-container'),
+                downloadCsvButton: document.getElementById('download-csv-button'),
+                notification: { bell: document.getElementById('notification-bell'), badge: document.getElementById('notification-badge'), panel: document.getElementById('notification-panel'), logContainer: document.getElementById('error-log-container')},
+                settings: { button: document.getElementById('settings-button'), panel: document.getElementById('settings-panel'), themeButtons: document.querySelectorAll('.theme-btn')}
+            };
+
+            let trafficChart, storeComparisonChart;
+            let currentPeriod = 'day';
+            let currentTableData = { labels: [], data: [] }; // To store data for CSV download
+
+            // --- THEME MANAGEMENT ---
+            const applyTheme = (theme) => {
+                const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', isDark);
+                localStorage.theme = theme;
+                ui.settings.themeButtons.forEach(btn => {
+                    btn.classList.toggle('bg-blue-500', btn.dataset.theme === theme);
+                    btn.classList.toggle('text-white', btn.dataset.theme === theme);
+                });
+                updateDashboard(); // Redraw chart with new theme colors
+            };
             
-            // Xây dựng URL với các tham số
-            const params = new URLSearchParams({
-                period: currentPeriod,
-                selected_date_str: selectedDate,
-                // Thêm các tham số khác như year, month, week, store_id...
+            ui.settings.themeButtons.forEach(button => {
+                button.addEventListener('click', () => applyTheme(button.dataset.theme));
             });
             
-            try {
-                const response = await fetch(`/api/data?${params.toString()}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (localStorage.theme === 'auto') applyTheme('auto');
+            });
 
-                // --- CẬP NHẬT GIAO DIỆN VỚI DỮ LIỆU TỪ API ---
-                
-                // 1. Cập nhật các thẻ số liệu (Metrics)
-                const metrics = data.metrics;
-                ui.totalInDisplay.textContent = metrics.total_in.toLocaleString('vi-VN');
-                ui.averageInDisplay.textContent = Math.round(metrics.average_in).toLocaleString('vi-VN');
-                // ... cập nhật các metrics khác
+            // --- HELPER FUNCTIONS ---
+            const getWeekDateRange = (year, week) => {
+                const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+                const day = d.getUTCDay() || 7;
+                d.setUTCDate(d.getUTCDate() + 1 - day);
+                const startDate = new Date(d);
+                const endDate = new Date(d);
+                endDate.setUTCDate(d.getUTCDate() + 6);
+                return { startDate, endDate };
+            };
+            const formatDate = (date, locale = 'sv-SE') => { // sv-SE for YYYY-MM-DD format
+                return date.toLocaleDateString(locale);
+            };
+            var getWeekDateRangeFn = getWeekDateRange;
+            var formatDateFn = formatDate;
 
-                // 2. Cập nhật Line Chart
-                initOrUpdateLineChart();
-                trafficChart.data.labels = data.line_chart_data.labels;
-                trafficChart.data.datasets[0].data = data.line_chart_data.data;
-                trafficChart.update();
-
-                // 3. Cập nhật Donut Chart
-                initOrUpdateDonutChart(data.donut_chart_data);
-
-                // 4. Cập nhật Bảng dữ liệu
-                renderDataTable(data.table_data.labels, data.table_data.data);
-
-                // 5. Cập nhật danh sách cửa hàng (nếu cần)
-                // populateStoreSelector(data.stores);
-
-            } catch (error) {
-                console.error("Không thể tải dữ liệu dashboard:", error);
-                // Có thể hiển thị một thông báo lỗi trên giao diện
+            // --- UI POPULATION & INTERACTION ---
+            function populateStoreSelector() {
+                ui.storeSelector.innerHTML = `<option value="all">Tất cả cửa</option>`;
+                stores.forEach(store => { ui.storeSelector.innerHTML += `<option value="${store.tid}">${store.name}</option>`; });
             }
-        }
-        
-        // --- Các hàm khởi tạo và xử lý sự kiện ---
-        // Giữ nguyên các hàm như initOrUpdateLineChart, renderDataTable,
-        // initOrUpdateDonutChart, downloadTableAsCSV, ...
-        // Chỉ cần đảm bảo chúng nhận dữ liệu từ hàm updateDashboard()
-        // thay vì tự tính toán.
 
-        // --- INITIALIZATION ---
-        // Giữ nguyên phần khởi tạo
-        // populateStoreSelector(); // Có thể gọi với dữ liệu tĩnh ban đầu hoặc từ API
-        // renderDatePickers();
-        // setupNotifications(data.error_logs); // Truyền dữ liệu lỗi từ API
-        // setupPopups();
-        // applyTheme(localStorage.theme || 'auto');
-        // ui.filterButtons[0].classList.add('active');
-        
-        // Gọi hàm updateDashboard lần đầu để tải dữ liệu
-        updateDashboard(); 
-    });
+            function renderDatePickers() {
+                const now = new Date();
+                let currentYear = now.getFullYear();
+                let html = '';
+                const baseClasses = "h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
+                const yearOptions = Array.from({ length: 3 }, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
+
+                switch (currentPeriod) {
+                    case 'day':
+                        html = `<input type="date" id="day-selector" class="${baseClasses} w-full sm:w-40" value="${formatDateFn(now)}">`;
+                        break;
+                    case 'week':
+                        const weeksInYear = 52;
+                        let weekOptions = '';
+                        for(let i=1; i<=weeksInYear; i++) {
+                            const {startDate, endDate} = getWeekDateRangeFn(currentYear, i);
+                            weekOptions += `<option value="${i}">Tuần ${i} (${formatDateFn(startDate, 'vi-VN')} - ${formatDateFn(endDate, 'vi-VN')})</option>`;
+                        }
+                        html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="week-selector" class="${baseClasses} w-64">${weekOptions}</select>`;
+                        break;
+                    case 'month':
+                        const monthOptions = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${now.getMonth() === i ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('');
+                        html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="month-selector" class="${baseClasses} w-32">${monthOptions}</select>`;
+                        break;
+                    case 'year':
+                        html = `<select id="year-selector" class="${baseClasses} w-32">${yearOptions}</select>`;
+                        break;
+                }
+                ui.datePickerContainer.innerHTML = html;
+                ui.datePickerContainer.querySelectorAll('select, input').forEach(el => el.addEventListener('change', updateDashboard));
+            }
+
+            function setupPopups() { /* ... same as before ... */ }
+            function setupNotifications() { /* ... same as before ... */ }
+            try {
+                setupPopups = () => {
+                    const setupPopup = (button, panel) => { button.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); }); };
+                    setupPopup(ui.notification.bell, ui.notification.panel);
+                    setupPopup(ui.settings.button, ui.settings.panel);
+                    document.addEventListener('click', (e) => {
+                        if (!ui.notification.panel.classList.contains('hidden') && !ui.notification.panel.contains(e.target) && !ui.notification.bell.contains(e.target)) { ui.notification.panel.classList.add('hidden'); }
+                        if (!ui.settings.panel.classList.contains('hidden') && !ui.settings.panel.contains(e.target) && !ui.settings.button.contains(e.target)) { ui.settings.panel.classList.add('hidden'); }
+                    });
+                };
+                setupNotifications = () => {
+                    ui.notification.badge.textContent = errorLogs.length;
+                    ui.notification.logContainer.innerHTML = errorLogs.length === 0 ? `<div class="text-center text-slate-500 dark:text-slate-400 p-4">Không có cảnh báo nào.</div>` : errorLogs.map(log => { const storeName = stores.find(s => s.tid === log.storeid)?.name || 'Không rõ'; return `<div class="flex items-start gap-3 p-3 mx-2 mb-2 bg-red-500/10 border-l-4 border-red-500 rounded-r-lg"> <div class="flex-shrink-0 pt-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></div> <div><p class="font-semibold text-sm text-slate-800 dark:text-white">${log.ErrorMessage} - ${storeName}</p><p class="text-xs text-slate-500 dark:text-slate-400">${log.LogTime.toLocaleString('vi-VN')}</p></div> </div>`; }).join('');
+                };
+            } catch(e) { console.error("UI setup failed", e); }
+            
+            // --- DATA & CHARTING ---
+            function renderDataTable(labels, data) {
+                currentTableData = { labels, data }; // Store for download
+                let header = 'Thời gian';
+                switch(currentPeriod) {
+                    case 'day': header = 'Giờ'; break;
+                    case 'week': header = 'Ngày trong tuần'; break;
+                    case 'month': header = 'Ngày'; break;
+                    case 'year': header = 'Tháng'; break;
+                }
+
+                const tableRows = data.map((currentValue, index) => {
+                    const prevValue = index > 0 ? data[index - 1] : 0;
+                    let diff = 0;
+                    if (prevValue > 0) {
+                        diff = ((currentValue - prevValue) / prevValue) * 100;
+                    } else if (currentValue > 0) {
+                        diff = 100; // Treat as 100% increase if previous was 0
+                    }
+                    
+                    const diffColor = diff > 0 ? 'text-green-500' : diff < 0 ? 'text-red-500' : 'text-slate-500';
+                    const diffSign = diff > 0 ? '+' : '';
+
+                    return `
+                    <tr class="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                        <td class="p-3 text-sm text-slate-700 dark:text-slate-300">${labels[index]}</td>
+                        <td class="p-3 text-sm font-medium text-slate-900 dark:text-white text-right">${currentValue.toLocaleString('vi-VN')}</td>
+                        <td class="p-3 text-sm font-medium ${diffColor} text-right">${diff.toFixed(1) !== '0.0' ? diffSign + diff.toFixed(1) + '%' : '--'}</td>
+                    </tr>
+                `}).join('');
+
+                const tableHTML = `
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-100 dark:bg-gray-700 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300">${header}</th>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Lượt vào</th>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Chênh lệch (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                `;
+                ui.tableContainer.innerHTML = tableHTML;
+            }
+
+            function processData(filters, allStores = false) {
+                const { period, storeId, selectedDate, year, month, week, anomalyThreshold } = filters;
+                let dataToProcess = rawCrowdData;
+
+                // If not processing for all stores, filter by selected storeId
+                if (!allStores && storeId !== 'all') {
+                    dataToProcess = dataToProcess.filter(d => d.storeid === parseInt(storeId));
+                }
+
+                let startDate, endDate;
+                switch (period) {
+                    case 'day': const d = new Date(selectedDate); startDate = new Date(d.setHours(0,0,0,0)); endDate = new Date(d.setHours(23,59,59,999)); break;
+                    case 'week': ({ startDate, endDate } = getWeekDateRangeFn(year, week)); endDate.setHours(23,59,59,999); break;
+                    case 'month': startDate = new Date(year, month - 1, 1); endDate = new Date(year, month, 0, 23, 59, 59, 999); break;
+                    case 'year': startDate = new Date(year, 0, 1); endDate = new Date(year, 11, 31, 23, 59, 59, 999); break;
+                }
+                dataToProcess = dataToProcess.filter(d => d.recordtime >= startDate && d.recordtime <= endDate);
+                
+                // Anomaly smoothing
+                if (dataToProcess.length > 2) { 
+                    const average = dataToProcess.reduce((sum, item) => sum + item.in_num, 0) / dataToProcess.length; 
+                    const thresholdValue = average * anomalyThreshold; 
+                    dataToProcess = dataToProcess.map(item => ({ ...item, in_num: item.in_num > thresholdValue ? Math.round(thresholdValue) : item.in_num })); 
+                }
+
+                const aggregationMap = new Map();
+                dataToProcess.forEach(item => { let key; switch (period) { case 'day': key = item.recordtime.getHours(); break; case 'week': key = item.recordtime.getDay(); break; case 'month': key = item.recordtime.getDate(); break; case 'year': key = item.recordtime.getMonth(); break; } aggregationMap.set(key, (aggregationMap.get(key) || 0) + item.in_num); });
+                
+                const finalLabels = [], finalData = [];
+                switch (period) {
+                    case 'day': for (let i = 0; i < 24; i++) { finalLabels.push(`${i}:00`); finalData.push(aggregationMap.get(i) || 0); } break;
+                    case 'week': const daysOfWeek = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']; const orderedDays = [...daysOfWeek.slice(1), daysOfWeek[0]]; const dayMap = new Map([[1,0],[2,1],[3,2],[4,3],[5,4],[6,5],[0,6]]); orderedDays.forEach((day, index) => { finalLabels.push(day); const originalDayIndex = Array.from(dayMap.keys()).find(key => dayMap.get(key) === index); finalData.push(aggregationMap.get(originalDayIndex) || 0); }); break;
+                    case 'month': const daysInMonth = new Date(year, month, 0).getDate(); for (let i = 1; i <= daysInMonth; i++) { finalLabels.push(`Ngày ${i}`); finalData.push(aggregationMap.get(i) || 0); } break;
+                    case 'year': for (let i = 0; i < 12; i++) { finalLabels.push(`Tháng ${i + 1}`); finalData.push(aggregationMap.get(i) || 0); } break;
+                }
+                
+                return { labels: finalLabels, data: finalData.map(Math.round), fullData: dataToProcess };
+            }
+
+            function getChartColors() { /* ... same as before ... */ }
+            function initOrUpdateLineChart() { /* ... same as before ... */ }
+            function initOrUpdateDonutChart(pieData) {
+                const colors = getChartColors();
+                const pieColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#ec4899'];
+
+                const chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: colors.ticks,
+                                usePointStyle: true,
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: colors.tooltipBg,
+                            titleColor: colors.tooltipText,
+                            bodyColor: colors.tooltipText,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.chart.getDatasetMeta(0).total;
+                                    const percentage = total > 0 ? (value / total * 100).toFixed(1) : 0;
+                                    return `${label}: ${value.toLocaleString('vi-VN')} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if (storeComparisonChart) {
+                    storeComparisonChart.data.labels = pieData.labels;
+                    storeComparisonChart.data.datasets[0].data = pieData.data;
+                    storeComparisonChart.options = chartOptions;
+                    storeComparisonChart.update('none');
+                } else {
+                    const ctx = ui.storeComparisonCanvas.getContext('2d');
+                    storeComparisonChart = new Chart(ctx, {
+                        type: 'doughnut', // Changed from 'pie' to 'doughnut'
+                        data: {
+                            labels: pieData.labels,
+                            datasets: [{
+                                label: 'Lượt vào',
+                                data: pieData.data,
+                                backgroundColor: pieColors,
+                                borderColor: colors.tooltipBg,
+                                borderWidth: 2,
+                            }]
+                        },
+                        options: chartOptions
+                    });
+                }
+            }
+            try {
+                getChartColors = () => {
+                    const isDark = document.documentElement.classList.contains('dark');
+                    return { grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', ticks: isDark ? '#94a3b8' : '#64748b', tooltipBg: isDark ? '#1e293b' : '#ffffff', tooltipText: isDark ? '#f1f5f9' : '#1e293b' };
+                };
+                initOrUpdateLineChart = () => {
+                    const colors = getChartColors();
+                    const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.ticks } }, x: { grid: { display: false }, ticks: { color: colors.ticks } } }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, titleFont: { weight: 'bold' }, bodySpacing: 4, padding: 12, cornerRadius: 8, borderColor: colors.grid, borderWidth: 1 }}, interaction: { mode: 'index', intersect: false } };
+                    if (trafficChart) { trafficChart.options = chartOptions; trafficChart.update('none'); } else {
+                        const ctx = ui.chartCanvas.getContext('2d');
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                        trafficChart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: 'Lượt khách vào', data: [], backgroundColor: gradient, borderColor: '#3B82F6', borderWidth: 2, pointBackgroundColor: '#3B82F6', pointHoverRadius: 6, pointHoverBorderColor: '#fff', fill: true, tension: 0.4 }] }, options: chartOptions });
+                    }
+                };
+            } catch(e) { console.error("Data/Chart functions failed", e); }
+            
+            function updateDashboard() {
+                const now = new Date();
+                const currentFilters = {
+                    period: currentPeriod,
+                    storeId: ui.storeSelector.value,
+                    selectedDate: document.getElementById('day-selector')?.value || formatDateFn(now),
+                    year: document.getElementById('year-selector')?.value || now.getFullYear(),
+                    month: document.getElementById('month-selector')?.value || (now.getMonth() + 1),
+                    week: document.getElementById('week-selector')?.value || 1,
+                    anomalyThreshold: parseFloat(ui.anomalySlider.value)
+                };
+
+                // Process data for Line Chart and Table
+                const { labels, data, fullData } = processData(currentFilters);
+                
+                initOrUpdateLineChart();
+                trafficChart.data.labels = labels;
+                trafficChart.data.datasets[0].data = data;
+                trafficChart.update();
+                
+                // --- Update Metrics ---
+                const totalIn = data.reduce((sum, val) => sum + val, 0);
+                const averageIn = data.length > 0 ? totalIn / data.length : 0;
+                const maxIn = Math.max(...data, 0);
+                const peakTimeIndex = data.indexOf(maxIn);
+                const peakTime = labels[peakTimeIndex] || '--';
+
+                const totalOut = fullData.reduce((sum, item) => sum + item.out_num, 0);
+                const occupancy = fullData.reduce((sum, item) => sum + item.in_num - item.out_num, 0);
+
+                ui.totalInDisplay.textContent = totalIn.toLocaleString('vi-VN');
+                ui.averageInDisplay.textContent = averageIn.toLocaleString('vi-VN', {maximumFractionDigits: 0});
+                ui.peakTimeDisplay.textContent = peakTime;
+                ui.occupancyDisplay.textContent = occupancy.toLocaleString('vi-VN');
+
+                // Calculate Busiest Store
+                const allStoresData = processData(currentFilters, true).fullData;
+                const storeTraffic = allStoresData.reduce((acc, item) => {
+                    acc[item.storeid] = (acc[item.storeid] || 0) + item.in_num;
+                    return acc;
+                }, {});
+                
+                let busiestStoreId = null;
+                let maxTraffic = -1;
+                for (const storeId in storeTraffic) {
+                    if (storeTraffic[storeId] > maxTraffic) {
+                        maxTraffic = storeTraffic[storeId];
+                        busiestStoreId = storeId;
+                    }
+                }
+                const busiestStoreName = busiestStoreId ? stores.find(s => s.tid == busiestStoreId)?.name : '--';
+                ui.busiestStoreDisplay.textContent = busiestStoreName;
+                ui.busiestStoreDisplay.title = busiestStoreName;
+
+
+                // Calculate Growth
+                const prevFilters = {...currentFilters};
+                switch(currentFilters.period) {
+                    case 'day': prevFilters.selectedDate = formatDateFn(new Date(new Date(currentFilters.selectedDate).setDate(new Date(currentFilters.selectedDate).getDate() - 1))); break;
+                    case 'week': prevFilters.week = parseInt(currentFilters.week) - 1; if(prevFilters.week < 1) { prevFilters.week = 52; prevFilters.year = parseInt(currentFilters.year) - 1; } break;
+                    case 'month': prevFilters.month = parseInt(currentFilters.month) - 1; if(prevFilters.month < 1) { prevFilters.month = 12; prevFilters.year = parseInt(currentFilters.year) - 1; } break;
+                    case 'year': prevFilters.year = parseInt(currentFilters.year) - 1; break;
+                }
+                const { data: prevData } = processData(prevFilters);
+                const prevTotalIn = prevData.reduce((sum, val) => sum + val, 0);
+                
+                let growth = 0;
+                if (prevTotalIn > 0) { growth = ((totalIn - prevTotalIn) / prevTotalIn) * 100; } else if (totalIn > 0) { growth = 100; }
+                const growthColor = growth > 0 ? 'text-green-500' : growth < 0 ? 'text-red-500' : 'text-slate-500';
+                const growthIcon = growth > 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>` : growth < 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>` : '';
+                ui.growthDisplay.className = `text-2xl xl:text-3xl font-bold mt-1 flex items-center gap-2 ${growthColor}`;
+                ui.growthDisplay.innerHTML = `<span>${growth.toFixed(1)}%</span> ${growthIcon}`;
+
+
+                let rangeText = '';
+                switch(currentFilters.period) {
+                    case 'day': rangeText = `${new Date(currentFilters.selectedDate + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`; break;
+                    case 'week': const {startDate, endDate} = getWeekDateRangeFn(currentFilters.year, currentFilters.week); rangeText = `${formatDateFn(startDate, 'vi-VN')} - ${formatDateFn(endDate, 'vi-VN')}`; break;
+                    case 'month': rangeText = `Tháng ${currentFilters.month}, ${currentFilters.year}`; break;
+                    case 'year': rangeText = `Năm ${currentFilters.year}`; break;
+                }
+                ui.timeRangeDisplay.textContent = rangeText;
+
+                renderDataTable(labels, data);
+
+                // Process and render Donut Chart
+                const pieLabels = Array.from(Object.keys(storeTraffic)).map(id => stores.find(s => s.tid == id)?.name || 'Không rõ');
+                const pieValues = Array.from(Object.values(storeTraffic));
+                initOrUpdateDonutChart({ labels: pieLabels, data: pieValues });
+            }
+
+            function downloadTableAsCSV() {
+                const { labels, data } = currentTableData;
+                if (labels.length === 0) return;
+
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF for BOM to support Vietnamese in Excel
+                
+                // Headers
+                const header = currentPeriod === 'day' ? 'Giờ' : currentPeriod === 'week' ? 'Ngày trong tuần' : currentPeriod === 'month' ? 'Ngày' : 'Tháng';
+                csvContent += `"${header}","Lượt vào","Chênh lệch (%)"\r\n`;
+
+                // Rows
+                data.forEach((currentValue, index) => {
+                    const prevValue = index > 0 ? data[index - 1] : 0;
+                    let diff = 0;
+                    if (prevValue > 0) {
+                        diff = ((currentValue - prevValue) / prevValue) * 100;
+                    } else if (currentValue > 0) {
+                        diff = 100;
+                    }
+                    const diffString = diff.toFixed(1) !== '0.0' ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%` : '--';
+                    
+                    const row = `"${labels[index]}","${currentValue}","${diffString}"`;
+                    csvContent += row + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `du_lieu_chi_tiet_${formatDateFn(new Date())}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // --- EVENT LISTENERS ---
+            ui.filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    ui.filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    currentPeriod = button.dataset.period;
+                    renderDatePickers();
+                    updateDashboard();
+                });
+            });
+            ui.anomalySlider.addEventListener('input', () => {
+                ui.anomalyValueSpan.textContent = `${parseFloat(ui.anomalySlider.value).toFixed(1)}x`;
+                updateDashboard();
+            });
+            ui.storeSelector.addEventListener('change', updateDashboard);
+            ui.downloadCsvButton.addEventListener('click', downloadTableAsCSV);
+
+            // --- INITIALIZATION ---
+            populateStoreSelector();
+            renderDatePickers();
+            setupNotifications();
+            setupPopups();
+            applyTheme(localStorage.theme || 'auto'); // Applies theme and calls updateDashboard
+            ui.filterButtons[0].classList.add('active');
+        });
     </script>
 </body>
 </html>
