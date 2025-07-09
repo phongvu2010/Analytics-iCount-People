@@ -139,10 +139,6 @@ from typing import Optional
 
 from . import models
 
-def get_all_stores(db: Session):
-    """ Lấy tất cả cửa hàng """
-    return db.query(models.Store.tid, models.Store.name).all()
-
 def get_recent_errors(db: Session, limit: int = 10):
     """ Lấy các lỗi gần nhất, join với tên cửa hàng """
     query = """

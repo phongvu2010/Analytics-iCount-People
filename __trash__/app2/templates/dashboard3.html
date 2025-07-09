@@ -1,11 +1,8 @@
-
-<body class="bg-slate-50 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- UI ELEMENT REFERENCES ---
         // Giữ nguyên phần tham chiếu UI
-        
+
         let trafficChart, storeComparisonChart;
         let currentPeriod = 'day';
         let currentTableData = { labels: [], data: [] };
@@ -14,14 +11,14 @@
         async function updateDashboard() {
             const now = new Date();
             const selectedDate = document.getElementById('day-selector')?.value || now.toISOString().split('T')[0];
-            
+
             // Xây dựng URL với các tham số
             const params = new URLSearchParams({
                 period: currentPeriod,
                 selected_date_str: selectedDate,
                 // Thêm các tham số khác như year, month, week, store_id...
             });
-            
+
             try {
                 const response = await fetch(`/api/data?${params.toString()}`);
                 if (!response.ok) {
@@ -30,7 +27,7 @@
                 const data = await response.json();
 
                 // --- CẬP NHẬT GIAO DIỆN VỚI DỮ LIỆU TỪ API ---
-                
+
                 // 1. Cập nhật các thẻ số liệu (Metrics)
                 const metrics = data.metrics;
                 ui.totalInDisplay.textContent = metrics.total_in.toLocaleString('vi-VN');
@@ -57,7 +54,7 @@
                 // Có thể hiển thị một thông báo lỗi trên giao diện
             }
         }
-        
+
         // --- Các hàm khởi tạo và xử lý sự kiện ---
         // Giữ nguyên các hàm như initOrUpdateLineChart, renderDataTable,
         // initOrUpdateDonutChart, downloadTableAsCSV, ...
@@ -72,10 +69,8 @@
         // setupPopups();
         // applyTheme(localStorage.theme || 'auto');
         // ui.filterButtons[0].classList.add('active');
-        
+
         // Gọi hàm updateDashboard lần đầu để tải dữ liệu
         updateDashboard(); 
     });
     </script>
-</body>
-</html>
