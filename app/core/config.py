@@ -13,18 +13,12 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(',')]
         elif isinstance(v, list | str):
             return v
-
         raise ValueError(v)
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
-    # SECRET_KEY: str
-    # ALGORITHM: str
-    # ACCESS_TOKEN_EXPIRE_MINUTES: int
-
-    # --- Cấu hình cho DB ---
     DB_HOST: str
     DB_PORT: int = 1433  # Cổng mặc định của MSSQL
     DB_DRIVER: str = 'SQL Server'
@@ -42,7 +36,7 @@ class Settings(BaseSettings):
             host = self.DB_HOST,
             port = self.DB_PORT,
             path = self.DB_NAME,
-            query = f'driver={self.DB_DRIVER}'
+            query = f'driver={self.DB_DRIVER.replace(' ', '+')}'
         ))
 
     class Config:

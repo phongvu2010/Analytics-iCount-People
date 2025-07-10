@@ -1,336 +1,452 @@
-import calendar
-import numpy as np
-import pandas as pd
-import streamlit as st
-import streamlit_authenticator as stauth
-import yaml
+# Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
+# Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+from collections import defaultdict
+from datetime import datetime, timedelta, date
+from fastapi import FastAPI, Request, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from typing import Optional
 
-from datetime import date
-from plotly import graph_objs as go
-from yaml.loader import SafeLoader
+from . import crud
+from .core.config import settings
+from .core.database import get_db
 
-from database import dbStore, dbNumCrowd, dbErrLog
-
-def getWeekNums(year):
-    start_date = '1/1/' + year
-    end_date = '12/31/' + year
-    data = pd.date_range(start = start_date, end = end_date, freq = 'D')
-    data = pd.DataFrame(data, columns = ['date'])
-    data['year_calendar'] = data['date'].dt.isocalendar().year
-    data['week_calendar'] = data['date'].dt.isocalendar().week
-
-    group = data.groupby(['year_calendar', 'week_calendar']) \
-                .agg({'date': ['min', 'max']}).reset_index()
-
-    group['week_num'] = np.where(group['week_calendar'][0] == 52,
-                                 group['week_calendar'] + 1, group['week_calendar'])
-    if group['week_num'][0] == 53: group.at[0, 'week_num'] = 1
-
-    group['week'] = 'WK' + group['week_num'].astype(str) + \
-                    ' (' + group['date']['min'].dt.strftime('%d/%m/%y') + \
-                    ' - ' + group['date']['max'].dt.strftime('%d/%m/%y') + ')'
-    return group
-
-@st.cache_data(ttl = 900, show_spinner = False)
-def filter(data, store = 0, date = None, year = None, week = None, month = None, quarter = None):
-    if date:
-        data = data[data.recordtime.dt.date == date]
-    else:
-        data = data[data.recordtime.dt.year == year]
-        if week:
-            data = data[data.recordtime.dt.strftime('%W').astype(int) == week]
-        elif month:
-            data = data[data.recordtime.dt.strftime('%B') == month]
-        elif quarter:
-            data = data[data.recordtime.dt.to_period('Q').dt.strftime('%q').astype(int) == quarter + 1]
-    if store > 0:
-        data = data[data.storeid == store]
-    return data.sort_values(by = 'recordtime').reset_index(drop = True)
-
-@st.cache_data(ttl = 900, show_spinner = False)
-def clean(data, option, period = None):
-    data.drop(['out_num', 'position', 'storeid'], axis = 1, inplace = True)
-
-    data = data.set_index('recordtime').between_time('6:30:00', '23:59:59').reset_index()
-
-    data['in_num'] = data.in_num.where(data.in_num < 100, 1).apply(np.int64)
-    # data['in_num'] = data.in_num.where(data.in_num < 500, data.in_num * 0.0001).apply(np.int64)
-
-    if option == 'Daily':
-        freqs = ['15min', '30min', 'H']
-        data = data.resample(freqs[period], on = 'recordtime').sum()
-        data.index = data.index.strftime('%H:%M')
-    elif option == 'Weekly':
-        data = data.resample('D', on = 'recordtime').sum()
-        data['Day'] = data.index.day_name()
-        data = data[['Day', 'in_num']]
-        data.index = data.index.strftime('%d/%m/%Y')
-    elif option == 'Monthly':
-        data = data.resample('D', on = 'recordtime').sum()
-        data.index = data.index.strftime('%d/%m/%Y')
-    else:
-        data = data.resample('M', on = 'recordtime').sum()
-        data.index = data.index.strftime('%m/%Y')
-
-    data['Percentage'] = (data.in_num / data.in_num.sum()).map('{:.2%}'.format)
-    data['Relative Ratio'] = data.in_num.pct_change().map('{:.2%}'.format, na_action = 'ignore')
-
-    data.rename(columns = {'in_num': 'Quantity'}, inplace = True)
-    data.index.names = ['Time']
-
-    return data
-
-
-# Basic Page Configuration
-# Find more emoji here: https://www.webfx.com/tools/emoji-cheat-sheet/
-st.set_page_config(
-    page_title = 'People Counting System', page_icon = '📈', layout = 'wide'
+# --- App Initialization ---
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description=settings.DESCRIPTION,
+    version='1.0.0'
 )
 
-with open('style.css') as f: st.markdown(f'<style>{ f.read() }</style>', unsafe_allow_html = True)
-
-if 'authentication_status' not in  st.session_state:
-    st.session_state.authentication_status = ''
-
-with open('config.yaml') as file:
-    config = yaml.load(file, Loader = SafeLoader)
-    authenticator = stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days'],
-        config['preauthorized']
-    )
-    authenticator.login('Login', 'main')
-
-    if st.session_state.authentication_status is False:
-        st.error('Username/password is incorrect')
-    elif st.session_state.authentication_status is None:
-        st.warning('Please enter your username and password')
-
-if st.session_state.authentication_status:
-    stores = dbStore()
-    date_, period_, year_, week_, month_, quarter_ = None, None, None, None, None, None
-
-    with st.sidebar:
-        st.image('logo.png', use_column_width = True)
-
-        with st.expander(f'Welcome *{ st.session_state.username.title() }*', expanded = False):
-            authenticator.logout('Logout', 'main')
-
-        display = tuple(['All'] + stores['name'].to_list())
-        store_ = st.selectbox('Store:', display)
-
-        option_ = st.selectbox('By:', ('Daily', 'Weekly', 'Monthly', 'Quarter', 'Yearly'), index = 2)
-
-        if option_ == 'Daily':
-            date_ = st.date_input('Date:', date.today())
-
-            display = ('By every 15 minutes', 'By every 30 minutes', 'By every hour')
-            options = list(range(len(display)))
-            period_ = st.radio('Period', options, format_func = lambda x: display[x], index = 2)
-        else:
-            year_ = st.selectbox('Year:', reversed(range(2018, date.today().year + 1)))
-
-            if option_ == 'Weekly':
-                weeks = getWeekNums(str(year_))
-                display = tuple(weeks['week'])
-                options = list(range(len(display)))
-                week_ = st.selectbox('Week:', options,
-                                     format_func = lambda x: display[x],
-                                     index = int(date.today().strftime('%W')))
-            elif option_ == 'Monthly':
-                month_ = st.selectbox('Month:', calendar.month_name[1:], \
-                                              index = date.today().month - 1)
-            elif option_ == 'Quarter':
-                display = ('Spring', 'Summer', 'Autumn', 'Winter')
-                options = list(range(len(display)))
-                quarter_ = st.selectbox('Quarter:', options, \
-                                                format_func = lambda x: display[x], \
-                                                index = (date.today().month - 1) // 3)
-
-    with st.container():
-        st.title('People Counting System')
-
-        if st.session_state.username == 'admin':
-            with st.expander('**_ERROR LOG_**', expanded = False):
-                err_log = dbErrLog()
-                err_log = err_log.groupby(['storeid', 'ErrorMessage']).max()
-                err_log = err_log.drop(columns = ['ID', 'Errorcode', 'DeviceCode'], axis = 1).reset_index()
-                err_log = err_log.merge(stores[['tid', 'name']].rename(columns = {'tid': 'storeid'}),
-                                        on = 'storeid', how = 'left').set_index('LogTime')
-                err_log.drop('storeid', axis = 1, inplace = True)
-                err_log.insert(0, 'Name', err_log.pop('name'))
-                err_log.sort_index(ascending = False, inplace = True)
-                err_log.Name = err_log.Name.replace(r'\s+', ' ', regex = True)
-                err_log.ErrorMessage = err_log.ErrorMessage.replace(r'\s+', ' ', regex = True)
-
-                st.dataframe(err_log, use_container_width = True)
-
-        with st.expander('**_STATISTICS REPORT_**', expanded = True):
-            y = year_ if year_ else date_.year
-            num_crowd = dbNumCrowd(y)
-            if not num_crowd.empty:
-                storeid = 0 if store_ == 'All' else stores[stores['name'] == store_]['tid'].iloc[0]
-
-                data = filter(num_crowd, storeid, date_, year_, week_, month_, quarter_)
-                data = clean(data, option_, period_)
-
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x = data.index, y = data.Quantity, name = 'Quantity', showlegend = False))
-                fig.update_layout(
-                    go.Layout(autosize = True, height = 300, margin = go.layout.Margin(l = 10, r = 10, b = 5, t = 30, pad = 0))
-                )
-
-                st.plotly_chart(fig, use_container_width = True)
-                st.dataframe(data, use_container_width = True)
-            else: st.warning('No data ...')
-
-
-
-
-
-
-
-
-# import streamlit as st
-
-# from database import get_db
-# from model import *
-
-# # 4. TẠO SESSION ĐỂ TRUY VẤN
-# session = get_db()
-
-# # --- VÍ DỤ TRUY VẤN DỮ LIỆU (READ-ONLY) ---
-# print('✅ Kết nối và ánh xạ database thành công!')
-# print('\n--- Bắt đầu truy vấn dữ liệu mẫu ---')
-
-# # Ví dụ 1: Lấy 5 cửa hàng đầu tiên từ bảng 'store'
-# print('\n[INFO] Lấy 5 cửa hàng đầu tiên:')
-# all_stores = session.query(Store).limit(5).all()
-# if all_stores:
-#     for store_instance in all_stores:
-#         print(f'  - ID: {store_instance.tid}, Tên Cửa Hàng: {store_instance.name}, Mã code: {store_instance.code}')
-# else:
-#     print('  - Không tìm thấy cửa hàng nào.')
-
-# # Ví dụ 2: Lấy 5 log lỗi gần nhất và thông tin cửa hàng tương ứng
-# print('\n[INFO] Lấy 5 log lỗi gần nhất và tên cửa hàng:')
-# latest_logs = session.query(ErrLog).order_by(ErrLog.LogTime.desc()).limit(5).all()
-# # # Câu query join vẫn hoạt động tương tự
-# # latest_logs = session.query(ErrLog, Store)\
-# #                      .join(Store, ErrLog.storeid == Store.tid)\
-# #                      .order_by(ErrLog.LogTime.desc())\
-# #                      .limit(10).all()
-
-# if latest_logs:
-#     for log_instance in latest_logs:
-#         # Truy cập thông tin store thông qua relationship
-#         print(f"  - Log Time: {log_instance.LogTime.strftime('%Y-%m-%d %H:%M:%S')}, "
-#               f"Cửa hàng: {log_instance.store.name}, "
-#               f"Mã lỗi: {log_instance.Errorcode}")
-# else:
-#     print('  - Không tìm thấy log lỗi nào.')
-
-# except Exception as e:
-#     print(f'❌ Đã xảy ra lỗi: {e}')
-#     print('\n--- GỢI Ý DEBUG ---')
-#     print('1. Kiểm tra lại chuỗi kết nối (user, password, server, database).')
-#     print('2. Đảm bảo driver ODBC cho SQL Server đã được cài đặt trên máy của bạn.')
-#     print('3. Kiểm tra tường lửa hoặc các quy tắc mạng có chặn kết nối đến SQL Server không.')
-
-# finally:
-#     # Luôn đóng session sau khi sử dụng xong để giải phóng tài nguyên.
-#     if 'session' in locals() and session.is_active:
-#         session.close()
-#         print('\n[INFO] Session đã được đóng.')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # File in database.py
-# import pandas as pd
-# import sqlalchemy
-# from datetime import date
-# from sqlalchemy import create_engine, extract, MetaData
-# from sqlalchemy.ext.automap import automap_base
-
-# from sqlalchemy.orm import sessionmaker, Session
-# from models import Store, NumCrowd, ErrLog, Status
-
-# import streamlit as st
-# from urllib import parse
-
-# try:
-#     # --- VÍ DỤ TRUY VẤN DỮ LIỆU (READ-ONLY) ---
-#     print('✅ Kết nối và ánh xạ database thành công!')
-#     print('\n--- Bắt đầu truy vấn dữ liệu mẫu ---')
-
-#     # Ví dụ 1: Lấy 5 cửa hàng đầu tiên từ bảng 'store'
-#     print('\n[INFO] Lấy 5 cửa hàng đầu tiên:')
-#     all_stores = session.query(Store).limit(5).all()
-#     if all_stores:
-#         for store_instance in all_stores:
-#             print(f'  - ID: {store_instance.tid}, Tên Cửa Hàng: {store_instance.name}, Mã code: {store_instance.code}')
-#     else:
-#         print('  - Không tìm thấy cửa hàng nào.')
-
-#     # Ví dụ 2: Lấy 5 log lỗi gần nhất và thông tin cửa hàng tương ứng
-#     print('\n[INFO] Lấy 5 log lỗi gần nhất và tên cửa hàng:')
-#     latest_logs = session.query(ErrLog).order_by(ErrLog.LogTime.desc()).limit(5).all()
-#     # # Câu query join vẫn hoạt động tương tự
-#     # latest_logs = session.query(ErrLog, Store)\
-#     #                      .join(Store, ErrLog.storeid == Store.tid)\
-#     #                      .order_by(ErrLog.LogTime.desc())\
-#     #                      .limit(10).all()
-
-#     if latest_logs:
-#         for log_instance in latest_logs:
-#             # Truy cập thông tin store thông qua relationship
-#             print(f"  - Log Time: {log_instance.LogTime.strftime('%Y-%m-%d %H:%M:%S')}, "
-#                   f"Cửa hàng: {log_instance.store.name}, "
-#                   f"Mã lỗi: {log_instance.Errorcode}")
-#     else:
-#         print('  - Không tìm thấy log lỗi nào.')
-
-
-
-
-# @st.cache_data(ttl = 86400, show_spinner = False)
-# def dbStore():
-#     query = getSession().query(Store)
-
-#     return pd.read_sql(sql = query.statement, con = engine)
-#     # return pd.DataFrame([r._asdict() for r in results])
-
-# @st.cache_data(ttl = 900, show_spinner = False)
-# def dbNumCrowd(year = None):
-#     query = getSession().query(NumCrowd)
-#     if year: query = query.filter(extract('year', NumCrowd.recordtime) == year)
-
-#     return pd.read_sql(sql = query.statement, con = engine)
-
-# @st.cache_data(ttl = 3600, show_spinner = False)
-# def dbErrLog():
-#     query = getSession().query(ErrLog).order_by(ErrLog.LogTime.desc()).limit(500)
-
-#     return pd.read_sql(sql = query.statement, con = engine)
-
-# @st.cache_data(ttl = 3600, show_spinner = False)
-# def dbStatus():
-#     query = getSession().query(Status)
-
-#     return pd.read_sql(sql = query.statement, con = engine)
+# --- CORS Middleware Configuration ---
+# FIXED: Ensure CORS is always enabled for development.
+# This allows the frontend (even from a different origin) to make API calls to this backend.
+origins = []
+if settings.BACKEND_CORS_ORIGINS:
+    # If the environment variable is set, use it.
+    origins.extend([str(origin).strip('/') for origin in settings.BACKEND_CORS_ORIGINS])
+else:
+    # For local development, allow all origins.
+    # In production, you should restrict this to your frontend's domain for security.
+    origins = ['*']
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,    # Cho phép các origin trong danh sách
+    allow_credentials = True,   # Cho phép gửi cookie
+    allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
+    allow_headers = ['*']       # Cho phép tất cả các header
+)
+
+# 1. Cấu hình để phục vụ các file tĩnh (CSS, JS, Images)
+# Các file trong thư mục 'app/static' sẽ được truy cập qua đường dẫn 'app/static'
+app.mount('/static', StaticFiles(directory='app/static'), name='static')
+
+# # 2. Cấu hình Jinja2 templates
+# # FastAPI sẽ tìm kiếm các file HTML trong thư mục 'app/templates'
+templates = Jinja2Templates(directory='app/templates')
+
+@app.get('/health', tags = ['Root'])
+def read_root():
+    """ Health check endpoint. """
+    return {
+        'status': 'ok',
+        'project_name': f'Welcome to {settings.PROJECT_NAME}',
+        'description': settings.DESCRIPTION,
+        'backend_cors_origins': origins,
+        'sqlalchemy_database_uri': settings.SQLALCHEMY_DATABASE_URI
+    }
+
+def get_week_date_range(year: int, week: int) -> (datetime, datetime):
+    """ Lấy ngày bắt đầu và kết thúc của một tuần trong năm. """
+    d = date(year, 1, 1)
+    d = d + timedelta(weeks=week - 1, days=-d.weekday())
+    start_date = datetime.combine(d, datetime.min.time())
+    end_date = start_date + timedelta(days=7)
+
+    return start_date, end_date
+
+@app.get('/')
+async def read_root(request: Request):
+    """ Endpoint chính, render trang dashboard. """
+    return templates.TemplateResponse('dashboard.html', {'request': request})
+
+# @app.get('/api/data')
+# async def get_dashboard_data(
+#     period: str = Query('day', enum=['day', 'week', 'month', 'year']),
+#     store_id: Optional[int] = Query(None),
+#     selected_date_str: Optional[str] = Query(None), # YYYY-MM-DD
+#     year: Optional[int] = Query(None),
+#     month: Optional[int] = Query(None),
+#     week: Optional[int] = Query(None),
+#     db: Session = Depends(get_db)
+# ):
+#     """ API cung cấp toàn bộ dữ liệu cho dashboard. """
+#     now = datetime.now()
+
+#     # Xác định khoảng thời gian hiện tại
+#     if period == 'day':
+#         current_day = datetime.strptime(selected_date_str, '%Y-%m-%d') if selected_date_str else now
+#         start_date = current_day.replace(hour=0, minute=0, second=0)
+#         end_date = current_day.replace(hour=23, minute=59, second=59)
+#     # Các logic xác định start_date, end_date cho week, month, year tương tự...
+#     # (Code chi tiết sẽ phức tạp, ở đây ta giả định đã có)
+
+#     # Lấy dữ liệu thô từ CSDL
+#     # Trong thực tế, bạn sẽ cần logic phức tạp hơn để xử lý các bộ lọc
+#     # Ở đây, chúng ta sẽ mô phỏng việc lấy dữ liệu của 7 ngày gần nhất để tính toán
+#     end_date = now
+#     start_date = now - timedelta(days=7)
+
+#     all_data = crud.get_crowd_data_in_range(db, start_date, end_date)
+
+#     # Lọc theo cửa hàng nếu có
+#     if store_id:
+#         all_data = [d for d in all_data if d.storeid == store_id]
+
+#     # --- Xử lý dữ liệu để tạo các số liệu ---
+#     # Đây là phần logic Data Analysis chính
+#     # Do phức tạp, phần này sẽ được mô phỏng. Trong thực tế, bạn sẽ
+#     # dùng các thư viện như Pandas hoặc các câu lệnh SQL phức tạp.
+
+#     # 1. Dữ liệu cho Line Chart (giả định theo ngày)
+#     labels = [(end_date - timedelta(days=i)).strftime('%d/%m') for i in range(6, -1, -1)]
+#     line_data = [d.in_num for d in all_data[:7]] if len(all_data) >= 7 else [150, 220, 300, 250, 400, 380, 500]
+
+#     # 2. Dữ liệu cho Donut Chart
+#     stores = crud.get_stores(db)
+#     store_traffic = {store.name: 0 for store in stores}
+#     for record in all_data:
+#         store_name = next((s.name for s in stores if s.tid == record.storeid), 'Không rõ')
+#         store_traffic[store_name] += record.in_num
+
+#     donut_labels = list(store_traffic.keys())
+#     donut_data = list(store_traffic.values())
+
+#     # 3. Các số liệu (Metrics)
+#     total_in = sum(d.in_num for d in all_data)
+#     average_in = total_in / len(all_data) if all_data else 0
+
+#     # 4. Lấy lỗi
+#     error_logs = crud.get_error_logs(db)
+
+#     return {
+#         'line_chart_data': {'labels': labels, 'data': line_data},
+#         'donut_chart_data': {'labels': donut_labels, 'data': donut_data},
+#         'table_data': {'labels': labels, 'data': line_data},
+#         'metrics': {
+#             'total_in': total_in,
+#             'average_in': average_in,
+#             'peak_time': '19:00', # Giả định
+#             'occupancy': total_in - sum(d.out_num for d in all_data),
+#             'busiest_store': max(store_traffic, key=store_traffic.get) if store_traffic else '--',
+#             'growth': 15.2 # Giả định
+#         },
+#         'error_logs': error_logs,
+#         'stores': stores
+#     }
+
+
+
+@app.get("/api/data")
+async def get_dashboard_data(
+    period: str = Query("day", enum=["day", "week", "month", "year"]),
+    store_id: Optional[str] = Query(None), # SỬA LỖI: Chấp nhận chuỗi thay vì số
+    anomaly_threshold: float = Query(3.0), # THÊM: Tham số còn thiếu
+    selected_date_str: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
+    week: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """API cung cấp toàn bộ dữ liệu cho dashboard."""
+    now = datetime.now()
+    
+    # --- Xác định khoảng thời gian hiện tại (current) và trước đó (previous) ---
+    # Current period
+    if period == "day":
+        current_start_date = datetime.strptime(selected_date_str, "%Y-%m-%d") if selected_date_str else now
+        current_start_date = current_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        current_end_date = current_start_date + timedelta(days=1)
+        prev_start_date = current_start_date - timedelta(days=1)
+        prev_end_date = current_start_date
+    elif period == "week":
+        year = year or now.year
+        week = week or now.isocalendar()[1]
+        current_start_date, current_end_date = get_week_date_range(year, week)
+        prev_start_date, prev_end_date = get_week_date_range(year, week - 1) if week > 1 else get_week_date_range(year - 1, 52)
+    elif period == "month":
+        year = year or now.year
+        month = month or now.month
+        current_start_date = datetime(year, month, 1)
+        next_month = month + 1 if month < 12 else 1
+        next_year = year if month < 12 else year + 1
+        current_end_date = datetime(next_year, next_month, 1)
+        prev_month = month - 1 if month > 1 else 12
+        prev_year = year if month > 1 else year - 1
+        prev_start_date = datetime(prev_year, prev_month, 1)
+        prev_end_date = current_start_date
+    else: # year
+        year = year or now.year
+        current_start_date = datetime(year, 1, 1)
+        current_end_date = datetime(year + 1, 1, 1)
+        prev_start_date = datetime(year - 1, 1, 1)
+        prev_end_date = current_start_date
+
+    # --- Lấy dữ liệu từ CSDL ---
+    current_data_raw = crud.get_crowd_data_in_range(db, current_start_date, current_end_date)
+    prev_data_raw = crud.get_crowd_data_in_range(db, prev_start_date, prev_end_date)
+    
+    # --- Xử lý bộ lọc cửa hàng (Store Filter) ---
+    store_id_int = None
+    if store_id and store_id.isdigit():
+        store_id_int = int(store_id)
+        current_data_raw = [d for d in current_data_raw if d.storeid == store_id_int]
+        # prev_data_raw không cần lọc theo cửa hàng vì nó chỉ dùng để tính tăng trưởng tổng
+    
+    # --- Xử lý làm mịn dữ liệu (Anomaly Smoothing) ---
+    if len(current_data_raw) > 2:
+        avg = sum(d.in_num for d in current_data_raw) / len(current_data_raw)
+        threshold = avg * anomaly_threshold
+        for d in current_data_raw:
+            if d.in_num > threshold:
+                d.in_num = int(threshold)
+
+    # --- Tổng hợp dữ liệu cho biểu đồ và bảng ---
+    agg_data = defaultdict(int)
+    if period == "day":
+        for d in current_data_raw: agg_data[d.recordtime.hour] += d.in_num
+        labels = [f"{h}:00" for h in range(24)]
+        data = [agg_data.get(h, 0) for h in range(24)]
+    elif period == "week":
+        for d in current_data_raw: agg_data[d.recordtime.weekday()] += d.in_num
+        day_names = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+        labels = day_names
+        data = [agg_data.get(i, 0) for i in range(7)]
+    elif period == "month":
+        days_in_month = (current_end_date - current_start_date).days
+        for d in current_data_raw: agg_data[d.recordtime.day] += d.in_num
+        labels = [f"Ngày {i}" for i in range(1, days_in_month + 1)]
+        data = [agg_data.get(i, 0) for i in range(1, days_in_month + 1)]
+    else: # year
+        for d in current_data_raw: agg_data[d.recordtime.month] += d.in_num
+        labels = [f"Tháng {i}" for i in range(1, 13)]
+        data = [agg_data.get(i, 0) for i in range(1, 13)]
+
+    # --- Tính toán các số liệu (Metrics) ---
+    total_in = sum(data)
+    average_in = total_in / len([d for d in data if d > 0]) if any(d > 0 for d in data) else 0
+    peak_value = max(data) if data else 0
+    peak_time = labels[data.index(peak_value)] if peak_value > 0 else "--"
+    
+    total_out = sum(d.out_num for d in current_data_raw)
+    occupancy = sum(d.in_num - d.out_num for d in current_data_raw)
+
+    prev_total_in = sum(d.in_num for d in prev_data_raw)
+    growth = ((total_in - prev_total_in) / prev_total_in) * 100 if prev_total_in > 0 else (100 if total_in > 0 else 0)
+
+    # --- Dữ liệu cho Donut Chart ---
+    stores = crud.get_stores(db)
+    all_current_data = crud.get_crowd_data_in_range(db, current_start_date, current_end_date)
+    store_traffic = defaultdict(int)
+    for record in all_current_data:
+        store_traffic[record.storeid] += record.in_num
+    
+    busiest_store_name = "--"
+    if store_traffic:
+        busiest_store_id = max(store_traffic, key=store_traffic.get)
+        busiest_store_name = next((s.name for s in stores if s.tid == busiest_store_id), "Không rõ")
+
+    donut_labels = [next((s.name for s in stores if s.tid == sid), "Không rõ") for sid in store_traffic.keys()]
+    donut_data = list(store_traffic.values())
+
+    # --- Chuẩn bị dữ liệu trả về ---
+    time_range_display = f"{current_start_date.strftime('%d/%m/%Y')} - { (current_end_date - timedelta(seconds=1)).strftime('%d/%m/%Y')}"
+    if period == "day":
+        time_range_display = current_start_date.strftime('%A, %d/%m/%Y')
+
+    return {
+        "line_chart_data": {"labels": labels, "data": data},
+        "donut_chart_data": {"labels": donut_labels, "data": donut_data},
+        "table_data": {"labels": labels, "data": data},
+        "metrics": {
+            "total_in": total_in,
+            "average_in": average_in,
+            "peak_time": peak_time,
+            "occupancy": occupancy,
+            "busiest_store": busiest_store_name,
+            "growth": growth
+        },
+        "error_logs": crud.get_error_logs(db),
+        "stores": stores,
+        "time_range_display": time_range_display
+    }
+
+
+
+
+
+
+
+# import uvicorn
+
+# from typing import Optional, Dict, List, Any
+# 
+
+# import crud, models, schemas
+# from database import engine, get_db
+
+# # Tạo các bảng trong CSDL nếu chưa có (chỉ cho lần chạy đầu)
+# models.Base.metadata.create_all(bind=engine)
+
+
+
+
+
+
+
+
+
+
+# # Lệnh để chạy server: uvicorn main:app --reload
+# if __name__ == "__main__":
+#     # Thêm dữ liệu mẫu vào CSDL khi chạy lần đầu (nếu cần)
+#     db = SessionLocal()
+#     if not db.query(models.Store).first():
+#         print("Đang thêm dữ liệu mẫu...")
+#         stores_to_add = [
+#             models.Store(tid=1, name='Cửa chính A1'),
+#             models.Store(tid=2, name='Cửa phụ A2'),
+#             models.Store(tid=3, name='Cửa hầm B1'),
+#             models.Store(tid=4, name='Cửa hầm B2')
+#         ]
+#         db.add_all(stores_to_add)
+#         db.commit() # Commit stores để lấy tid
+        
+#         crowd_data_to_add = []
+#         for i in range(30 * 24): # Dữ liệu 30 ngày
+#             for store in stores_to_add:
+#                 record_time = datetime.now() - timedelta(hours=i)
+#                 in_num = 50 + (record_time.hour % 24) * 5 + (-1)**i * 10
+#                 if record_time.weekday() >= 5: in_num *= 1.5 # Cuối tuần
+#                 out_num = int(in_num * (0.8 + (-1)**i * 0.1))
+#                 crowd_data_to_add.append(models.NumCrowd(
+#                     recordtime=record_time, storeid=store.tid, in_num=int(in_num), out_num=int(out_num)
+#                 ))
+#         db.bulk_save_objects(crowd_data_to_add)
+#         db.commit()
+#     db.close()
+    
+#     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+# import uvicorn
+
+# # from fastapi.responses import RedirectResponse, HTMLResponse
+# # from pathlib import Path
+
+# import crud, models, schemas
+# from database import engine
+
+
+# from app.core.database import engine, get_db
+# from .routers import auth, crowd, dashboard, error_log, store
+
+
+# # Tạo các bảng trong CSDL nếu chưa có (chỉ cho lần chạy đầu)
+# models.Base.metadata.create_all(bind=engine)
+
+# # Lệnh để chạy server: uvicorn main:app --reload
+# if __name__ == "__main__":
+#     # Thêm dữ liệu mẫu vào CSDL khi chạy lần đầu (nếu cần)
+#     db = SessionLocal()
+#     if not db.query(models.Store).first():
+#         print("Đang thêm dữ liệu mẫu...")
+#         stores_to_add = [
+#             models.Store(tid=1, name='Cửa chính A1'),
+#             models.Store(tid=2, name='Cửa phụ A2'),
+#             models.Store(tid=3, name='Cửa hầm B1'),
+#             models.Store(tid=4, name='Cửa hầm B2')
+#         ]
+#         db.add_all(stores_to_add)
+        
+#         crowd_data_to_add = []
+#         for i in range(30 * 24): # Dữ liệu 30 ngày
+#             for store in stores_to_add:
+#                 record_time = datetime.now() - timedelta(hours=i)
+#                 in_num = 50 + (i % 24) * 5 + (-1)**i * 10
+#                 out_num = int(in_num * 0.8)
+#                 crowd_data_to_add.append(models.NumCrowd(
+#                     recordtime=record_time, storeid=store.tid, in_num=in_num, out_num=out_num
+#                 ))
+#         db.bulk_save_objects(crowd_data_to_add)
+#         db.commit()
+#     db.close()
+    
+#     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+
+
+
+# # 3. "Lắp ráp" các router vào ứng dụng chính
+# # Bao gồm các endpoint từ file auth.py và dashboard.py
+# # app.include_router(auth.router, tags=['Authentication'])
+# # app.include_router(dashboard.router, tags=['Dashboard'])
+
+# # 4. Tạo một route gốc để chuyển hướng người dùng
+# @app.get('/', include_in_schema=False)
+# async def root(request: Request):
+#     """
+#     Khi người dùng truy cập vào đường dẫn gốc,
+#     hệ thống sẽ tự động chuyển hướng họ đến trang đăng nhập.
+#     """
+#     return RedirectResponse(url='/login')
+
+# # --- Static Files and Templates ---
+# # This assumes your directory structure is:
+# # iCount-People-Project/
+# # ├── app/
+# # │   ├── main.py
+# # │   ├── templates/
+# # │   │   └── index.html
+# # │   └── static/ (optional, if you have local css/js)
+# # └── .env
+# BASE_DIR = Path(__file__).resolve().parent
+# app.mount('/static', StaticFiles(directory = str(Path(BASE_DIR, 'static'))), name = 'static')
+# templates = Jinja2Templates(directory=str(Path(BASE_DIR, 'templates')))
+
+# # --- API Routers ---
+# # Note: The trailing slash in the prefix is optional but can help avoid 307 redirects.
+# # The frontend code has already been updated to include it.
+# app.include_router(store.router, prefix = '/api/stores', tags = ['Stores'])
+# app.include_router(crowd.router, prefix = '/api/crowds', tags = ['Crowds Data'])
+# app.include_router(error_log.router, prefix = '/api/errors', tags = ['Errors'])
+
+# # --- Frontend Route ---
+# @app.get('/', response_class = HTMLResponse, tags = ['Frontend'])
+# async def read_dashboard(request: Request):
+#     """ Serves the main dashboard HTML page. """
+#     return templates.TemplateResponse(
+#         'index.html',
+#         {
+#             'request': request,
+#             'project_name': settings.PROJECT_NAME
+#         }
+#     )

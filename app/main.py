@@ -34,6 +34,7 @@ app.add_middleware(
 )
 
 # Mount thư mục static để phục vụ các file CSS, JS, images
+# FastAPI sẽ tìm file trong thư mục 'app/statics' khi có request tới '/static/...'
 app.mount('/static', StaticFiles(directory='app/statics'), name='static')
 
 # Include router từ file routers.py
@@ -50,7 +51,6 @@ async def startup_event():
         print('Khởi động ứng dụng...')
         # engine.connect() sẽ thử tạo một kết nối tới DB
         conn = engine.connect()
-
         print('Kết nối CSDL qua SQLAlchemy thành công.')
         # Đóng kết nối ngay sau khi kiểm tra
         conn.close()
@@ -58,9 +58,9 @@ async def startup_event():
         print(f'!!! LỖI: Không thể kết nối tới CSDL qua SQLAlchemy. Vui lòng kiểm tra file .env và kết nối mạng.')
         print(f'Chi tiết lỗi: {e}')
 
-@app.get('/health')
+@app.get('/health', tags=["Health Check"])
 def health_check():
     """
-    Endpoint kiểm tra sức khoẻ của ứng dụng
+    Endpoint kiểm tra sức khoẻ của ứng dụng.
     """
     return {'status': 'ok'}
