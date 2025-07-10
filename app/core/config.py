@@ -5,10 +5,17 @@ from typing import Annotated, Any
 from urllib import parse
 
 class Settings(BaseSettings):
+    """
+    Class để quản lý toàn bộ cấu hình của ứng dụng.
+    Các thuộc tính được tự động đọc từ file .env.
+    """
     PROJECT_NAME: str
     DESCRIPTION: str
 
     def parse_cors(v: Any) -> list[str] | str:
+        """
+        Helper function to parse CORS origins from a string.
+        """
         if isinstance(v, str) and not v.startswith('['):
             return [i.strip() for i in v.split(',')]
         elif isinstance(v, list | str):
@@ -19,16 +26,21 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
+    # Database MSSQL Configuration
     DB_HOST: str
-    DB_PORT: int = 1433  # Cổng mặc định của MSSQL
-    DB_DRIVER: str = 'SQL Server'
+    DB_PORT: int = 1433             # Cổng mặc định của MSSQL
+    DB_DRIVER: str = 'SQL Server'   # 'ODBC Driver 17 for SQL Server'
     DB_NAME: str
     DB_USER: str
     DB_PASS: str
 
-    @computed_field  # type: ignore[misc]
+    @computed_field # type: ignore[misc]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        """
+        Tự động tạo chuỗi kết nối SQLAlchemy từ các biến môi trường.
+        Sử dụng pyodbc làm driver kết nối với MSSQL.
+        """
         return str(MultiHostUrl.build(
             scheme = 'mssql+pyodbc',
             username = self.DB_USER,
@@ -44,4 +56,4 @@ class Settings(BaseSettings):
         env_file = '.env'
         env_file_encoding = 'utf-8'
 
-settings = Settings()  # type: ignore
+settings = Settings()   # type: ignore

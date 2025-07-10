@@ -7,15 +7,15 @@ from fastapi.staticfiles import StaticFiles
 from .core.config import settings
 from .routers import router as api_router
 
+# Khởi tạo ứng dụng FastAPI với các thông tin từ file config
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.DESCRIPTION,
     version='1.0.0'
 )
 
-# --- CORS Middleware Configuration ---
-# FIXED: Ensure CORS is always enabled for development.
-# This allows the frontend (even from a different origin) to make API calls to this backend.
+# Cấu hình CORS Middleware
+# Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
 origins = []
 if settings.BACKEND_CORS_ORIGINS:
     # If the environment variable is set, use it.
@@ -33,34 +33,35 @@ app.add_middleware(
     allow_headers = ['*']       # Cho phép tất cả các header
 )
 
-# Mount thư mục static để phục vụ các file CSS, JS, images
+# Mount thư mục `static` để phục vụ các file: CSS, JS, Images
 # FastAPI sẽ tìm file trong thư mục 'app/statics' khi có request tới '/static/...'
 app.mount('/static', StaticFiles(directory='app/statics'), name='static')
 
-# Include router từ file routers.py
+# Include router từ file routers.py vào ứng dụng chính
+# Tất cả các endpoint trong routers.py sẽ được thêm vào app
 app.include_router(api_router)
 
 @app.on_event('startup')
 async def startup_event():
     """
-    Kiểm tra kết nối database khi ứng dụng khởi động bằng SQLAlchemy engine.
+    Sự kiện này sẽ chạy một lần khi ứng dụng khởi động.
+    Rất hữu ích để kiểm tra kết nối CSDL.
     """
     from .core.db import engine
 
     try:
         print('Khởi động ứng dụng...')
-        # engine.connect() sẽ thử tạo một kết nối tới DB
         conn = engine.connect()
         print('Kết nối CSDL qua SQLAlchemy thành công.')
-        # Đóng kết nối ngay sau khi kiểm tra
         conn.close()
     except Exception as e:
-        print(f'!!! LỖI: Không thể kết nối tới CSDL qua SQLAlchemy. Vui lòng kiểm tra file .env và kết nối mạng.')
+        print('!!! LỖI: Không thể kết nối tới CSDL qua SQLAlchemy.')
+        print('Vui lòng kiểm tra file .env, kết nối mạng, và driver ODBC.')
         print(f'Chi tiết lỗi: {e}')
 
 @app.get('/health', tags=["Health Check"])
 def health_check():
     """
-    Endpoint kiểm tra sức khoẻ của ứng dụng.
+    Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
     return {'status': 'ok'}
