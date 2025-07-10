@@ -1,5 +1,5 @@
-from pydantic import BaseModel
 from datetime import datetime
+from pydantic import BaseModel
 from typing import List, Optional
 
 # Schema cho dữ liệu thống kê trả về
@@ -21,4 +21,4 @@ class ErrorLog(BaseModel):
     ErrorMessage: Optional[str]
 
     class Config:
-        orm_mode = True # Giúp Pydantic tương thích với các đối tượng ORM/DB
+        from_attributes = True # Giúp Pydantic tương thích với các đối tượng ORM/DB

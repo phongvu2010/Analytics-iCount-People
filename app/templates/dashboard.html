@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,203 +8,520 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!-- Favicon -->
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <style>
-        /* Custom styles nếu cần */
+        /* Custom styles */
         body {
             font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
         }
-        .notification {
-            transition: opacity 0.5s ease-in-out;
+        .period-btn.active {
+            background-color: #3B82F6; /* blue-500 */
+            color: white;
+        }
+        .notification-panel {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .notification-item:hover {
+            background-color: #f0f4f8;
+        }
+        .dark .notification-item:hover {
+            background-color: #1f2937; /* gray-800 */
+        }
+        .notification-item.read {
+            opacity: 0.6;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        .dark ::-webkit-scrollbar-track { background: #2d3748; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Custom styling for select elements */
+        .custom-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+
+        .dark .custom-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
 
-    <div class="container mx-auto p-4 md:p-8">
+    <div class="container mx-auto p-4 md:p-6">
 
         <!-- Header -->
         <header class="flex justify-between items-center mb-6">
             <div class="flex items-center space-x-3">
                 <img src="/static/logo.png" alt="Logo" class="h-10 w-10" onerror="this.style.display='none'">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-700">Dashboard Thống Kê</h1>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-700 dark:text-gray-200">Dashboard Thống Kê</h1>
             </div>
-            <div id="notification-bell" class="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span id="notification-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+            <div class="flex items-center space-x-4">
+                 <!-- Theme Settings -->
+                <div class="relative">
+                    <button id="theme-settings-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg id="theme-icon-light" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        <svg id="theme-icon-dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                    </button>
+                    <div id="theme-menu" class="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden z-20 hidden">
+                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="light">Sáng</a>
+                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="dark">Tối</a>
+                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="auto">Tự động</a>
+                    </div>
+                </div>
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button id="notification-bell" class="relative p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        <span id="notification-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    </button>
+                    <div id="notification-panel" class="notification-panel absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden z-20 hidden origin-top-right">
+                        <div class="py-2 px-4 border-b border-gray-200 dark:border-gray-700"><h3 class="font-semibold">Nhật ký lỗi hệ thống</h3></div>
+                        <div id="notification-list" class="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main>
-            <!-- Chart Section -->
-            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                    <h2 class="text-xl font-semibold mb-2 sm:mb-0">Lượng khách vào</h2>
-                    <div id="time-period-selector" class="flex space-x-1 bg-gray-200 p-1 rounded-md">
-                        <button data-period="day" class="period-btn bg-white text-blue-600 py-1 px-3 rounded-md text-sm font-medium">Ngày</button>
+        <!-- Filters Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div>
+                <label for="store-select" class="block text-sm font-medium mb-1">Cửa ra-vào</label>
+                <select id="store-select" class="custom-select h-10 w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"></select>
+            </div>
+            <div class="col-span-1 md:col-span-2 lg:col-span-3">
+                 <label class="block text-sm font-medium mb-1">Khung thời gian</label>
+                 <div class="flex flex-wrap items-center gap-2">
+                    <div id="time-period-selector" class="flex space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        <button data-period="day" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Ngày</button>
                         <button data-period="week" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tuần</button>
                         <button data-period="month" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tháng</button>
-                        <button data-period="year" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Năm</button>
+                        <button data-period="year" class="period-btn py-1 px-3 rounded-md text-sm font-medium active">Năm</button>
+                    </div>
+                    <!-- Dynamic Date Pickers -->
+                    <div id="date-pickers-container" class="flex items-center gap-2 flex-wrap"></div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Main Chart -->
+                <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">Thống kê lượng khách vào</h2>
+                        <button id="download-btn" class="text-sm bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50">
+                            <svg id="download-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            <svg id="download-spinner" class="animate-spin h-5 w-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span id="download-text">Tải dữ liệu</span>
+                        </button>
+                    </div>
+                    <div id="chart-container" class="relative h-96">
+                        <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800 bg-opacity-75 dark:bg-opacity-75 z-10"><div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div></div>
+                        <canvas id="trafficChart"></canvas>
                     </div>
                 </div>
-                <div id="chart-container" class="relative h-96">
-                    <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
-                        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+
+                <!-- Donut Chart -->
+                <div class="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
+                    <h2 class="text-xl font-semibold mb-4">Tỷ lệ theo cửa</h2>
+                    <div id="donut-chart-container" class="relative h-96 flex items-center justify-center">
+                        <canvas id="donutChart"></canvas>
+                        <p id="donut-no-data" class="hidden text-gray-500">Chọn "Tất cả cửa" để xem so sánh.</p>
                     </div>
-                    <canvas id="trafficChart"></canvas>
                 </div>
             </div>
 
-            <!-- Error Logs Section -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-xl font-semibold mb-4">Nhật ký lỗi hệ thống (Mới nhất)</h2>
-                <div id="error-log-container" class="space-y-3">
-                    <!-- Error logs will be injected here by JavaScript -->
-                    <p id="loading-errors" class="text-gray-500">Đang tải dữ liệu lỗi...</p>
+            <!-- Summary Table -->
+            <div class="mt-6 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Dữ liệu tổng hợp</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Thời gian</th>
+                                <th scope="col" class="px-6 py-3">Số lượng</th>
+                                <th scope="col" class="px-6 py-3">Chênh lệch</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-table-body">
+                           <!-- Data will be injected here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
-
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const ctx = document.getElementById('trafficChart').getContext('2d');
-            let trafficChart;
-            const periodButtons = document.querySelectorAll('.period-btn');
-            const loadingSpinner = document.getElementById('loading-spinner');
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- STATE MANAGEMENT ---
+        const state = {
+            period: 'year',
+            storeId: 'all',
+            date: new Date(),
+            year: new Date().getFullYear(),
+            month: new Date().getMonth() + 1,
+            week: getWeekNumber(new Date()),
+        };
 
-            // --- Chart Logic ---
-            async function fetchAndRenderChart(period = 'day') {
-                loadingSpinner.style.display = 'flex';
-                try {
-                    const response = await fetch(`/api/stats?period=${period}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const result = await response.json();
-                    
-                    const chartData = {
-                        labels: result.data.map(d => d.label),
-                        datasets: [{
-                            label: 'Lượng khách vào',
-                            data: result.data.map(d => d.value),
-                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            borderWidth: 2,
-                            tension: 0.4,
-                            fill: true
-                        }]
-                    };
+        // --- DOM ELEMENTS ---
+        const elements = {
+            trafficChartCtx: document.getElementById('trafficChart').getContext('2d'),
+            donutChartCtx: document.getElementById('donutChart').getContext('2d'),
+            loadingSpinner: document.getElementById('loading-spinner'),
+            donutNoData: document.getElementById('donut-no-data'),
+            notificationBell: document.getElementById('notification-bell'),
+            notificationCount: document.getElementById('notification-count'),
+            notificationPanel: document.getElementById('notification-panel'),
+            notificationList: document.getElementById('notification-list'),
+            themeSettingsBtn: document.getElementById('theme-settings-btn'),
+            themeMenu: document.getElementById('theme-menu'),
+            themeOptions: document.querySelectorAll('.theme-option'),
+            iconLight: document.getElementById('theme-icon-light'),
+            iconDark: document.getElementById('theme-icon-dark'),
+            storeSelect: document.getElementById('store-select'),
+            periodButtons: document.querySelectorAll('.period-btn'),
+            datePickersContainer: document.getElementById('date-pickers-container'),
+            downloadBtn: document.getElementById('download-btn'),
+            downloadIcon: document.getElementById('download-icon'),
+            downloadSpinner: document.getElementById('download-spinner'),
+            downloadText: document.getElementById('download-text'),
+            summaryTableBody: document.getElementById('summary-table-body'),
+        };
 
-                    if (trafficChart) {
-                        trafficChart.destroy();
-                    }
+        let trafficChart, donutChart;
+        let readNotifications = new Set(JSON.parse(localStorage.getItem('readNotifications') || '[]'));
 
-                    trafficChart = new Chart(ctx, {
-                        type: 'line',
-                        data: chartData,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    title: {
-                                        display: true,
-                                        text: 'Số lượng người'
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    mode: 'index',
-                                    intersect: false
-                                }
-                            },
-                            interaction: {
-                                mode: 'index',
-                                intersect: false
-                            }
-                        }
-                    });
+        // --- HELPER FUNCTIONS ---
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
 
-                } catch (error) {
-                    console.error('Không thể tải dữ liệu thống kê:', error);
-                    document.getElementById('chart-container').innerHTML = '<p class="text-center text-red-500">Đã xảy ra lỗi khi tải biểu đồ.</p>';
-                } finally {
-                    loadingSpinner.style.display = 'none';
-                }
-            }
-            
-            periodButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // Update active button style
-                    periodButtons.forEach(btn => {
-                        btn.classList.remove('bg-white', 'text-blue-600');
-                    });
-                    button.classList.add('bg-white', 'text-blue-600');
-                    
-                    const period = button.getAttribute('data-period');
-                    fetchAndRenderChart(period);
+        function getDatesOfWeek(w, y) {
+            const simple = new Date(y, 0, 1 + (w - 1) * 7);
+            const dow = simple.getDay();
+            const ISOweekStart = simple;
+            if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+            else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+            const ISOweekEnd = new Date(ISOweekStart);
+            ISOweekEnd.setDate(ISOweekEnd.getDate() + 6);
+            return { start: ISOweekStart.toLocaleDateString('vi-VN'), end: ISOweekEnd.toLocaleDateString('vi-VN') };
+        }
+        
+        function convertToCSV(data) {
+            if (!data || data.length === 0) return '';
+            const headers = Object.keys(data[0]);
+            const csvRows = [headers.join(',')];
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const escaped = ('' + row[header]).replace(/"/g, '\\"');
+                    return `"${escaped}"`;
                 });
-            });
-
-            // --- Error Log Logic ---
-            async function fetchErrorLogs() {
-                const errorContainer = document.getElementById('error-log-container');
-                const loadingErrors = document.getElementById('loading-errors');
-                const notificationCount = document.getElementById('notification-count');
-                try {
-                    const response = await fetch('/api/errors?limit=5');
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const errors = await response.json();
-                    
-                    errorContainer.innerHTML = ''; // Clear loading message
-                    
-                    if (errors.length > 0) {
-                        notificationCount.textContent = errors.length;
-                        notificationCount.classList.remove('hidden');
-
-                        errors.forEach(err => {
-                            const errorElement = document.createElement('div');
-                            errorElement.className = 'notification bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg';
-                            
-                            const logTime = new Date(err.LogTime).toLocaleString('vi-VN');
-
-                            errorElement.innerHTML = `
-                                <p class="font-bold">Lỗi: ${err.ErrorMessage || 'Không xác định'}</p>
-                                <p class="text-sm">Thời gian: ${logTime} | Store ID: ${err.storeid} | Mã lỗi: ${err.Errorcode || 'N/A'}</p>
-                            `;
-                            errorContainer.appendChild(errorElement);
-                        });
-                    } else {
-                        errorContainer.innerHTML = '<p class="text-gray-500">Không có lỗi nào được ghi nhận gần đây.</p>';
-                        notificationCount.classList.add('hidden');
-                    }
-
-                } catch (error) {
-                    console.error('Không thể tải nhật ký lỗi:', error);
-                    errorContainer.innerHTML = '<p class="text-center text-red-500">Đã xảy ra lỗi khi tải nhật ký lỗi.</p>';
-                }
+                csvRows.push(values.join(','));
             }
+            return csvRows.join('\n');
+        }
 
-            // Initial data load
-            fetchAndRenderChart('day');
-            fetchErrorLogs();
+        function downloadCSV(csvString, filename) {
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
 
-            // Refresh error logs every 30 seconds
-            setInterval(fetchErrorLogs, 30000);
+        // --- THEME MANAGEMENT ---
+        function applyTheme(theme) {
+            const isDark = (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches));
+            document.documentElement.classList.toggle('dark', isDark);
+            elements.iconLight.classList.toggle('hidden', isDark);
+            elements.iconDark.classList.toggle('hidden', !isDark);
+            localStorage.setItem('theme', theme);
+            // Re-render charts with new theme colors
+            if (trafficChart || donutChart) {
+                updateDashboard();
+            }
+        }
+        
+        elements.themeSettingsBtn.addEventListener('click', () => elements.themeMenu.classList.toggle('hidden'));
+        elements.themeOptions.forEach(opt => opt.addEventListener('click', (e) => {
+            e.preventDefault();
+            applyTheme(e.target.dataset.theme);
+            elements.themeMenu.classList.add('hidden');
+        }));
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(localStorage.getItem('theme') || 'auto'));
+        
+        // --- NOTIFICATION MANAGEMENT ---
+        async function fetchErrorLogs() {
+            try {
+                const response = await fetch('api/errors?limit=15');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const errors = await response.json();
+                elements.notificationList.innerHTML = '';
+                let unreadCount = 0;
+
+                if (errors.length > 0) {
+                    errors.forEach(err => {
+                        const isRead = readNotifications.has(err.ID);
+                        if (!isRead) unreadCount++;
+                        
+                        const errorElement = document.createElement('div');
+                        errorElement.className = `notification-item p-3 cursor-pointer ${isRead ? 'read' : ''}`;
+                        errorElement.innerHTML = `<p class="font-semibold text-sm text-red-600">${err.ErrorMessage || 'Lỗi không xác định'}</p><p class="text-xs text-gray-500">Store ID: ${err.storeid} | ${new Date(err.LogTime).toLocaleString('vi-VN')}</p>`;
+                        
+                        errorElement.addEventListener('click', () => {
+                            if (!readNotifications.has(err.ID)) {
+                                readNotifications.add(err.ID);
+                                errorElement.classList.add('read');
+                                localStorage.setItem('readNotifications', JSON.stringify([...readNotifications]));
+                                updateNotificationCounter(unreadCount - 1);
+                            }
+                        }, { once: true });
+                        elements.notificationList.appendChild(errorElement);
+                    });
+                } else {
+                    elements.notificationList.innerHTML = '<p class="text-gray-500 p-4 text-center text-sm">Không có lỗi nào.</p>';
+                }
+                updateNotificationCounter(unreadCount);
+            } catch (error) {
+                console.error('Lỗi tải nhật ký lỗi:', error);
+                elements.notificationList.innerHTML = `<p class="text-red-500 p-4 text-center text-sm">Lỗi tải dữ liệu. ${error.message}</p>`;
+            }
+        }
+        elements.notificationBell.addEventListener('click', (e) => { e.stopPropagation(); elements.notificationPanel.classList.toggle('hidden'); });
+        document.addEventListener('click', (e) => { if (!elements.notificationPanel.contains(e.target) && !elements.notificationBell.contains(e.target)) { elements.notificationPanel.classList.add('hidden'); } });
+
+        // --- FILTER & UI RENDERING ---
+        async function populateStoreFilter() {
+            try {
+                const response = await fetch('api/stores');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const stores = await response.json();
+                elements.storeSelect.innerHTML = '<option value="all">Tất cả cửa</option>';
+                stores.forEach(store => {
+                    elements.storeSelect.innerHTML += `<option value="${store.tid}">${store.name}</option>`;
+                });
+            } catch (error) {
+                console.error("Lỗi tải danh sách cửa:", error);
+                elements.storeSelect.innerHTML = `<option value="all">Lỗi tải dữ liệu</option>`;
+            }
+        }
+
+        function renderDatePickers() {
+            let html = '';
+            const currentYear = new Date().getFullYear();
+            const baseClasses = "h-10 block w-auto border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm";
+            const selectClasses = `${baseClasses} custom-select pl-3 pr-10 py-2`;
+            const dateInputClasses = `${baseClasses} pl-3 py-2`;
+
+            switch (state.period) {
+                case 'day':
+                    html = `<input type="date" id="date-picker" class="${dateInputClasses}" value="${state.date.toISOString().split('T')[0]}">`;
+                    break;
+                case 'week':
+                    const weekDates = getDatesOfWeek(state.week, state.year);
+                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>${currentYear - i}</option>`).join('')}</select>
+                            <select id="week-picker" class="${selectClasses}">${Array.from({length: 52}, (_, i) => `<option value="${i + 1}" ${state.week === (i + 1) ? 'selected' : ''}>Tuần ${i + 1}</option>`).join('')}</select>
+                            <span class="text-sm self-center">(${weekDates.start} - ${weekDates.end})</span>`;
+                    break;
+                case 'month':
+                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>${currentYear - i}</option>`).join('')}</select>
+                            <select id="month-picker" class="${selectClasses}">${Array.from({length: 12}, (_, i) => `<option value="${i + 1}" ${state.month === (i + 1) ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('')}</select>`;
+                    break;
+                case 'year':
+                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>Năm ${currentYear - i}</option>`).join('')}</select>`;
+                    break;
+            }
+            elements.datePickersContainer.innerHTML = html;
+            addDatePickerListeners();
+        }
+
+        function addDatePickerListeners() {
+            const yearPicker = document.getElementById('year-picker');
+            const monthPicker = document.getElementById('month-picker');
+            const weekPicker = document.getElementById('week-picker');
+            const datePicker = document.getElementById('date-picker');
+
+            if (yearPicker) yearPicker.addEventListener('change', (e) => { state.year = parseInt(e.target.value); updateDashboard(); });
+            if (monthPicker) monthPicker.addEventListener('change', (e) => { state.month = parseInt(e.target.value); updateDashboard(); });
+            if (weekPicker) weekPicker.addEventListener('change', (e) => { state.week = parseInt(e.target.value); renderDatePickers(); updateDashboard(); });
+            if (datePicker) datePicker.addEventListener('change', (e) => { state.date = new Date(e.target.value); updateDashboard(); });
+        }
+
+        // --- DATA FETCHING & RENDERING ---
+        async function updateDashboard() {
+            elements.loadingSpinner.style.display = 'flex';
+            try {
+                const params = new URLSearchParams({ ...state, date: state.date.toISOString().split('T')[0] });
+                const response = await fetch(`api/data?${params}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
+                renderTrafficChart(data.line_chart);
+                renderDonutChart(data.donut_chart);
+                renderSummaryTable(data.summary_table);
+            } catch (error) {
+                console.error("Lỗi cập nhật dashboard:", error);
+                // Display error message to user
+            } finally {
+                elements.loadingSpinner.style.display = 'none';
+            }
+        }
+        
+        function renderTrafficChart(data) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const textColor = isDark ? '#E5E7EB' : '#374151';
+
+            if (trafficChart) trafficChart.destroy();
+            trafficChart = new Chart(elements.trafficChartCtx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Lượng khách vào',
+                        data: data.values,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        tension: 0.3,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }, 
+                        x: { ticks: { color: textColor }, grid: { color: gridColor } } 
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        function renderDonutChart(data) {
+            const hasData = data && data.values && data.values.length > 0 && data.values.some(v => v > 0);
+            elements.donutNoData.classList.toggle('hidden', hasData);
+            
+            if (donutChart) donutChart.destroy();
+            if (hasData) {
+                const textColor = document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#374151';
+                donutChart = new Chart(elements.donutChartCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.values,
+                            backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+                            borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
+                });
+            }
+        }
+
+        function renderSummaryTable(data) {
+            let tableHtml = '';
+            if (data && data.length > 0) {
+                let prevValue = 0;
+                data.forEach((row, index) => {
+                    let changeHtml = '-';
+                    if (index > 0 && prevValue > 0) {
+                        const change = ((row.value - prevValue) / prevValue) * 100;
+                        const color = change >= 0 ? 'text-green-500' : 'text-red-500';
+                        const icon = change >= 0 ? '▲' : '▼';
+                        changeHtml = `<span class="${color}">${icon} ${Math.abs(change).toFixed(2)}%</span>`;
+                    }
+                    tableHtml += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                        <td class="px-6 py-4">${row.label}</td>
+                        <td class="px-6 py-4 font-medium">${row.value.toLocaleString('vi-VN')}</td>
+                        <td class="px-6 py-4">${changeHtml}</td>
+                    </tr>`;
+                    prevValue = row.value;
+                });
+            } else {
+                tableHtml = '<tr><td colspan="3" class="text-center p-4">Không có dữ liệu cho lựa chọn này.</td></tr>';
+            }
+            elements.summaryTableBody.innerHTML = tableHtml;
+        }
+
+        // --- EVENT LISTENERS ---
+        elements.periodButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                elements.periodButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                state.period = button.dataset.period;
+                renderDatePickers();
+                updateDashboard();
+            });
         });
+
+        elements.storeSelect.addEventListener('change', (e) => {
+            state.storeId = e.target.value;
+            updateDashboard();
+        });
+        
+        elements.downloadBtn.addEventListener('click', async () => {
+            elements.downloadText.textContent = 'Đang tải...';
+            elements.downloadIcon.classList.add('hidden');
+            elements.downloadSpinner.classList.remove('hidden');
+            elements.downloadBtn.disabled = true;
+
+            try {
+                // Giả định API /api/download_data trả về dữ liệu chi tiết dạng JSON
+                const params = new URLSearchParams({ ...state, date: state.date.toISOString().split('T')[0] });
+                const response = await fetch(`api/download_data?${params}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                const csvString = convertToCSV(data);
+                const filename = `thong_ke_${state.period}_${new Date().toISOString().split('T')[0]}.csv`;
+                downloadCSV(csvString, filename);
+
+            } catch (error) {
+                console.error("Lỗi tải dữ liệu:", error);
+                alert("Không thể tải dữ liệu. Vui lòng thử lại.");
+            } finally {
+                elements.downloadText.textContent = 'Tải dữ liệu';
+                elements.downloadIcon.classList.remove('hidden');
+                elements.downloadSpinner.classList.add('hidden');
+                elements.downloadBtn.disabled = false;
+            }
+        });
+
+        // --- INITIALIZATION ---
+        function init() {
+            applyTheme(localStorage.getItem('theme') || 'auto');
+            populateStoreFilter();
+            fetchErrorLogs();
+            setInterval(fetchErrorLogs, 60000);
+            renderDatePickers();
+            updateDashboard();
+        }
+
+        init();
+    });
     </script>
 </body>
 </html>
