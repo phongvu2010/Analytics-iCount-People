@@ -26,7 +26,6 @@ Tôi có ý tưởng sơ đồ cấu trúc ứng dụng như sau:
 iCount-People/
 ├── app/
 │   ├── core/
-│   │   ├── __init__.py
 │   │   ├── config.py
 │   │   └── db.py
 │   ├── statics/
@@ -35,11 +34,9 @@ iCount-People/
 │   │   └── style.css
 │   ├── templates/
 │   │   └── dashboard.html
-│   ├── __init__.py
 │   ├── main.py
-│   ├── models.py
-│   ├── schemas.py
-│   └── routers.py
+│   ├── routers.py
+│   └── schemas.py
 ├── .env                        # File chứa biến môi trường (không commit lên Git)
 ├── .gitignore
 ├── requirements.txt            # Các thư viện Python cần thiết

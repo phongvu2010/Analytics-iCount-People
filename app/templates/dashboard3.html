@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Thống Kê Lượng Người</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for beautiful charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <!-- Alpine.js for interactivity -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Flatpickr for date picking -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+
+    <!-- Custom Styles -->
+    <style>
+        :root {
+            --chart-bg: #ffffff;
+            --chart-border: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --border-color: #e5e7eb;
+        }
+        html.dark {
+            --chart-bg: #1f2937;
+            --chart-border: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --border-color: #374151;
+        }
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+        }
+        .flatpickr-calendar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .flatpickr-day, .flatpickr-weekday, .numInput, .cur-month, .flatpickr-monthDropdown-month {
+            color: var(--text-primary) !important;
+        }
+        .flatpickr-day.selected {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+        .flatpickr-day:hover {
+            background: #60a5fa;
+        }
+        .chart-container {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+        /* Custom scrollbar for notification dropdown */
+        .notification-dropdown::-webkit-scrollbar {
+            width: 5px;
+        }
+        .notification-dropdown::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        .notification-dropdown::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 6px;
+        }
+        .notification-dropdown::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body x-data="dashboardApp()" x-init="init()">
+    <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
+        <!-- Main content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Dashboard Thống Kê</h1>
+                <div class="flex items-center space-x-4">
+                    <!-- Theme Switcher -->
+                    <div class="relative">
+                        <button @click="themeMenuOpen = !themeMenuOpen" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <svg x-show="theme === 'light'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <svg x-show="theme === 'dark'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                            <svg x-show="theme === 'auto'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <div x-show="themeMenuOpen" @click.away="themeMenuOpen = false" class="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-20 border dark:border-gray-700">
+                            <a @click.prevent="setTheme('light')" href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Light</a>
+                            <a @click.prevent="setTheme('dark')" href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Dark</a>
+                            <a @click.prevent="setTheme('auto')" href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Auto</a>
+                        </div>
+                    </div>
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button @click="notificationMenuOpen = !notificationMenuOpen" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                            <span x-show="unreadErrorCount > 0" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full" x-text="unreadErrorCount"></span>
+                        </button>
+                        <div x-show="notificationMenuOpen" @click.away="notificationMenuOpen = false" class="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-20 border dark:border-gray-700">
+                            <div class="p-4 font-bold border-b dark:border-gray-700">Cảnh báo hệ thống</div>
+                            <div class="p-2 notification-dropdown max-h-96 overflow-y-auto">
+                                <template x-if="errorLogs.length === 0">
+                                    <p class="text-center text-gray-500 py-4">Không có cảnh báo nào.</p>
+                                </template>
+                                <template x-for="log in errorLogs" :key="log.ID">
+                                    <div @click="markErrorAsRead(log.ID)" :class="{'bg-blue-50 dark:bg-blue-900/20': !isErrorRead(log.ID)}" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer mb-1">
+                                        <p class="font-semibold text-sm" x-text="`[${log.store_name || 'N/A'}] ${log.ErrorMessage}`"></p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400" x-text="new Date(log.LogTime).toLocaleString('vi-VN')"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="flex-1 p-4 lg:p-6 overflow-y-auto">
+                <!-- Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                    <!-- Period Selector -->
+                    <div>
+                        <label for="period" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Giai đoạn</label>
+                        <select id="period" x-model="filters.period" @change="updateDashboard()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option value="day">Theo Ngày</option>
+                            <option value="week">Theo Tuần</option>
+                            <option value="month">Theo Tháng</option>
+                            <option value="year">Theo Năm</option>
+                        </select>
+                    </div>
+
+                    <!-- Date/Week/Month/Year Pickers -->
+                    <div class="relative">
+                        <label for="filter_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300" x-text="datePickerLabel"></label>
+                        <input id="filter_date" x-ref="datePicker" type="text" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    </div>
+
+                    <!-- Store Selector -->
+                    <div>
+                        <label for="store" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cửa hàng</label>
+                        <select id="store" x-model="filters.store_id" @change="updateDashboard()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option value="">Tất cả cửa hàng</option>
+                            <template x-for="store in stores" :key="store.tid">
+                                <option :value="store.tid" x-text="store.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Smoothing -->
+                    <div>
+                        <label for="smoothing" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Làm mịn dữ liệu</label>
+                        <input type="range" id="smoothing" min="1" max="5" step="0.1" x-model="filters.smooth_threshold" @change="updateDashboard()" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 mt-3">
+                        <span class="text-sm text-gray-500 dark:text-gray-400" x-text="filters.smooth_threshold"></span>
+                    </div>
+
+                    <!-- Export Button -->
+                    <div class="flex items-end">
+                        <button @click="exportData()" class="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Tải xuống
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div x-show="isLoading" class="text-center py-10">
+                    <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm">Đang tải dữ liệu...</p>
+                </div>
+
+                <!-- Charts and Table -->
+                <div x-show="!isLoading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Line Chart -->
+                    <div class="lg:col-span-2 chart-container">
+                        <h3 class="font-bold mb-4">Lưu lượng ra vào</h3>
+                        <canvas id="lineChart"></canvas>
+                    </div>
+
+                    <!-- Donut Chart -->
+                    <div class="chart-container">
+                        <h3 class="font-bold mb-4">Tỷ lệ theo cửa hàng</h3>
+                        <canvas id="donutChart"></canvas>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="lg:col-span-3 chart-container">
+                        <h3 class="font-bold mb-4">Dữ liệu tổng hợp</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thời gian</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Lượt vào</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Thay đổi (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    <template x-if="tableData.length === 0">
+                                        <tr><td colspan="3" class="text-center py-4 text-gray-500">Không có dữ liệu.</td></tr>
+                                    </template>
+                                    <template x-for="row in tableData" :key="row.label">
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm" x-text="row.label"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm" x-text="row.value.toLocaleString('vi-VN')"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span :class="{
+                                                    'text-green-600': row.percentage_change > 0,
+                                                    'text-red-600': row.percentage_change < 0,
+                                                    'text-gray-500': row.percentage_change == 0
+                                                }">
+                                                    <span x-text="row.percentage_change > 0 ? '▲' : (row.percentage_change < 0 ? '▼' : '')"></span>
+                                                    <span x-text="Math.abs(row.percentage_change).toFixed(2) + '%'"></span>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function dashboardApp() {
+            return {
+                // State
+                isLoading: true,
+                themeMenuOpen: false,
+                notificationMenuOpen: false,
+                theme: 'auto',
+                filters: {
+                    period: 'year',
+                    filter_date: new Date().toISOString().split('T')[0],
+                    store_id: '',
+                    smooth_threshold: 2.5,
+                },
+                datePicker: null,
+                datePickerLabel: 'Chọn Năm',
+                // Data from server
+                stores: {{ stores | tojson }},
+                errorLogs: {{ error_logs | tojson }},
+                readErrorIds: [],
+                unreadErrorCount: 0,
+                // Chart instances
+                lineChart: null,
+                donutChart: null,
+                tableData: [],
+
+                // Methods
+                init() {
+                    this.initTheme();
+                    this.initDatePicker();
+                    this.loadReadErrors();
+                    this.calculateUnreadCount();
+                    this.updateDashboard();
+
+                    this.$watch('filters.period', () => {
+                        this.initDatePicker(); // Re-initialize date picker for new mode
+                        this.updateDashboard();
+                    });
+                },
+
+                // --- Theme Management ---
+                initTheme() {
+                    this.theme = localStorage.getItem('theme') || 'auto';
+                    this.applyTheme();
+                },
+                setTheme(newTheme) {
+                    this.theme = newTheme;
+                    localStorage.setItem('theme', newTheme);
+                    this.applyTheme();
+                    this.themeMenuOpen = false;
+                },
+                applyTheme() {
+                    if (this.theme === 'dark' || (this.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                    // Force charts to re-render with new theme colors
+                    if(this.lineChart) this.updateDashboard(); 
+                },
+
+                // --- Notification Management ---
+                loadReadErrors() {
+                    const stored = localStorage.getItem('readErrorIds');
+                    this.readErrorIds = stored ? JSON.parse(stored) : [];
+                },
+                saveReadErrors() {
+                    localStorage.setItem('readErrorIds', JSON.stringify(this.readErrorIds));
+                },
+                isErrorRead(id) {
+                    return this.readErrorIds.includes(id);
+                },
+                markErrorAsRead(id) {
+                    if (!this.isErrorRead(id)) {
+                        this.readErrorIds.push(id);
+                        this.saveReadErrors();
+                        this.calculateUnreadCount();
+                    }
+                },
+                calculateUnreadCount() {
+                    this.unreadErrorCount = this.errorLogs.filter(log => !this.isErrorRead(log.ID)).length;
+                },
+
+                // --- Date Picker Management ---
+                initDatePicker() {
+                    if (this.datePicker) {
+                        this.datePicker.destroy();
+                    }
+                    let config = {
+                        defaultDate: this.filters.filter_date,
+                        locale: 'vn',
+                        onChange: (selectedDates, dateStr, instance) => {
+                            this.filters.filter_date = dateStr;
+                            this.updateDashboard();
+                        }
+                    };
+                    switch (this.filters.period) {
+                        case 'day':
+                            this.datePickerLabel = 'Chọn Ngày';
+                            break;
+                        case 'week':
+                            this.datePickerLabel = 'Chọn Tuần';
+                            config.weekNumbers = true;
+                            break;
+                        case 'month':
+                            this.datePickerLabel = 'Chọn Tháng';
+                            config.plugins = [new monthSelectPlugin({ shorthand: true, dateFormat: "Y-m-d", altFormat: "F Y" })];
+                            break;
+                        case 'year':
+                            this.datePickerLabel = 'Chọn Năm';
+                            config.plugins = [new monthSelectPlugin({ shorthand: true, dateFormat: "Y-m-d", altFormat: "Y" })];
+                            // A bit of a hack to make it year-only
+                            config.onReady = function(d, dd, i){ i.currentYear = new Date(dd).getFullYear(); };
+                            config.onOpen = function(d, dd, i){
+                                const yearInput = i.yearElements[0];
+                                yearInput.parentElement.style.display = 'none';
+                                i.calendarContainer.querySelector('.flatpickr-months').style.display = 'none';
+                            };
+                            break;
+                    }
+                    this.datePicker = flatpickr(this.$refs.datePicker, config);
+                },
+
+                // --- Data Fetching and Rendering ---
+                async updateDashboard() {
+                    this.isLoading = true;
+                    try {
+                        const params = new URLSearchParams({
+                            period: this.filters.period,
+                            filter_date: this.filters.filter_date,
+                            smooth_threshold: this.filters.smooth_threshold
+                        });
+                        if (this.filters.store_id) {
+                            params.append('store_id', this.filters.store_id);
+                        }
+
+                        const response = await fetch(`/api/stats?${params.toString()}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        const data = await response.json();
+                        
+                        this.tableData = data.table_data;
+                        this.renderLineChart(data.line_chart_data);
+                        this.renderDonutChart(data.donut_chart_data);
+
+                    } catch (error) {
+                        console.error('Failed to fetch stats:', error);
+                        // You can add a user-facing error message here
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                getChartOptions() {
+                    const isDark = document.documentElement.classList.contains('dark');
+                    return {
+                        textColor: isDark ? '#f9fafb' : '#1f2937',
+                        gridColor: isDark ? '#374151' : '#e5e7eb',
+                    };
+                },
+
+                renderLineChart(data) {
+                    const chartOptions = this.getChartOptions();
+                    const chartData = {
+                        labels: data.map(d => d.label),
+                        datasets: [{
+                            label: 'Lượt vào',
+                            data: data.map(d => d.value),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#3b82f6',
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                        }]
+                    };
+                    
+                    if (this.lineChart) {
+                        this.lineChart.data = chartData;
+                        this.lineChart.options.scales.x.ticks.color = chartOptions.textColor;
+                        this.lineChart.options.scales.y.ticks.color = chartOptions.textColor;
+                        this.lineChart.options.scales.x.grid.color = chartOptions.gridColor;
+                        this.lineChart.options.scales.y.grid.color = chartOptions.gridColor;
+                        this.lineChart.options.plugins.legend.labels.color = chartOptions.textColor;
+                        this.lineChart.update();
+                    } else {
+                        const ctx = document.getElementById('lineChart').getContext('2d');
+                        this.lineChart = new Chart(ctx, {
+                            type: 'line',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: { ticks: { color: chartOptions.textColor }, grid: { color: chartOptions.gridColor } },
+                                    y: { ticks: { color: chartOptions.textColor }, grid: { color: chartOptions.gridColor }, beginAtZero: true }
+                                },
+                                plugins: { legend: { labels: { color: chartOptions.textColor } } }
+                            }
+                        });
+                    }
+                },
+
+                renderDonutChart(data) {
+                    const chartOptions = this.getChartOptions();
+                    const chartData = {
+                        labels: data.map(d => d.store_name),
+                        datasets: [{
+                            label: 'Lượt vào',
+                            data: data.map(d => d.value),
+                            backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f97316', '#8b5cf6', '#ec4899'],
+                            borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                            borderWidth: 2,
+                        }]
+                    };
+
+                    if (this.donutChart) {
+                        this.donutChart.data = chartData;
+                         this.donutChart.options.plugins.legend.labels.color = chartOptions.textColor;
+                        this.donutChart.update();
+                    } else {
+                        const ctx = document.getElementById('donutChart').getContext('2d');
+                        this.donutChart = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: chartData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: { color: chartOptions.textColor }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                exportData() {
+                    const params = new URLSearchParams({
+                        period: this.filters.period,
+                        filter_date: this.filters.filter_date,
+                    });
+                    if (this.filters.store_id) {
+                        params.append('store_id', this.filters.store_id);
+                    }
+                    window.location.href = `/api/export-data?${params.toString()}`;
+                }
+            }
+        }
+
+        // Plugin for month/year picker in Flatpickr
+        // This is a common requirement and there are many ways to do it.
+        // This is a simplified version. For a real app, a more robust plugin might be needed.
+        function monthSelectPlugin(pluginConfig) {
+            return function(fp) {
+                return {
+                    onReady: function() {
+                        if (fp.config.noCalendar) return;
+                        if(pluginConfig.altFormat.includes('F')) { // Month picker
+                            fp.currentMonth = 0;
+                        }
+                    },
+                };
+            };
+        }
+    </script>
+</body>
+</html>
