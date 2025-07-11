@@ -25,6 +25,7 @@ duckdb
 fastapi[all]
 Jinja2
 pandas
+pyarrow
 pyodbc  # Hoặc driver MSSQL phù hợp khác
 SQLAlchemy
 
