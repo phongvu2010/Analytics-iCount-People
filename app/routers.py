@@ -1,696 +1,378 @@
+import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Depends, Query, HTTPException
+from datetime import datetime, timedelta, date
+from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from typing import Optional
 
 from .core.db import get_db, execute_query_as_dataframe
-from . import schemas
+from .schemas import StatsResponse, ErrorLog, Store, Metrics, StatData, DonutData
 
-# Khởi tạo router và templates
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory='app/templates')
 
-# --- Endpoint chính để phục vụ trang Dashboard ---
-@router.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def read_root():
-    """
-    Phục vụ file dashboard.html khi người dùng truy cập vào trang chủ.
-    """
-    with open("app/templates/dashboard.html", "r", encoding="utf-8") as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content)
+def smooth_data(df: pd.DataFrame, column: str = 'value', std_dev_threshold: float = 2.5) -> pd.DataFrame:
+    # ... (Hàm này giữ nguyên, không thay đổi)
+    if df.empty or column not in df.columns:
+        return df
+    df[column] = pd.to_numeric(df[column], errors='coerce')
+    df.dropna(subset=[column], inplace=True)
+    if df.empty:
+        return df
+    mean = df[column].mean()
+    std_dev = df[column].std()
+    df_filtered = df[np.abs(df[column] - mean) <= std_dev * std_dev_threshold]
+    return df_filtered
 
-# --- API Endpoints ---
-@router.get("/api/stores", response_model=list[schemas.Store])
-def get_stores(db: Session = Depends(get_db)):
+@router.get('/', response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse('dashboard.html', {'request': request})
+
+# --- Endpoint MỚI để lấy danh sách cửa hàng ---
+@router.get('/api/stores', response_model=list[Store])
+async def get_stores(db: Session = Depends(get_db)):
     """
-    API lấy danh sách tất cả các cửa hàng (stores) từ CSDL
-    để hiển thị trong bộ lọc của dashboard.
+    API endpoint để lấy danh sách tất cả cửa hàng.
     """
     query = "SELECT tid, name FROM dbo.store ORDER BY name;"
     df = execute_query_as_dataframe(query, db)
+    return df.to_dict(orient='records')
+
+@router.get('/api/errors', response_model=list[ErrorLog])
+async def get_error_logs(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    # ... (Endpoint này giữ nguyên, không thay đổi)
+    query = f"SELECT TOP (?) ID, storeid, DeviceCode, LogTime, Errorcode, ErrorMessage FROM dbo.ErrLog ORDER BY LogTime DESC;"
+    df = execute_query_as_dataframe(query, db, params=(limit,))
     if df.empty:
         return []
-    return df.to_dict('records')
+    return df.to_dict(orient='records')
 
-@router.get("/api/errors", response_model=list[schemas.ErrorLog])
-def get_error_logs(limit: int = Query(15, gt=0, le=50), db: Session = Depends(get_db)):
-    """
-    API lấy các bản ghi lỗi gần đây nhất từ bảng ErrLog
-    để hiển thị trong chuông thông báo.
-    """
-    query = f"SELECT TOP ({limit}) ID, storeid, LogTime, ErrorMessage FROM dbo.ErrLog ORDER BY LogTime DESC;"
-    df = execute_query_as_dataframe(query, db)
-    if df.empty:
-        return []
-    return df.to_dict('records')
-
-@router.get("/api/data", response_model=schemas.DashboardData)
-def get_dashboard_data(
-    period: str = Query("year", enum=["day", "week", "month", "year"]),
-    storeId: str = Query("all"),
-    year: int = Query(datetime.now().year),
-    month: int = Query(datetime.now().month),
-    week: int = Query(datetime.now().isocalendar()[1]),
-    date: str = Query(datetime.now().strftime('%Y-%m-%d')),
+# --- Endpoint /api/stats được VIẾT LẠI HOÀN TOÀN ---
+@router.get('/api/stats', response_model=StatsResponse)
+async def get_stats(
+    period: str = Query('day', enum=['day', 'week', 'month', 'year']),
+    store_id: int = Query(0), # 0 nghĩa là tất cả cửa hàng
+    smooth_threshold: Optional[float] = Query(2.5, ge=1.0, le=10.0),
+    target_date_str: Optional[str] = Query(None), # YYYY-MM-DD
     db: Session = Depends(get_db)
 ):
     """
-    API chính, xử lý việc lấy và tổng hợp dữ liệu cho toàn bộ dashboard.
-    Bao gồm dữ liệu cho biểu đồ đường, biểu đồ tròn và bảng tổng hợp.
+    API endpoint đa năng để lấy dữ liệu thống kê.
+    - period: 'day', 'week', 'month', 'year'
+    - store_id: ID của cửa hàng, 0 = tất cả
+    - target_date_str: Ngày mục tiêu để tính toán (YYYY-MM-DD). Mặc định là hôm nay.
     """
-    # Xây dựng câu lệnh SQL và các tham số dựa trên bộ lọc
-    params = {'year': year}
-    base_query = """
-        SELECT nc.recordtime, nc.in_num, s.name as store_name, nc.storeid
-        FROM dbo.num_crowd nc
-        JOIN dbo.store s ON nc.storeid = s.tid
-    """
-    
-    # Xây dựng mệnh đề WHERE linh hoạt
-    where_clauses = []
+    target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date() if target_date_str else date.today()
+
+    # 1. Xác định khoảng thời gian (start_date, end_date) và chu kỳ trước đó
     if period == 'day':
-        selected_date = datetime.strptime(date, '%Y-%m-%d')
-        where_clauses.append("CAST(nc.recordtime AS DATE) = :selected_date")
-        params['selected_date'] = selected_date.date()
+        start_date = target_date
+        end_date = start_date
+        prev_start_date = start_date - timedelta(days=1)
+        prev_end_date = prev_start_date
+        group_by_clause = 'DATEPART(hour, recordtime)'
+        label_clause = "CAST(DATEPART(hour, recordtime) AS VARCHAR)"
+        time_range_display = start_date.strftime('%d/%m/%Y')
     elif period == 'week':
-        # Tính ngày bắt đầu và kết thúc của tuần
-        start_of_week = datetime.fromisocalendar(year, week, 1)
-        end_of_week = start_of_week + timedelta(days=6)
-        where_clauses.append("nc.recordtime >= :start_date AND nc.recordtime < :end_date")
-        params['start_date'] = start_of_week
-        params['end_date'] = end_of_week + timedelta(days=1)
+        start_date = target_date - timedelta(days=target_date.weekday())
+        end_date = start_date + timedelta(days=6)
+        prev_start_date = start_date - timedelta(days=7)
+        prev_end_date = end_date - timedelta(days=7)
+        group_by_clause = 'CONVERT(date, recordtime)'
+        label_clause = 'FORMAT(CONVERT(date, recordtime), \'dd/MM\')'
+        time_range_display = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
     elif period == 'month':
-        where_clauses.append("YEAR(nc.recordtime) = :year AND MONTH(nc.recordtime) = :month")
-        params['month'] = month
-    elif period == 'year':
-        where_clauses.append("YEAR(nc.recordtime) = :year")
-
-    if storeId != 'all':
-        where_clauses.append("nc.storeid = :store_id")
-        params['store_id'] = int(storeId)
-
-    if where_clauses:
-        base_query += " WHERE " + " AND ".join(where_clauses)
-        
-    df = execute_query_as_dataframe(base_query, db, params=params)
-
-    if df.empty:
-        # Trả về dữ liệu rỗng nếu không có kết quả
-        empty_line = schemas.LineChartData(labels=[], values=[])
-        empty_donut = schemas.DonutChartData(labels=[], values=[])
-        return schemas.DashboardData(line_chart=empty_line, donut_chart=empty_donut, summary_table=[])
-
-    # Chuyển đổi kiểu dữ liệu để xử lý
-    df['recordtime'] = pd.to_datetime(df['recordtime'])
-    df['in_num'] = pd.to_numeric(df['in_num'])
-
-    # --- Xử lý nhiễu (outlier removal) ---
-    # Loại bỏ các giá trị vượt quá ngưỡng 99 percentile để làm mượt dữ liệu
-    q99 = df['in_num'].quantile(0.99)
-    df_filtered = df[df['in_num'] <= q99]
-
-    # --- Chuẩn bị dữ liệu cho các biểu đồ ---
-    line_chart_data, summary_table_data = process_line_chart_data(df_filtered.copy(), period)
-    donut_chart_data = process_donut_chart_data(df_filtered.copy(), storeId)
-
-    return schemas.DashboardData(
-        line_chart=line_chart_data,
-        donut_chart=donut_chart_data,
-        summary_table=summary_table_data
-    )
-
-def process_line_chart_data(df: pd.DataFrame, period: str):
-    """Hàm helper để xử lý dữ liệu cho biểu đồ đường và bảng tổng hợp."""
-    if df.empty:
-        return schemas.LineChartData(labels=[], values=[]), []
-
-    df.set_index('recordtime', inplace=True)
-    
-    # Tổng hợp dữ liệu theo khung thời gian
-    if period == 'day':
-        grouper = pd.Grouper(freq='H') # Theo giờ
-        format_str = '%H:00'
-    elif period == 'week':
-        grouper = pd.Grouper(freq='D') # Theo ngày
-        format_str = '%d/%m'
-    elif period == 'month':
-        grouper = pd.Grouper(freq='D') # Theo ngày
-        format_str = '%d/%m'
+        start_date = target_date.replace(day=1)
+        next_month = start_date.replace(day=28) + timedelta(days=4)
+        end_date = next_month - timedelta(days=next_month.day)
+        prev_end_date = start_date - timedelta(days=1)
+        prev_start_date = prev_end_date.replace(day=1)
+        group_by_clause = 'CONVERT(date, recordtime)'
+        label_clause = 'FORMAT(CONVERT(date, recordtime), \'dd/MM\')'
+        time_range_display = f"Tháng {start_date.month}, {start_date.year}"
     else: # year
-        grouper = pd.Grouper(freq='M') # Theo tháng
-        format_str = '%m/%Y'
-        
-    df_agg = df.groupby(grouper)['in_num'].sum().reset_index()
-    df_agg.columns = ['label', 'value']
-    
-    # Định dạng label cho biểu đồ
-    df_agg['label_str'] = df_agg['label'].dt.strftime(format_str)
+        start_date = target_date.replace(month=1, day=1)
+        end_date = target_date.replace(month=12, day=31)
+        prev_start_date = start_date.replace(year=start_date.year - 1)
+        prev_end_date = end_date.replace(year=end_date.year - 1)
+        group_by_clause = 'FORMAT(recordtime, \'yyyy-MM\')'
+        label_clause = 'FORMAT(recordtime, \'yyyy-MM\')'
+        time_range_display = f"Năm {start_date.year}"
 
-    line_chart = schemas.LineChartData(
-        labels=df_agg['label_str'].tolist(),
-        values=df_agg['value'].tolist()
+    # 2. Xây dựng câu query chính
+    params = [start_date, end_date]
+    store_filter = ""
+    if store_id != 0:
+        store_filter = "AND storeid = ?"
+        params.append(store_id)
+
+    query = f"""
+        SELECT {label_clause} as label, SUM(in_num) as value
+        FROM dbo.num_crowd
+        WHERE CONVERT(date, recordtime) BETWEEN ? AND ? {store_filter}
+        GROUP BY {group_by_clause}
+        ORDER BY {group_by_clause};
+    """
+    df = execute_query_as_dataframe(query, db, params=tuple(params))
+    
+    # 3. Xử lý dữ liệu
+    df_smoothed = smooth_data(df.copy(), column='value', std_dev_threshold=smooth_threshold)
+    table_data = df_smoothed.to_dict(orient='records')
+
+    # 4. Lấy dữ liệu cho Donut chart (luôn lấy trong khoảng thời gian đã chọn)
+    donut_query = f"""
+        SELECT T2.name as label, SUM(T1.in_num) as value
+        FROM dbo.num_crowd T1 JOIN dbo.store T2 ON T1.storeid = T2.tid
+        WHERE CONVERT(date, T1.recordtime) BETWEEN ? AND ?
+        GROUP BY T2.name
+        ORDER BY value DESC;
+    """
+    donut_df = execute_query_as_dataframe(donut_query, db, params=(start_date, end_date))
+    donut_data = donut_df.to_dict(orient='records')
+    
+    # 5. Lấy dữ liệu kỳ trước để tính tăng trưởng
+    prev_params = [prev_start_date, prev_end_date]
+    if store_id != 0:
+        prev_params.append(store_id)
+        
+    prev_query = f"""
+        SELECT SUM(in_num) as total
+        FROM dbo.num_crowd
+        WHERE CONVERT(date, recordtime) BETWEEN ? AND ? {store_filter};
+    """
+    prev_df = execute_query_as_dataframe(prev_query, db, params=tuple(prev_params))
+    prev_total_in = prev_df['total'].sum()
+
+    # 6. Tính toán các chỉ số
+    total_in = df_smoothed['value'].sum()
+    max_in = df_smoothed['value'].max() if not df_smoothed.empty else 0
+    average_in = df_smoothed['value'].mean() if not df_smoothed.empty else 0
+    growth = ((total_in - prev_total_in) / prev_total_in) * 100 if prev_total_in > 0 else 100 if total_in > 0 else 0
+
+    metrics = Metrics(
+        total_in=total_in,
+        average_in=average_in,
+        max_in=max_in,
+        growth=growth
     )
-    
-    summary_table = [schemas.SummaryTableRow(label=row['label_str'], value=row['value']) for _, row in df_agg.iterrows()]
 
-    return line_chart, summary_table
-
-def process_donut_chart_data(df: pd.DataFrame, storeId: str):
-    """Hàm helper để xử lý dữ liệu cho biểu đồ tròn."""
-    if df.empty or storeId != 'all':
-        return schemas.DonutChartData(labels=[], values=[])
-
-    df_donut = df.groupby('store_name')['in_num'].sum().reset_index()
-    
-    return schemas.DonutChartData(
-        labels=df_donut['store_name'].tolist(),
-        values=df_donut['in_num'].tolist()
+    # 7. Trả về response hoàn chỉnh
+    return StatsResponse(
+        period=period,
+        time_range_display=time_range_display,
+        metrics=metrics,
+        chart_data=table_data, # Dữ liệu chart và table giống nhau
+        donut_data=donut_data,
+        table_data=table_data
     )
-
-@router.get("/api/download_data", response_model=list[schemas.DetailedDataRow])
-def download_detailed_data(
-    period: str = Query("year", enum=["day", "week", "month", "year"]),
-    storeId: str = Query("all"),
-    year: int = Query(datetime.now().year),
-    month: int = Query(datetime.now().month),
-    week: int = Query(datetime.now().isocalendar()[1]),
-    date: str = Query(datetime.now().strftime('%Y-%m-%d')),
-    db: Session = Depends(get_db)
-):
-    """
-    API cung cấp dữ liệu chi tiết (chưa tổng hợp) để người dùng có thể tải về.
-    Logic lấy dữ liệu tương tự như get_dashboard_data nhưng không tổng hợp.
-    """
-    # Logic lấy dữ liệu tương tự như get_dashboard_data
-    params = {'year': year}
-    base_query = """
-        SELECT nc.recordtime, nc.in_num, s.name as store_name
-        FROM dbo.num_crowd nc
-        JOIN dbo.store s ON nc.storeid = s.tid
-    """
-    where_clauses = []
-    if period == 'day':
-        selected_date = datetime.strptime(date, '%Y-%m-%d')
-        where_clauses.append("CAST(nc.recordtime AS DATE) = :selected_date")
-        params['selected_date'] = selected_date.date()
-    elif period == 'week':
-        start_of_week = datetime.fromisocalendar(year, week, 1)
-        end_of_week = start_of_week + timedelta(days=6)
-        where_clauses.append("nc.recordtime >= :start_date AND nc.recordtime < :end_date")
-        params['start_date'] = start_of_week
-        params['end_date'] = end_of_week + timedelta(days=1)
-    elif period == 'month':
-        where_clauses.append("YEAR(nc.recordtime) = :year AND MONTH(nc.recordtime) = :month")
-        params['month'] = month
-    elif period == 'year':
-        where_clauses.append("YEAR(nc.recordtime) = :year")
-
-    if storeId != 'all':
-        where_clauses.append("nc.storeid = :store_id")
-        params['store_id'] = int(storeId)
-
-    if where_clauses:
-        base_query += " WHERE " + " AND ".join(where_clauses)
-    
-    base_query += " ORDER BY nc.recordtime"
-    
-    df = execute_query_as_dataframe(base_query, db, params=params)
-    
-    if df.empty:
-        return []
-        
-    return df.to_dict('records')
-
-
-
-
-# # app/routers.py
-# from fastapi import APIRouter, Depends, Query
-# from sqlalchemy.orm import Session
-# from sqlalchemy import func, text
-# from typing import List, Optional
-# from datetime import datetime, timedelta
-
-# # Import các thành phần cần thiết từ các file khác trong project
-# # Giả định bạn đã có file db.py để quản lý session và models.py định nghĩa các table
-# from .core.db import get_db 
-# from . import schemas
-
-# # Khởi tạo router
-# router = APIRouter(
-#     prefix="/api",
-#     tags=["dashboard"],
-#     responses={404: {"description": "Not found"}},
-# )
-
-# # ============================================
-# # API Endpoint chính để lấy dữ liệu cho Dashboard
-# # ============================================
-# @router.get("/dashboard-data", response_model=schemas.DashboardDataResponse)
-# def get_dashboard_data(
-#     # --- Tham số lọc ---
-#     period_type: str = Query("year", description="Loại chu kỳ: 'year', 'month', 'week', 'day'"),
-#     year: int = Query(default=datetime.now().year, description="Năm cần xem"),
-#     month: Optional[int] = Query(default=None, description="Tháng cần xem (1-12)"),
-#     week: Optional[int] = Query(default=None, description="Tuần cần xem (1-53)"),
-#     day: Optional[str] = Query(default=None, description="Ngày cần xem (YYYY-MM-DD)"),
-#     store_id: Optional[int] = Query(default=None, description="Lọc theo ID của cửa hàng (store.tid)"),
-#     # --- Dependency Injection ---
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Endpoint tổng hợp, trả về tất cả dữ liệu cần thiết để hiển thị trên dashboard.
-#     Bao gồm dữ liệu cho biểu đồ đường, biểu đồ donut, bảng tổng hợp và logs lỗi.
-#     """
-    
-#     # --- 1. Xác định khoảng thời gian bắt đầu và kết thúc dựa trên tham số ---
-#     start_date, end_date = get_date_range(period_type, year, month, week, day)
-
-#     # --- 2. Xây dựng câu query cơ bản để lấy dữ liệu num_crowd ---
-#     base_query = db.query(models.NumCrowd).filter(
-#         models.NumCrowd.recordtime >= start_date,
-#         models.NumCrowd.recordtime < end_date
-#     )
-#     if store_id:
-#         base_query = base_query.filter(models.NumCrowd.storeid == store_id)
-
-#     # --- 3. Lấy dữ liệu cho biểu đồ Time Series (Biểu đồ đường) ---
-#     time_series_data = get_time_series_data(base_query, period_type, db)
-    
-#     # --- 4. Lấy dữ liệu cho bảng tổng hợp và tính toán chênh lệch % ---
-#     aggregated_table_data = calculate_percentage_change(time_series_data)
-
-#     # --- 5. Lấy dữ liệu cho biểu đồ Donut (So sánh các cửa hàng) ---
-#     # Query này sẽ chạy trên cùng khoảng thời gian nhưng group by cửa hàng
-#     store_comparison_query = db.query(
-#         models.Store.name.label("store_name"),
-#         func.sum(models.NumCrowd.in_num).label("total_in")
-#     ).join(models.Store, models.NumCrowd.storeid == models.Store.tid).filter(
-#         models.NumCrowd.recordtime >= start_date,
-#         models.NumCrowd.recordtime < end_date
-#     ).group_by(models.Store.name).order_by(func.sum(models.NumCrowd.in_num).desc())
-    
-#     store_comparison_data = store_comparison_query.all()
-
-#     # --- 6. Lấy danh sách các cửa hàng để hiển thị trên bộ lọc ---
-#     stores = db.query(models.Store).order_by(models.Store.name).all()
-
-#     # --- 7. Lấy các log lỗi gần đây (ví dụ: 50 logs mới nhất) ---
-#     error_logs = db.query(models.ErrLog).order_by(models.ErrLog.LogTime.desc()).limit(50).all()
-
-#     # --- 8. Trả về dữ liệu theo schema đã định nghĩa ---
-#     return {
-#         "time_series_data": time_series_data,
-#         "store_comparison_data": store_comparison_data,
-#         "aggregated_table_data": aggregated_table_data,
-#         "error_logs": error_logs,
-#         "stores": stores
-#     }
-
-# # ============================================
-# # API Endpoint để xuất dữ liệu chi tiết
-# # ============================================
-# @router.get("/export-data", response_model=List[schemas.DetailDataRow])
-# def export_detailed_data(
-#     # --- Tham số tương tự như endpoint chính ---
-#     period_type: str = Query("year", description="Loại chu kỳ: 'year', 'month', 'week', 'day'"),
-#     year: int = Query(default=datetime.now().year),
-#     month: Optional[int] = Query(default=None),
-#     week: Optional[int] = Query(default=None),
-#     day: Optional[str] = Query(default=None),
-#     store_id: Optional[int] = Query(default=None),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Endpoint này trả về dữ liệu chi tiết (chưa tổng hợp) để người dùng có thể tải về.
-#     """
-#     start_date, end_date = get_date_range(period_type, year, month, week, day)
-
-#     query = db.query(
-#         models.NumCrowd.recordtime,
-#         models.NumCrowd.in_num,
-#         models.NumCrowd.out_num,
-#         models.NumCrowd.position,
-#         models.Store.name.label("store_name")
-#     ).join(models.Store, models.NumCrowd.storeid == models.Store.tid).filter(
-#         models.NumCrowd.recordtime >= start_date,
-#         models.NumCrowd.recordtime < end_date
-#     )
-
-#     if store_id:
-#         query = query.filter(models.NumCrowd.storeid == store_id)
-        
-#     return query.order_by(models.NumCrowd.recordtime).all()
-
-
-# # ============================================
-# # Các hàm tiện ích (Helper Functions)
-# # ============================================
-
-# def get_date_range(period_type, year, month, week, day_str):
-#     """Xác định ngày bắt đầu và kết thúc dựa trên các tham số đầu vào."""
-#     if period_type == 'day' and day_str:
-#         start_date = datetime.strptime(day_str, "%Y-%m-%d")
-#         end_date = start_date + timedelta(days=1)
-#     elif period_type == 'week' and week:
-#         # Tuần bắt đầu từ thứ 2
-#         start_date = datetime.strptime(f'{year}-W{week}-1', "%Y-W%W-%w")
-#         end_date = start_date + timedelta(days=7)
-#     elif period_type == 'month' and month:
-#         start_date = datetime(year, month, 1)
-#         next_month = start_date.replace(day=28) + timedelta(days=4)
-#         end_date = next_month - timedelta(days=next_month.day - 1)
-#     else: # Mặc định là 'year'
-#         start_date = datetime(year, 1, 1)
-#         end_date = datetime(year + 1, 1, 1)
-        
-#     return start_date, end_date
-
-# def get_time_series_data(base_query, period_type, db: Session):
-#     """Thực hiện aggregation dữ liệu theo chu kỳ thời gian."""
-    
-#     # NOTE: Đây là nơi bạn có thể áp dụng logic xử lý outlier/nhiễu
-#     # Ví dụ: loại bỏ các giá trị in_num > ngưỡng nào đó.
-#     # base_query = base_query.filter(models.NumCrowd.in_num < 1000) # Ví dụ đơn giản
-    
-#     # Xác định định dạng group by cho SQL
-#     if period_type == 'day':
-#         group_format = "%Y-%m-%d"
-#         group_clause = func.strftime(group_format, models.NumCrowd.recordtime)
-#     elif period_type == 'week':
-#         group_format = "%Y-W%W" # Năm và số tuần
-#         group_clause = func.strftime(group_format, models.NumCrowd.recordtime)
-#     elif period_type == 'month':
-#         group_format = "%Y-%m"
-#         group_clause = func.strftime(group_format, models.NumCrowd.recordtime)
-#     else: # year
-#         group_format = "%Y-%m" # Group theo tháng trong năm
-#         group_clause = func.strftime(group_format, models.NumCrowd.recordtime)
-
-#     # Câu query tổng hợp
-#     time_series_query = base_query.with_entities(
-#         group_clause.label("period"),
-#         func.sum(models.NumCrowd.in_num).label("in_count")
-#     ).group_by("period").order_by("period")
-    
-#     return time_series_query.all()
-
-# def calculate_percentage_change(data: List[schemas.TimeSeriesDataPoint]) -> List[schemas.AggregatedTableRow]:
-#     """Tính toán phần trăm thay đổi so với dòng trước đó."""
-#     table_rows = []
-#     for i, row in enumerate(data):
-#         percentage_change = None
-#         if i > 0 and data[i-1].in_count > 0:
-#             change = ((row.in_count - data[i-1].in_count) / data[i-1].in_count) * 100
-#             percentage_change = round(change, 2)
-        
-#         table_rows.append(
-#             schemas.AggregatedTableRow(
-#                 period=row.period,
-#                 total_in=row.in_count,
-#                 percentage_change=percentage_change
-#             )
-#         )
-#     return table_rows
-
-
-
-
-
 
 
 
 
 
 # import pandas as pd
-# from datetime import datetime, timedelta, date
-# from fastapi import APIRouter, Request, Query, Depends, HTTPException
-# from fastapi.responses import HTMLResponse, FileResponse
-# from fastapi.templating import Jinja2Templates
+# from fastapi import APIRouter, Depends, Query
 # from sqlalchemy.orm import Session
+# from datetime import datetime, date, timedelta
 # from typing import List
 
+# from . import schemas
 # from .core.db import get_db, execute_query_as_dataframe
-# from .schemas import ErrorLog, Store, FullStatsResponse, StatsResponse, DonutChartData, TableDataItem
 
-# # Khởi tạo router và templates
-# router = APIRouter()
-# templates = Jinja2Templates(directory='app/templates')
+# # Khởi tạo router
+# router = APIRouter(prefix='/api/v1', tags=['Dashboard Data'])
 
-# def get_week_details(year: int, week_num: int) -> (date, date):
-#     """Lấy ngày bắt đầu và kết thúc của một tuần trong năm."""
-#     first_day_of_year = date(year, 1, 1)
-#     # Ngày đầu tiên của năm là thứ mấy (Monday=0, Sunday=6)
-#     first_day_weekday = first_day_of_year.weekday()
-#     # Tìm ngày thứ Hai đầu tiên của năm
-#     if first_day_weekday < 4: # Nếu ngày 1/1 là Mon, Tue, Wed, Thu -> nó thuộc tuần 1
-#         start_of_week1 = first_day_of_year - timedelta(days=first_day_weekday)
-#     else:
-#         start_of_week1 = first_day_of_year + timedelta(days=7 - first_day_weekday)
-    
-#     start_of_week = start_of_week1 + timedelta(weeks=week_num - 1)
-#     end_of_week = start_of_week + timedelta(days=6)
-#     return start_of_week, end_of_week
-
-# def smooth_data_by_std(df: pd.DataFrame, column: str, std_dev_threshold: float = 2.5) -> pd.DataFrame:
-#     """
-#     Hàm xử lý dữ liệu bất thường bằng cách thay thế các giá trị ngoại lai
-#     bằng giá trị trung bình của các điểm lân cận.
-#     """
-#     if df.empty or column not in df.columns or len(df) < 3:
-#         return df
-
-#     df_copy = df.copy()
-#     df_copy[column] = pd.to_numeric(df_copy[column], errors='coerce').fillna(0)
-    
-#     mean = df_copy[column].mean()
-#     std_dev = df_copy[column].std()
-    
-#     if std_dev == 0:
-#         return df # Không có biến động
-
-#     # Xác định ngưỡng trên và dưới
-#     upper_bound = mean + std_dev * std_dev_threshold
-    
-#     # Thay thế các giá trị vượt ngưỡng bằng giá trị trung bình (hoặc một giá trị hợp lý hơn)
-#     # Ở đây ta thay bằng chính ngưỡng đó để tránh làm mất đi xu hướng tăng đột biến
-#     df_copy.loc[df_copy[column] > upper_bound, column] = upper_bound
-    
-#     return df_copy
-
-# @router.get('/', response_class=HTMLResponse)
-# async def read_root(request: Request):
-#     """
-#     Endpoint chính, render trang dashboard.
-#     """
-#     # Truyền các dữ liệu cần thiết cho template, ví dụ như danh sách cửa hàng
-#     return templates.TemplateResponse('dashboard.html', {'request': request})
-
-# @router.get('/api/stores', response_model=List[Store])
-# async def get_stores(db: Session = Depends(get_db)):
-#     """
-#     API endpoint để lấy danh sách tất cả các cửa hàng.
-#     """
+# # =============================================
+# # API Endpoint: Lấy danh sách cửa hàng
+# # =============================================
+# @router.get('/stores', response_model = List[schemas.Store])
+# def get_stores(db: Session = Depends(get_db)):
+#     """ Cung cấp danh sách các cửa hàng để hiển thị trên bộ lọc dropdown. """
 #     query = "SELECT tid, name FROM dbo.store ORDER BY name;"
 #     df = execute_query_as_dataframe(query, db)
-#     if df.empty:
-#         # Trả về danh sách rỗng thay vì lỗi 404 để frontend xử lý dễ hơn
-#         return []
-#     return df.to_dict(orient='records')
 
-# @router.get('/api/stats', response_model=FullStatsResponse)
-# async def get_stats(
-#     period: str = Query('year', enum=['day', 'week', 'month', 'year']),
-#     store_id: int = Query(0, description="0 for all stores"),
-#     year: int = Query(None),
-#     month: int = Query(None),
-#     week: int = Query(None),
-#     day: str = Query(None, description="Format YYYY-MM-DD"),
-#     smooth_ratio: float = Query(3.0, ge=1.0, le=10.0, description="Tỷ lệ xử lý đột biến"),
-#     db: Session = Depends(get_db)
-# ):
+#     return df.to_dict(orient = 'records')
+
+# # =============================================
+# # API Endpoint: Lấy danh sách log lỗi
+# # =============================================
+# @router.get('/error-logs', response_model = List[schemas.ErrorLog])
+# def get_error_logs(db: Session = Depends(get_db)):
 #     """
-#     API endpoint chính để lấy dữ liệu thống kê.
-#     """
-#     now = datetime.now()
-    
-#     # --- Xác định khoảng thời gian truy vấn (start_date, end_date) ---
-#     if period == 'day':
-#         query_date = datetime.strptime(day, '%Y-%m-%d').date() if day else now.date()
-#         start_date = datetime.combine(query_date, datetime.min.time())
-#         end_date = datetime.combine(query_date, datetime.max.time())
-#         group_by_clause = "DATEPART(hour, recordtime)"
-#         label_format = "{h}:00"
-#         time_range_display = query_date.strftime('%d/%m/%Y')
-#     elif period == 'week':
-#         query_year = year if year else now.year
-#         query_week = week if week else now.isocalendar()[1]
-#         start_date, end_date = get_week_details(query_year, query_week)
-#         start_date = datetime.combine(start_date, datetime.min.time())
-#         end_date = datetime.combine(end_date, datetime.max.time())
-#         group_by_clause = "CONVERT(date, recordtime)"
-#         label_format = "weekday" # Sẽ xử lý trong pandas
-#         time_range_display = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
-#     elif period == 'month':
-#         query_year = year if year else now.year
-#         query_month = month if month else now.month
-#         start_date = datetime(query_year, query_month, 1)
-#         next_month = start_date.replace(day=28) + timedelta(days=4)
-#         end_date = next_month - timedelta(days=next_month.day)
-#         end_date = datetime.combine(end_date, datetime.max.time())
-#         group_by_clause = "DATEPART(day, recordtime)"
-#         label_format = "Ngày {d}"
-#         time_range_display = f"Tháng {query_month}/{query_year}"
-#     else: # year
-#         query_year = year if year else now.year
-#         start_date = datetime(query_year, 1, 1)
-#         end_date = datetime(query_year, 12, 31, 23, 59, 59)
-#         group_by_clause = "DATEPART(month, recordtime)"
-#         label_format = "Tháng {m}"
-#         time_range_display = f"Năm {query_year}"
-
-#     # --- Xây dựng câu lệnh SQL ---
-#     params = {'start_date': start_date, 'end_date': end_date}
-#     store_filter_clause = ""
-#     if store_id != 0:
-#         store_filter_clause = "AND storeid = :store_id"
-#         params['store_id'] = store_id
-
-#     query = f"""
-#         SELECT
-#             {group_by_clause} as group_key,
-#             SUM(CAST(in_num AS BIGINT)) as value
-#         FROM dbo.num_crowd
-#         WHERE recordtime BETWEEN :start_date AND :end_date
-#         {store_filter_clause}
-#         GROUP BY {group_by_clause}
-#         ORDER BY group_key;
-#     """
-    
-#     df = execute_query_as_dataframe(query, db, params=params)
-
-#     # --- Xử lý dữ liệu với Pandas ---
-#     if not df.empty:
-#         df = smooth_data_by_std(df, 'value', smooth_ratio)
-
-#     # --- Chuẩn bị dữ liệu cho Line Chart ---
-#     labels, data = [], []
-#     if period == 'day':
-#         df.set_index('group_key', inplace=True)
-#         for h in range(24):
-#             labels.append(label_format.format(h=h))
-#             data.append(df.loc[h, 'value'] if h in df.index else 0)
-#     elif period == 'week':
-#         df['group_key'] = pd.to_datetime(df['group_key'])
-#         df.set_index('group_key', inplace=True)
-#         days_of_week_vn = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
-#         for i in range(7):
-#             current_day = start_date.date() + timedelta(days=i)
-#             labels.append(days_of_week_vn[i])
-#             data.append(df.loc[current_day, 'value'] if current_day in df.index else 0)
-#     elif period == 'month':
-#         df.set_index('group_key', inplace=True)
-#         days_in_month = (end_date.date() - start_date.date()).days + 1
-#         for d in range(1, days_in_month + 1):
-#             labels.append(label_format.format(d=d))
-#             data.append(df.loc[d, 'value'] if d in df.index else 0)
-#     else: # year
-#         df.set_index('group_key', inplace=True)
-#         for m in range(1, 13):
-#             labels.append(label_format.format(m=m))
-#             data.append(df.loc[m, 'value'] if m in df.index else 0)
-    
-#     data = [round(x, 2) for x in data]
-
-#     # --- Tính toán các chỉ số ---
-#     total_in = sum(data)
-#     average_in = total_in / len(data) if data else 0
-#     max_in = max(data) if data else 0
-    
-#     # --- Tính toán tăng trưởng (so với kỳ trước) ---
-#     # (Phần này có thể phức tạp, tạm thời để là 0)
-#     growth = 0.0
-
-#     line_chart_response = StatsResponse(
-#         period=period, labels=labels, data=data,
-#         total_in=total_in, average_in=average_in, max_in=max_in,
-#         growth=growth, time_range=time_range_display
-#     )
-
-#     # --- Chuẩn bị dữ liệu cho Donut Chart (Tỷ trọng theo cửa) ---
-#     donut_query = """
-#         SELECT s.name, SUM(CAST(nc.in_num AS BIGINT)) as value
-#         FROM dbo.num_crowd nc
-#         JOIN dbo.store s ON nc.storeid = s.tid
-#         WHERE nc.recordtime BETWEEN :start_date AND :end_date
-#         GROUP BY s.name
-#         HAVING SUM(CAST(nc.in_num AS BIGINT)) > 0
-#         ORDER BY value DESC;
-#     """
-#     donut_df = execute_query_as_dataframe(donut_query, db, params={'start_date': start_date, 'end_date': end_date})
-#     donut_chart_data = DonutChartData(
-#         labels=donut_df['name'].tolist() if not donut_df.empty else [],
-#         data=donut_df['value'].tolist() if not donut_df.empty else []
-#     )
-
-#     # --- Chuẩn bị dữ liệu cho Table ---
-#     table_data = []
-#     for i, label in enumerate(labels):
-#         current_value = data[i]
-#         prev_value = data[i-1] if i > 0 else 0
-#         diff = ((current_value - prev_value) / prev_value) * 100 if prev_value > 0 else (100 if current_value > 0 else 0)
-#         table_data.append(TableDataItem(label=label, value=current_value, difference=round(diff, 2)))
-
-#     return FullStatsResponse(
-#         line_chart=line_chart_response,
-#         donut_chart=donut_chart_data,
-#         table_data=table_data
-#     )
-
-# @router.get('/api/errors', response_model=List[ErrorLog])
-# async def get_error_logs(
-#     limit: int = Query(10, ge=1, le=50),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     API endpoint để lấy các log lỗi mới nhất.
+#     Cung cấp danh sách các cảnh báo lỗi mới nhất để hiển thị trong chuông thông báo.
+#     Join với bảng store để lấy tên cửa hàng.
 #     """
 #     query = """
-#         SELECT TOP (:limit) ID, storeid, DeviceCode, LogTime, Errorcode, ErrorMessage
-#         FROM dbo.ErrLog
-#         ORDER BY LogTime DESC;
+#         SELECT TOP 15
+#             e.ID,
+#             e.storeid,
+#             e.LogTime,
+#             e.ErrorMessage,
+#             s.name as store_name
+#         FROM dbo.ErrLog e
+#         LEFT JOIN dbo.store s ON e.storeid = s.tid
+#         ORDER BY e.LogTime DESC;
 #     """
-#     df = execute_query_as_dataframe(query, db, params={'limit': limit})
-#     if df.empty:
-#         return []
-#     return df.to_dict(orient='records')
+#     df = execute_query_as_dataframe(query, db)
+#     # Chuyển đổi NaN (nếu có) thành None để tương thích Pydantic
+#     df = df.where(pd.notnull(df), None)
 
-# @router.get("/api/download", response_class=FileResponse)
-# async def download_data(
+#     return df.to_dict(orient = 'records')
+
+# # =============================================
+# # API Endpoint: Lấy dữ liệu thống kê chính
+# # =============================================
+# @router.get('/traffic-data', response_model = schemas.TrafficDataResponse)
+# def get_traffic_data(
 #     period: str = Query('year', enum=['day', 'week', 'month', 'year']),
-#     store_id: int = Query(0),
+#     store_id: str = Query('all'),
+#     selected_date: date = Query(None),
 #     year: int = Query(None),
 #     month: int = Query(None),
 #     week: int = Query(None),
-#     day: str = Query(None),
+#     anomaly_threshold: float = Query(3.0, ge=1.5, le=10.0),
 #     db: Session = Depends(get_db)
 # ):
-#     """
-#     Endpoint để tải dữ liệu chi tiết dạng CSV.
-#     Logic truy vấn tương tự get_stats nhưng không group by.
-#     """
-#     # (Tương tự get_stats để xác định start_date, end_date)
-#     # ...
-#     # Sau đó, query dữ liệu chi tiết
-#     # query = "SELECT recordtime, in_num, out_num, position, storeid FROM dbo.num_crowd WHERE ..."
-#     # df = execute_query_as_dataframe(query, db, params=...)
-#     # file_path = "temp_data.csv"
-#     # df.to_csv(file_path, index=False)
-#     # return FileResponse(path=file_path, media_type='text/csv', filename=f'data_{period}.csv')
-    
-#     # Tạm thời trả về lỗi vì logic cần hoàn thiện
-#     raise HTTPException(status_code=501, detail="Tính năng đang được phát triển.")
+#     """ Endpoint chính, xử lý logic tính toán và trả về toàn bộ dữ liệu cho dashboard. """
+#     # --- 1. Xác định khoảng thời gian (hiện tại và quá khứ) ---
+#     now = datetime.now()
+#     if not year: year = now.year
+#     if not month: month = now.month
+#     if not selected_date: selected_date = now.date()
 
+#     # Hàm helper để lấy khoảng thời gian
+#     def get_date_range(p, y, m, w, d):
+#         if p == 'day':
+#             start = datetime.combine(d, datetime.min.time())
+#             end = datetime.combine(d, datetime.max.time())
+#             prev_start = start - timedelta(days=1)
+#             prev_end = end - timedelta(days=1)
+#             range_display = d.strftime('%A, %d/%m/%Y')
+#         elif p == 'week':
+#             # Monday is 0 and Sunday is 6
+#             start_of_year = date(y, 1, 1)
+#             start_of_week_date = start_of_year + timedelta(days=(w-1)*7 - start_of_year.weekday())
+#             start = datetime.combine(start_of_week_date, datetime.min.time())
+#             end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+#             prev_start = start - timedelta(weeks=1)
+#             prev_end = end - timedelta(weeks=1)
+#             range_display = f"{start.strftime('%d/%m')} - {end.strftime('%d/%m/%Y')}"
+#         elif p == 'month':
+#             start = datetime(y, m, 1)
+#             # Tìm ngày cuối cùng của tháng
+#             next_month = start.replace(day=28) + timedelta(days=4)
+#             end_of_month = next_month - timedelta(days=next_month.day)
+#             end = end_of_month.replace(hour=23, minute=59, second=59)
+
+#             prev_month_date = start - timedelta(days=1)
+#             prev_start = prev_month_date.replace(day=1)
+#             prev_end = start - timedelta(seconds=1)
+#             range_display = f"Tháng {m}, {y}"
+#         else: # year
+#             start = datetime(y, 1, 1)
+#             end = datetime(y, 12, 31, 23, 59, 59)
+#             prev_start = datetime(y - 1, 1, 1)
+#             prev_end = datetime(y - 1, 12, 31, 23, 59, 59)
+#             range_display = f"Năm {y}"
+#         return start, end, prev_start, prev_end, range_display
+
+#     start_date, end_date, prev_start_date, prev_end_date, time_range_display = get_date_range(period, year, month, week, selected_date)
+
+#     # --- 2. Hàm xử lý dữ liệu ---
+#     def process_period_data(start, end, p, s_id):
+#         # Xây dựng câu lệnh SQL
+#         sql_query = "SELECT recordtime, in_num, storeid FROM dbo.num_crowd WHERE recordtime BETWEEN :start AND :end"
+#         params = {'start': start, 'end': end}
+#         if s_id != 'all':
+#             sql_query += " AND storeid = :store_id"
+#             params['store_id'] = int(s_id)
+
+#         df = execute_query_as_dataframe(sql_query, db, params=params)
+#         if df.empty:
+#             return pd.DataFrame(columns = ['label', 'value']), pd.DataFrame(columns = ['label', 'value'])
+
+#         # Xử lý đột biến (anomaly)
+#         if len(df) > 2:
+#             average = df['in_num'].mean()
+#             threshold = average * anomaly_threshold
+#             df['in_num'] = df['in_num'].apply(lambda x: min(x, threshold))
+
+#         # Group by cho biểu đồ chính (main chart)
+#         df['recordtime'] = pd.to_datetime(df['recordtime'])
+#         if p == 'day':
+#             grouper = df['recordtime'].dt.hour
+#             labels = [f"{i}:00" for i in range(24)]
+#         elif p == 'week':
+#             grouper = df['recordtime'].dt.dayofweek # Monday=0, Sunday=6
+#             labels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
+#         elif p == 'month':
+#             grouper = df['recordtime'].dt.day
+#             days_in_month = pd.Period(f'{start.year}-{start.month}').days_in_month
+#             labels = [f"Ngày {i}" for i in range(1, days_in_month + 1)]
+#         else: # year
+#             grouper = df['recordtime'].dt.month
+#             labels = [f"Tháng {i}" for i in range(1, 13)]
+
+#         main_chart_df = df.groupby(grouper)['in_num'].sum().round().astype(int)
+#         main_chart_df = main_chart_df.reindex(range(len(labels)), fill_value=0)
+#         main_chart_df.index = labels
+
+#         # Group by cho biểu đồ tròn (pie chart)
+#         pie_chart_df = df.groupby('storeid')['in_num'].sum().round().astype(int)
+
+#         return main_chart_df, pie_chart_df
+
+#     # --- 3. Lấy và xử lý dữ liệu cho kỳ hiện tại và quá khứ ---
+#     current_main_data, current_pie_data = process_period_data(start_date, end_date, period, store_id)
+#     prev_main_data, _ = process_period_data(prev_start_date, prev_end_date, period, store_id)
+
+#     # --- 4. Tính toán các chỉ số (metrics) ---
+#     total_in = int(current_main_data.sum())
+#     max_in = int(current_main_data.max()) if not current_main_data.empty else 0
+#     average_in = float(current_main_data.mean()) if not current_main_data.empty else 0.0
+
+#     prev_total_in = int(prev_main_data.sum())
+#     growth_percentage = 0.0
+#     if prev_total_in > 0:
+#         growth_percentage = ((total_in - prev_total_in) / prev_total_in) * 100
+#     elif total_in > 0:
+#         growth_percentage = 100.0 # Tăng vô hạn nếu kỳ trước là 0
+
+#     growth_status = 'stable'
+#     if growth_percentage > 0.5: growth_status = 'increase'
+#     if growth_percentage < -0.5: growth_status = 'decrease'
+
+#     metrics = schemas.TrafficMetrics(
+#         total_in=total_in,
+#         average_in=average_in,
+#         max_in=max_in,
+#         growth=schemas.GrowthData(percentage=growth_percentage, status=growth_status)
+#     )
+
+#     # --- 5. Định dạng dữ liệu cho response ---
+#     # Dữ liệu biểu đồ tròn
+#     store_names_df = get_stores(db)
+#     store_name_map = {s['tid']: s['name'] for s in store_names_df}
+#     pie_chart_data = [
+#         schemas.PieChartDataPoint(label=store_name_map.get(storeid, f"ID {storeid}"), value=value)
+#         for storeid, value in current_pie_data.items()
+#     ]
+
+#     # Dữ liệu biểu đồ chính và bảng
+#     main_chart_data = [
+#         schemas.DataPoint(label=str(index), value=value)
+#         for index, value in current_main_data.items()
+#     ]
+
+#     return schemas.TrafficDataResponse(
+#         metrics = metrics,
+#         main_chart_data = main_chart_data,
+#         pie_chart_data = pie_chart_data,
+#         table_data = main_chart_data, # Dữ liệu bảng giống biểu đồ chính
+#         time_range_display = time_range_display
+#     )

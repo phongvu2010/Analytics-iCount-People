@@ -1,527 +1,558 @@
 <!DOCTYPE html>
-<html lang="vi" class="">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Thống kê lượng khách</title>
+    <title>Dashboard Thống Kê Lượt Khách (API)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <!-- Favicon -->
-    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Set theme on initial load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <style>
-        /* Custom styles */
-        body {
-            font-family: 'Inter', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
-        }
-        .period-btn.active {
-            background-color: #3B82F6; /* blue-500 */
-            color: white;
-        }
-        .notification-panel {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-        .notification-item:hover {
-            background-color: #f0f4f8;
-        }
-        .dark .notification-item:hover {
-            background-color: #1f2937; /* gray-800 */
-        }
-        .notification-item.read {
-            opacity: 0.6;
-        }
-        /* Custom scrollbar */
+        body { font-family: 'Inter', sans-serif; }
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        .dark ::-webkit-scrollbar-track { background: #2d3748; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
-
-        /* Custom styling for select elements */
-        .custom-select {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
-        }
-
-        .dark .custom-select {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .filter-btn.active { background-color: #2563eb; color: white; font-weight: 600; }
+        .custom-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
+        .dark .custom-select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.5); }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+        .loading-overlay { position: absolute; inset: 0; background-color: rgba(255, 255, 255, 0.7); display: flex; align-items: center; justify-content: center; z-index: 50; transition: opacity 0.3s; }
+        .dark .loading-overlay { background-color: rgba(17, 24, 39, 0.7); }
+        .spinner { width: 48px; height: 48px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+<body class="bg-slate-50 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
-    <div class="container mx-auto p-4 md:p-6">
-
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-6">
-            <div class="flex items-center space-x-3">
-                <img src="/static/logo.png" alt="Logo" class="h-10 w-10" onerror="this.style.display='none'">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-700 dark:text-gray-200">Dashboard Thống Kê</h1>
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="mb-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="/static/logo.png" alt="Logo" class="h-10">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Lượt Khách</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">Phân tích và thống kê lưu lượng người ra vào.</p>
+                </div>
             </div>
-            <div class="flex items-center space-x-4">
-                 <!-- Theme Settings -->
+            <div class="flex items-center gap-4">
+                <!-- Settings -->
                 <div class="relative">
-                    <button id="theme-settings-btn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <svg id="theme-icon-light" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                        <svg id="theme-icon-dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                    <button id="settings-button" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </button>
-                    <div id="theme-menu" class="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden z-20 hidden">
-                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="light">Sáng</a>
-                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="dark">Tối</a>
-                        <a href="#" class="theme-option block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-theme="auto">Tự động</a>
+                    <div id="settings-panel" class="hidden absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                        <div class="p-4 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Giao diện</label>
+                                <div class="flex rounded-lg bg-slate-100 dark:bg-gray-700 p-1">
+                                    <button data-theme="light" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Sáng</button>
+                                    <button data-theme="dark" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Tối</button>
+                                    <button data-theme="auto" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Tự động</button>
+                                </div>
+                            </div>
+                            <div class="pt-2">
+                                <label for="anomaly-slider" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Ngưỡng xử lý đột biến</label>
+                                <div class="flex items-center gap-4 mt-2">
+                                    <input id="anomaly-slider" type="range" min="1.5" max="10" value="3" step="0.5" class="w-full h-2 bg-slate-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                                    <span id="anomaly-value" class="font-semibold text-blue-600 dark:text-blue-400 w-12 text-center">3.0x</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- Notification Bell -->
                 <div class="relative">
-                    <button id="notification-bell" class="relative p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V5a1 1 0 00-2 0v.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                        <span id="notification-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    <button id="notification-bell" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
+                        <span id="notification-badge" class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">0</span>
                     </button>
-                    <div id="notification-panel" class="notification-panel absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden z-20 hidden origin-top-right">
-                        <div class="py-2 px-4 border-b border-gray-200 dark:border-gray-700"><h3 class="font-semibold">Nhật ký lỗi hệ thống</h3></div>
-                        <div id="notification-list" class="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto"></div>
+                    <div id="notification-panel" class="hidden absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                        <div class="p-4 border-b border-slate-200 dark:border-gray-700"><h3 class="font-semibold text-slate-900 dark:text-white">Cảnh Báo Hệ Thống</h3></div>
+                        <div id="error-log-container" class="p-2 space-y-2 overflow-y-auto" style="max-height: 400px;"></div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Filters Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div>
-                <label for="store-select" class="block text-sm font-medium mb-1">Cửa ra-vào</label>
-                <select id="store-select" class="custom-select h-10 w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"></select>
+        <main id="main-content" class="relative bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg">
+             <!-- Loading Overlay -->
+            <div id="loading-overlay" class="loading-overlay opacity-0 pointer-events-none">
+                <div class="spinner"></div>
             </div>
-            <div class="col-span-1 md:col-span-2 lg:col-span-3">
-                 <label class="block text-sm font-medium mb-1">Khung thời gian</label>
-                 <div class="flex flex-wrap items-center gap-2">
-                    <div id="time-period-selector" class="flex space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button data-period="day" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Ngày</button>
-                        <button data-period="week" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tuần</button>
-                        <button data-period="month" class="period-btn py-1 px-3 rounded-md text-sm font-medium">Tháng</button>
-                        <button data-period="year" class="period-btn py-1 px-3 rounded-md text-sm font-medium active">Năm</button>
+            <!-- Filters -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button data-period="day" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Ngày</button>
+                    <button data-period="week" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tuần</button>
+                    <button data-period="month" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tháng</button>
+                    <button data-period="year" class="filter-btn active px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Năm</button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                    <select id="store-selector" class="h-10 custom-select w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                    <div id="date-picker-container" class="flex gap-4 items-center flex-wrap"></div>
+                </div>
+            </div>
+            
+            <!-- Metrics -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Lượt Vào</h3>
+                    <p id="total-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Lượt vào TB / đơn vị</h3>
+                    <p id="average-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Cao Nhất (kỳ)</h3>
+                    <p id="max-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                </div>
+                 <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl">
+                    <h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tăng trưởng</h3>
+                    <div id="growth" class="text-3xl font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2">
+                        <span>--</span>
                     </div>
-                    <!-- Dynamic Date Pickers -->
-                    <div id="date-pickers-container" class="flex items-center gap-2 flex-wrap"></div>
-                 </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Main Content -->
-        <main>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Main Chart -->
-                <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-semibold">Thống kê lượng khách vào</h2>
-                        <button id="download-btn" class="text-sm bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md flex items-center gap-2 disabled:opacity-50">
-                            <svg id="download-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            <svg id="download-spinner" class="animate-spin h-5 w-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span id="download-text">Tải dữ liệu</span>
-                        </button>
-                    </div>
-                    <div id="chart-container" class="relative h-96">
-                        <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800 bg-opacity-75 dark:bg-opacity-75 z-10"><div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div></div>
+            <!-- Main Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                <!-- Line Chart -->
+                <div class="lg:col-span-3">
+                    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Xu hướng lượt vào</h3>
+                    <div class="h-96">
                         <canvas id="trafficChart"></canvas>
                     </div>
                 </div>
-
-                <!-- Donut Chart -->
-                <div class="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
-                    <h2 class="text-xl font-semibold mb-4">Tỷ lệ theo cửa</h2>
-                    <div id="donut-chart-container" class="relative h-96 flex items-center justify-center">
-                        <canvas id="donutChart"></canvas>
-                        <p id="donut-no-data" class="hidden text-gray-500">Chọn "Tất cả cửa" để xem so sánh.</p>
+                <!-- Store Comparison Donut Chart -->
+                <div id="pie-chart-wrapper" class="lg:col-span-2">
+                    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Tỷ trọng theo cửa</h3>
+                    <div class="h-96 bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl flex items-center justify-center">
+                         <canvas id="storeComparisonChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Summary Table -->
-            <div class="mt-6 bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
-                <h2 class="text-xl font-semibold mb-4">Dữ liệu tổng hợp</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">Thời gian</th>
-                                <th scope="col" class="px-6 py-3">Số lượng</th>
-                                <th scope="col" class="px-6 py-3">Chênh lệch</th>
-                            </tr>
-                        </thead>
-                        <tbody id="summary-table-body">
-                           <!-- Data will be injected here -->
-                        </tbody>
-                    </table>
+            <!-- Data Table -->
+            <div id="table-wrapper">
+                <div class="flex justify-between items-center mb-4">
+                     <div class="flex items-center gap-4">
+                        <h3 class="text-xl font-semibold text-slate-900 dark:text-white">Dữ liệu chi tiết</h3>
+                        <p id="time-range-display" class="text-sm font-semibold text-blue-600 dark:text-blue-400">Đang tải...</p>
+                     </div>
+                     <button id="download-csv-button" title="Tải xuống CSV" class="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Tải CSV</span>
+                    </button>
+                </div>
+                <div id="table-container" class="overflow-x-auto max-h-96 rounded-lg border border-slate-200 dark:border-gray-700">
+                    <!-- Table will be generated here -->
                 </div>
             </div>
         </main>
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // --- STATE MANAGEMENT ---
-        const state = {
-            period: 'year',
-            storeId: 'all',
-            date: new Date(),
-            year: new Date().getFullYear(),
-            month: new Date().getMonth() + 1,
-            week: getWeekNumber(new Date()),
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- UI ELEMENT REFERENCES ---
+            const ui = {
+                mainContent: document.getElementById('main-content'),
+                loadingOverlay: document.getElementById('loading-overlay'),
+                chartCanvas: document.getElementById('trafficChart'),
+                storeComparisonCanvas: document.getElementById('storeComparisonChart'),
+                filterButtons: document.querySelectorAll('.filter-btn'),
+                anomalySlider: document.getElementById('anomaly-slider'),
+                anomalyValueSpan: document.getElementById('anomaly-value'),
+                timeRangeDisplay: document.getElementById('time-range-display'),
+                totalInDisplay: document.getElementById('total-in'),
+                averageInDisplay: document.getElementById('average-in'),
+                maxInDisplay: document.getElementById('max-in'),
+                growthDisplay: document.getElementById('growth'),
+                storeSelector: document.getElementById('store-selector'),
+                datePickerContainer: document.getElementById('date-picker-container'),
+                tableContainer: document.getElementById('table-container'),
+                downloadCsvButton: document.getElementById('download-csv-button'),
+                notification: { bell: document.getElementById('notification-bell'), badge: document.getElementById('notification-badge'), panel: document.getElementById('notification-panel'), logContainer: document.getElementById('error-log-container')},
+                settings: { button: document.getElementById('settings-button'), panel: document.getElementById('settings-panel'), themeButtons: document.querySelectorAll('.theme-btn')}
+            };
 
-        // --- DOM ELEMENTS ---
-        const elements = {
-            trafficChartCtx: document.getElementById('trafficChart').getContext('2d'),
-            donutChartCtx: document.getElementById('donutChart').getContext('2d'),
-            loadingSpinner: document.getElementById('loading-spinner'),
-            donutNoData: document.getElementById('donut-no-data'),
-            notificationBell: document.getElementById('notification-bell'),
-            notificationCount: document.getElementById('notification-count'),
-            notificationPanel: document.getElementById('notification-panel'),
-            notificationList: document.getElementById('notification-list'),
-            themeSettingsBtn: document.getElementById('theme-settings-btn'),
-            themeMenu: document.getElementById('theme-menu'),
-            themeOptions: document.querySelectorAll('.theme-option'),
-            iconLight: document.getElementById('theme-icon-light'),
-            iconDark: document.getElementById('theme-icon-dark'),
-            storeSelect: document.getElementById('store-select'),
-            periodButtons: document.querySelectorAll('.period-btn'),
-            datePickersContainer: document.getElementById('date-pickers-container'),
-            downloadBtn: document.getElementById('download-btn'),
-            downloadIcon: document.getElementById('download-icon'),
-            downloadSpinner: document.getElementById('download-spinner'),
-            downloadText: document.getElementById('download-text'),
-            summaryTableBody: document.getElementById('summary-table-body'),
-        };
+            let trafficChart, storeComparisonChart;
+            let currentPeriod = 'year';
+            let currentTableData = { labels: [], data: [] };
+            let stores = []; // Biến toàn cục để lưu danh sách cửa hàng
 
-        let trafficChart, donutChart;
-        let readNotifications = new Set(JSON.parse(localStorage.getItem('readNotifications') || '[]'));
+            // --- API HELPER ---
+            const API_BASE_URL = 'http://127.0.0.1:8000'; // Đổi lại cho đúng với địa chỉ API của bạn
 
-        // --- HELPER FUNCTIONS ---
-        function getWeekNumber(d) {
-            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        }
-
-        function getDatesOfWeek(w, y) {
-            const simple = new Date(y, 0, 1 + (w - 1) * 7);
-            const dow = simple.getDay();
-            const ISOweekStart = simple;
-            if (dow <= 4) ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-            else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-            const ISOweekEnd = new Date(ISOweekStart);
-            ISOweekEnd.setDate(ISOweekEnd.getDate() + 6);
-            return { start: ISOweekStart.toLocaleDateString('vi-VN'), end: ISOweekEnd.toLocaleDateString('vi-VN') };
-        }
-        
-        function convertToCSV(data) {
-            if (!data || data.length === 0) return '';
-            const headers = Object.keys(data[0]);
-            const csvRows = [headers.join(',')];
-            for (const row of data) {
-                const values = headers.map(header => {
-                    const escaped = ('' + row[header]).replace(/"/g, '\\"');
-                    return `"${escaped}"`;
-                });
-                csvRows.push(values.join(','));
+            async function fetchData(endpoint, params = {}) {
+                const urlParams = new URLSearchParams(params);
+                const url = `${API_BASE_URL}${endpoint}?${urlParams}`;
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Could not fetch data from ${endpoint}:`, error);
+                    // Có thể hiển thị một thông báo lỗi trên UI ở đây
+                    return null;
+                }
             }
-            return csvRows.join('\n');
-        }
 
-        function downloadCSV(csvString, filename) {
-            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', filename);
-                link.style.visibility = 'hidden';
+            // --- API & LOADING ---
+            const setLoading = (isLoading) => {
+                ui.loadingOverlay.classList.toggle('opacity-0', !isLoading);
+                ui.loadingOverlay.classList.toggle('pointer-events-none', !isLoading);
+            };
+
+            // *** START: CẬP NHẬT HÀM fetchAPI ***
+            const fetchAPI = async (endpoint, options = {}) => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/${endpoint}`, options);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({})); // Handle cases where response is not JSON
+                        const detail = errorData.detail || `Lỗi máy chủ: ${response.status}`;
+                        throw new Error(detail);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    // Differentiate network errors (CORS, server down) from API errors
+                    let friendlyMessage = `Không thể tải dữ liệu: ${error.message}.`;
+                    if (error instanceof TypeError) { // Often a network error
+                        friendlyMessage = "Không thể kết nối tới máy chủ. Vui lòng đảm bảo server FastAPI đang chạy và kiểm tra console của trình duyệt (F12) để xem có lỗi CORS không.";
+                    }
+                    console.error(`Lỗi khi gọi API ${endpoint}:`, error);
+                    alert(friendlyMessage); // Display a more helpful error message
+                    setLoading(false); // Make sure loading indicator is hidden on error
+                    return null;
+                }
+            };
+            // *** END: CẬP NHẬT HÀM fetchAPI ***
+
+
+            // --- THEME MANAGEMENT ---
+            const applyTheme = (theme) => {
+                const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.classList.toggle('dark', isDark);
+                localStorage.theme = theme;
+                ui.settings.themeButtons.forEach(btn => {
+                    btn.classList.toggle('bg-blue-500', btn.dataset.theme === theme);
+                    btn.classList.toggle('text-white', btn.dataset.theme === theme);
+                });
+                if (trafficChart) {
+                    // Re-initialize charts to apply new theme colors
+                    initOrUpdateLineChart();
+                    initOrUpdateDonutChart({labels: [], data: []});
+                    updateDashboard(); // Fetch and redraw data with new theme
+                }
+            };
+            
+            ui.settings.themeButtons.forEach(button => {
+                button.addEventListener('click', () => applyTheme(button.dataset.theme));
+            });
+            
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (localStorage.theme === 'auto') applyTheme('auto');
+            });
+
+            // --- HELPER FUNCTIONS ---
+            const formatDate = (date, locale = 'sv-SE') => date.toLocaleDateString(locale);
+
+            // --- UI POPULATION & INTERACTION ---
+            async function populateStoreSelector() {
+                stores = await fetchData('/api/stores');
+                if (!stores) return;
+
+                ui.storeSelector.innerHTML = `<option value="0">Tất cả cửa</option>`; // 0 là all
+                stores.forEach(store => {
+                    ui.storeSelector.innerHTML += `<option value="${store.tid}">${store.name}</option>`;
+                });
+            }
+
+            function renderDatePickers() {
+                const now = new Date();
+                let currentYear = now.getFullYear();
+                let html = '';
+                const baseClasses = "h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
+                const yearOptions = Array.from({ length: 5 }, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
+
+                switch (currentPeriod) {
+                    case 'day':
+                        html = `<input type="date" id="day-selector" class="${baseClasses} w-full sm:w-40" value="${formatDate(now)}">`;
+                        break;
+                    case 'week':
+                         const getWeek = (d) => {
+                            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+                            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+                            return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+                        }
+                        const currentWeek = getWeek(now);
+                        const weekOptions = Array.from({ length: 52 }, (_, i) => `<option value="${i + 1}" ${currentWeek === i+1 ? 'selected' : ''}>Tuần ${i + 1}</option>`).join('');
+                        html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="week-selector" class="${baseClasses} w-32">${weekOptions}</select>`;
+                        break;
+                    case 'month':
+                        const monthOptions = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${now.getMonth() === i ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('');
+                        html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="month-selector" class="${baseClasses} w-32">${monthOptions}</select>`;
+                        break;
+                    case 'year':
+                        html = `<select id="year-selector" class="${baseClasses} w-32">${yearOptions}</select>`;
+                        break;
+                }
+                ui.datePickerContainer.innerHTML = html;
+                ui.datePickerContainer.querySelectorAll('select, input').forEach(el => el.addEventListener('change', updateDashboard));
+            }
+
+            function setupPopups() {
+                const setupPopup = (button, panel) => { button.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); }); };
+                setupPopup(ui.notification.bell, ui.notification.panel);
+                setupPopup(ui.settings.button, ui.settings.panel);
+                document.addEventListener('click', (e) => {
+                    if (!ui.notification.panel.classList.contains('hidden') && !ui.notification.panel.contains(e.target) && !ui.notification.bell.contains(e.target)) { ui.notification.panel.classList.add('hidden'); }
+                    if (!ui.settings.panel.classList.contains('hidden') && !ui.settings.panel.contains(e.target) && !ui.settings.button.contains(e.target)) { ui.settings.panel.classList.add('hidden'); }
+                });
+            }
+            async function setupNotifications() {
+                const errorLogs = await fetchData('/api/errors', { limit: 10 });
+                if (!errorLogs) {
+                    ui.notification.badge.textContent = '0';
+                    ui.notification.logContainer.innerHTML = `<div class="text-center text-slate-500 dark:text-slate-400 p-4">Không thể tải cảnh báo.</div>`;
+                    return;
+                }
+
+                ui.notification.badge.textContent = errorLogs.length;
+                // Logic render HTML cho log lỗi có thể giữ nguyên, chỉ cần thay đổi nguồn dữ liệu
+                ui.notification.logContainer.innerHTML = errorLogs.length === 0 
+                    ? `<div class="text-center text-slate-500 dark:text-slate-400 p-4">Không có cảnh báo nào.</div>`
+                    : errorLogs.map(log => {
+                        const storeName = stores.find(s => s.tid === log.storeid)?.name || 'Không rõ';
+                        return `<div class="...">${log.ErrorMessage} - ${storeName} ...</div>`; // Giữ cấu trúc HTML của bạn
+                    }).join('');
+            }
+
+            // --- DATA & CHARTING ---
+            function renderDataTable(tableData) {
+                currentTableData = { 
+                    labels: tableData.map(d => d.label), 
+                    data: tableData.map(d => d.value) 
+                };
+
+                let header = 'Thời gian';
+                switch(currentPeriod) {
+                    case 'day': header = 'Giờ'; break;
+                    case 'week': header = 'Ngày trong tuần'; break;
+                    case 'month': header = 'Ngày'; break;
+                    case 'year': header = 'Tháng'; break;
+                }
+
+                const tableRows = table_data.map((current, index) => {
+                    const prevValue = index > 0 ? table_data[index - 1].value : 0;
+                    let diff = 0;
+                    if (prevValue > 0) {
+                        diff = ((current.value - prevValue) / prevValue) * 100;
+                    } else if (current.value > 0) {
+                        diff = 100;
+                    }
+                    
+                    const diffColor = diff > 0 ? 'text-green-500' : diff < 0 ? 'text-red-500' : 'text-slate-500';
+                    const diffSign = diff > 0 ? '+' : '';
+
+                    return `
+                    <tr class="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                        <td class="p-3 text-sm text-slate-700 dark:text-slate-300">${current.label}</td>
+                        <td class="p-3 text-sm font-medium text-slate-900 dark:text-white text-right">${current.value.toLocaleString('vi-VN')}</td>
+                        <td class="p-3 text-sm font-medium ${diffColor} text-right">${Math.abs(diff) > 0.01 ? diffSign + diff.toFixed(1) + '%' : '--'}</td>
+                    </tr>`;
+                }).join('');
+
+                ui.tableContainer.innerHTML = `
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-100 dark:bg-gray-700 sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300">${header}</th>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Lượt vào</th>
+                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Chênh lệch (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>`;
+            }
+
+            function getChartColors() {
+                const isDark = document.documentElement.classList.contains('dark');
+                return { grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', ticks: isDark ? '#94a3b8' : '#64748b', tooltipBg: isDark ? '#1e293b' : '#ffffff', tooltipText: isDark ? '#f1f5f9' : '#1e293b' };
+            }
+
+            function initOrUpdateLineChart() {
+                const colors = getChartColors();
+                const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.ticks } }, x: { grid: { display: false }, ticks: { color: colors.ticks } } }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, titleFont: { weight: 'bold' }, bodySpacing: 4, padding: 12, cornerRadius: 8, borderColor: colors.grid, borderWidth: 1 }}, interaction: { mode: 'index', intersect: false } };
+                if (trafficChart) { 
+                    trafficChart.destroy();
+                }
+                const ctx = ui.chartCanvas.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+                gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                trafficChart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: 'Lượt khách vào', data: [], backgroundColor: gradient, borderColor: '#3B82F6', borderWidth: 2, pointBackgroundColor: '#3B82F6', pointHoverRadius: 6, pointHoverBorderColor: '#fff', fill: true, tension: 0.4 }] }, options: chartOptions });
+            }
+
+            function initOrUpdateDonutChart(pieData) {
+                const colors = getChartColors();
+                const pieLabels = donutData.map(d => d.label);
+                const pieValues = donutData.map(d => d.value);
+                const pieColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#ec4899', '#10b981', '#6366f1'];
+                const chartOptions = { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: colors.ticks, usePointStyle: true, } }, tooltip: { backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, callbacks: { label: function(context) { const label = context.label || ''; const value = context.raw || 0; const total = context.chart.getDatasetMeta(0).total; const percentage = total > 0 ? (value / total * 100).toFixed(1) : 0; return `${label}: ${value.toLocaleString('vi-VN')} (${percentage}%)`; } } } } };
+
+                if (storeComparisonChart) {
+                    storeComparisonChart.destroy();
+                }
+                const ctx = ui.storeComparisonCanvas.getContext('2d');
+                storeComparisonChart = new Chart(ctx, { type: 'doughnut', data: { labels: pieData.labels, datasets: [{ label: 'Lượt vào', data: pieData.data, backgroundColor: pieColors, borderColor: colors.tooltipBg, borderWidth: 2, }] }, options: chartOptions });
+            }
+
+            async function updateDashboard() {
+                // 1. Lấy các giá trị filter từ UI
+                const formatDateForAPI = (date) => date.toISOString().split('T')[0];
+                const now = new Date();
+                
+                let targetDate = now;
+                if (currentPeriod === 'day') {
+                    targetDate = new Date(document.getElementById('day-selector')?.value || now);
+                } else {
+                    const year = document.getElementById('year-selector')?.value || now.getFullYear();
+                    if (currentPeriod === 'month') {
+                        const month = document.getElementById('month-selector')?.value || (now.getMonth() + 1);
+                        targetDate = new Date(year, month - 1, 1);
+                    } else if (currentPeriod === 'week') {
+                        // Logic xác định ngày đầu tuần từ số tuần/năm
+                        // (Phần này có thể hơi phức tạp, tạm lấy ngày đầu năm + số tuần)
+                        const week = document.getElementById('week-selector')?.value || 1;
+                        targetDate = new Date(year, 0, 1 + (week - 1) * 7);
+                    } else { // year
+                        targetDate = new Date(year, 0, 1);
+                    }
+                }
+
+                const params = {
+                    period: currentPeriod,
+                    store_id: ui.storeSelector.value,
+                    smooth_threshold: ui.anomalySlider.value,
+                    target_date_str: formatDateForAPI(targetDate)
+                };
+
+                // 2. Gọi API để lấy dữ liệu đã được xử lý
+                const apiResponse = await fetchData('/api/stats', params);
+                if (!apiResponse) {
+                    // Xử lý khi API lỗi, có thể hiển thị thông báo
+                    ui.timeRangeDisplay.textContent = "Lỗi tải dữ liệu";
+                    return;
+                }
+
+                // 3. Cập nhật UI với dữ liệu từ API
+                const { metrics, chart_data, donut_data, table_data, time_range_display } = apiResponse;
+
+                // Cập nhật các chỉ số
+                ui.totalInDisplay.textContent = metrics.total_in.toLocaleString('vi-VN');
+                ui.maxInDisplay.textContent = metrics.max_in.toLocaleString('vi-VN');
+                ui.averageInDisplay.textContent = metrics.average_in.toLocaleString('vi-VN', {maximumFractionDigits: 0});
+                ui.timeRangeDisplay.textContent = time_range_display;
+                
+                // Cập nhật % tăng trưởng
+                const growth = metrics.growth;
+                const growthColor = growth > 0 ? 'text-green-500' : growth < 0 ? 'text-red-500' : 'text-slate-500';
+                const growthIcon = growth > 0 ? '...' : growth < 0 ? '...' : ''; // Giữ lại icon svg của bạn
+                ui.growthDisplay.className = `... ${growthColor}`;
+                ui.growthDisplay.innerHTML = `<span>${growth.toFixed(1)}%</span> ${growthIcon}`;
+
+                // Cập nhật Line Chart
+                initOrUpdateLineChart();
+                trafficChart.data.labels = chart_data.map(d => d.label);
+                trafficChart.data.datasets[0].data = chart_data.map(d => d.value);
+                trafficChart.update();
+
+                // Cập nhật Donut Chart
+                initOrUpdateDonutChart(donut_data);
+                
+                // Cập nhật Data Table
+                renderDataTable(table_data);
+            }
+
+            function downloadTableAsCSV() {
+                const { labels, data } = currentTableData;
+                if (!currentTableData || currentTableData.length === 0) return;
+
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM for Vietnamese in Excel
+                const header = currentPeriod === 'day' ? 'Giờ' : currentPeriod === 'week' ? 'Ngày trong tuần' : currentPeriod === 'month' ? 'Ngày' : 'Tháng';
+                csvContent += `"${header}","Lượt vào"\r\n`;
+                currentTableData.forEach((row) => {
+                    csvContent += `"${row.label}","${row.value}"\r\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `du_lieu_chi_tiet_${formatDate(new Date())}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             }
-        }
 
-        // --- THEME MANAGEMENT ---
-        function applyTheme(theme) {
-            const isDark = (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches));
-            document.documentElement.classList.toggle('dark', isDark);
-            elements.iconLight.classList.toggle('hidden', isDark);
-            elements.iconDark.classList.toggle('hidden', !isDark);
-            localStorage.setItem('theme', theme);
-            // Re-render charts with new theme colors
-            if (trafficChart || donutChart) {
-                updateDashboard();
-            }
-        }
-        
-        elements.themeSettingsBtn.addEventListener('click', () => elements.themeMenu.classList.toggle('hidden'));
-        elements.themeOptions.forEach(opt => opt.addEventListener('click', (e) => {
-            e.preventDefault();
-            applyTheme(e.target.dataset.theme);
-            elements.themeMenu.classList.add('hidden');
-        }));
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(localStorage.getItem('theme') || 'auto'));
-        
-        // --- NOTIFICATION MANAGEMENT ---
-        async function fetchErrorLogs() {
-            try {
-                const response = await fetch('api/errors?limit=15');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const errors = await response.json();
-                elements.notificationList.innerHTML = '';
-                let unreadCount = 0;
-
-                if (errors.length > 0) {
-                    errors.forEach(err => {
-                        const isRead = readNotifications.has(err.ID);
-                        if (!isRead) unreadCount++;
-                        
-                        const errorElement = document.createElement('div');
-                        errorElement.className = `notification-item p-3 cursor-pointer ${isRead ? 'read' : ''}`;
-                        errorElement.innerHTML = `<p class="font-semibold text-sm text-red-600">${err.ErrorMessage || 'Lỗi không xác định'}</p><p class="text-xs text-gray-500">Store ID: ${err.storeid} | ${new Date(err.LogTime).toLocaleString('vi-VN')}</p>`;
-                        
-                        errorElement.addEventListener('click', () => {
-                            if (!readNotifications.has(err.ID)) {
-                                readNotifications.add(err.ID);
-                                errorElement.classList.add('read');
-                                localStorage.setItem('readNotifications', JSON.stringify([...readNotifications]));
-                                updateNotificationCounter(unreadCount - 1);
-                            }
-                        }, { once: true });
-                        elements.notificationList.appendChild(errorElement);
-                    });
-                } else {
-                    elements.notificationList.innerHTML = '<p class="text-gray-500 p-4 text-center text-sm">Không có lỗi nào.</p>';
-                }
-                updateNotificationCounter(unreadCount);
-            } catch (error) {
-                console.error('Lỗi tải nhật ký lỗi:', error);
-                elements.notificationList.innerHTML = `<p class="text-red-500 p-4 text-center text-sm">Lỗi tải dữ liệu. ${error.message}</p>`;
-            }
-        }
-        elements.notificationBell.addEventListener('click', (e) => { e.stopPropagation(); elements.notificationPanel.classList.toggle('hidden'); });
-        document.addEventListener('click', (e) => { if (!elements.notificationPanel.contains(e.target) && !elements.notificationBell.contains(e.target)) { elements.notificationPanel.classList.add('hidden'); } });
-
-        // --- FILTER & UI RENDERING ---
-        async function populateStoreFilter() {
-            try {
-                const response = await fetch('api/stores');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const stores = await response.json();
-                elements.storeSelect.innerHTML = '<option value="all">Tất cả cửa</option>';
-                stores.forEach(store => {
-                    elements.storeSelect.innerHTML += `<option value="${store.tid}">${store.name}</option>`;
+            // --- EVENT LISTENERS ---
+            ui.filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    ui.filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    currentPeriod = button.dataset.period;
+                    renderDatePickers();
+                    updateDashboard();
                 });
-            } catch (error) {
-                console.error("Lỗi tải danh sách cửa:", error);
-                elements.storeSelect.innerHTML = `<option value="all">Lỗi tải dữ liệu</option>`;
-            }
-        }
-
-        function renderDatePickers() {
-            let html = '';
-            const currentYear = new Date().getFullYear();
-            const baseClasses = "h-10 block w-auto border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm";
-            const selectClasses = `${baseClasses} custom-select pl-3 pr-10 py-2`;
-            const dateInputClasses = `${baseClasses} pl-3 py-2`;
-
-            switch (state.period) {
-                case 'day':
-                    html = `<input type="date" id="date-picker" class="${dateInputClasses}" value="${state.date.toISOString().split('T')[0]}">`;
-                    break;
-                case 'week':
-                    const weekDates = getDatesOfWeek(state.week, state.year);
-                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>${currentYear - i}</option>`).join('')}</select>
-                            <select id="week-picker" class="${selectClasses}">${Array.from({length: 52}, (_, i) => `<option value="${i + 1}" ${state.week === (i + 1) ? 'selected' : ''}>Tuần ${i + 1}</option>`).join('')}</select>
-                            <span class="text-sm self-center">(${weekDates.start} - ${weekDates.end})</span>`;
-                    break;
-                case 'month':
-                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>${currentYear - i}</option>`).join('')}</select>
-                            <select id="month-picker" class="${selectClasses}">${Array.from({length: 12}, (_, i) => `<option value="${i + 1}" ${state.month === (i + 1) ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('')}</select>`;
-                    break;
-                case 'year':
-                    html = `<select id="year-picker" class="${selectClasses}">${Array.from({length: 5}, (_, i) => `<option value="${currentYear - i}" ${state.year === (currentYear - i) ? 'selected' : ''}>Năm ${currentYear - i}</option>`).join('')}</select>`;
-                    break;
-            }
-            elements.datePickersContainer.innerHTML = html;
-            addDatePickerListeners();
-        }
-
-        function addDatePickerListeners() {
-            const yearPicker = document.getElementById('year-picker');
-            const monthPicker = document.getElementById('month-picker');
-            const weekPicker = document.getElementById('week-picker');
-            const datePicker = document.getElementById('date-picker');
-
-            if (yearPicker) yearPicker.addEventListener('change', (e) => { state.year = parseInt(e.target.value); updateDashboard(); });
-            if (monthPicker) monthPicker.addEventListener('change', (e) => { state.month = parseInt(e.target.value); updateDashboard(); });
-            if (weekPicker) weekPicker.addEventListener('change', (e) => { state.week = parseInt(e.target.value); renderDatePickers(); updateDashboard(); });
-            if (datePicker) datePicker.addEventListener('change', (e) => { state.date = new Date(e.target.value); updateDashboard(); });
-        }
-
-        // --- DATA FETCHING & RENDERING ---
-        async function updateDashboard() {
-            elements.loadingSpinner.style.display = 'flex';
-            try {
-                const params = new URLSearchParams({ ...state, date: state.date.toISOString().split('T')[0] });
-                const response = await fetch(`api/data?${params}`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-
-                renderTrafficChart(data.line_chart);
-                renderDonutChart(data.donut_chart);
-                renderSummaryTable(data.summary_table);
-            } catch (error) {
-                console.error("Lỗi cập nhật dashboard:", error);
-                // Display error message to user
-            } finally {
-                elements.loadingSpinner.style.display = 'none';
-            }
-        }
-        
-        function renderTrafficChart(data) {
-            const isDark = document.documentElement.classList.contains('dark');
-            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            const textColor = isDark ? '#E5E7EB' : '#374151';
-
-            if (trafficChart) trafficChart.destroy();
-            trafficChart = new Chart(elements.trafficChartCtx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Lượng khách vào',
-                        data: data.values,
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                        tension: 0.3,
-                        fill: true,
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: { 
-                        y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }, 
-                        x: { ticks: { color: textColor }, grid: { color: gridColor } } 
-                    },
-                    plugins: { legend: { display: false } }
-                }
             });
-        }
-        
-        function renderDonutChart(data) {
-            const hasData = data && data.values && data.values.length > 0 && data.values.some(v => v > 0);
-            elements.donutNoData.classList.toggle('hidden', hasData);
-            
-            if (donutChart) donutChart.destroy();
-            if (hasData) {
-                const textColor = document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#374151';
-                donutChart = new Chart(elements.donutChartCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.labels,
-                        datasets: [{
-                            data: data.values,
-                            backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
-                            borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
-                });
-            }
-        }
-
-        function renderSummaryTable(data) {
-            let tableHtml = '';
-            if (data && data.length > 0) {
-                let prevValue = 0;
-                data.forEach((row, index) => {
-                    let changeHtml = '-';
-                    if (index > 0 && prevValue > 0) {
-                        const change = ((row.value - prevValue) / prevValue) * 100;
-                        const color = change >= 0 ? 'text-green-500' : 'text-red-500';
-                        const icon = change >= 0 ? '▲' : '▼';
-                        changeHtml = `<span class="${color}">${icon} ${Math.abs(change).toFixed(2)}%</span>`;
-                    }
-                    tableHtml += `<tr class="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
-                        <td class="px-6 py-4">${row.label}</td>
-                        <td class="px-6 py-4 font-medium">${row.value.toLocaleString('vi-VN')}</td>
-                        <td class="px-6 py-4">${changeHtml}</td>
-                    </tr>`;
-                    prevValue = row.value;
-                });
-            } else {
-                tableHtml = '<tr><td colspan="3" class="text-center p-4">Không có dữ liệu cho lựa chọn này.</td></tr>';
-            }
-            elements.summaryTableBody.innerHTML = tableHtml;
-        }
-
-        // --- EVENT LISTENERS ---
-        elements.periodButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                elements.periodButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                state.period = button.dataset.period;
-                renderDatePickers();
-                updateDashboard();
+            ui.anomalySlider.addEventListener('input', () => {
+                ui.anomalyValueSpan.textContent = `${parseFloat(ui.anomalySlider.value).toFixed(1)}x`;
             });
-        });
+            ui.anomalySlider.addEventListener('change', updateDashboard); // Update only when mouse is released
+            ui.storeSelector.addEventListener('change', updateDashboard);
+            ui.downloadCsvButton.addEventListener('click', downloadTableAsCSV);
 
-        elements.storeSelect.addEventListener('change', (e) => {
-            state.storeId = e.target.value;
-            updateDashboard();
-        });
-        
-        elements.downloadBtn.addEventListener('click', async () => {
-            elements.downloadText.textContent = 'Đang tải...';
-            elements.downloadIcon.classList.add('hidden');
-            elements.downloadSpinner.classList.remove('hidden');
-            elements.downloadBtn.disabled = true;
-
-            try {
-                // Giả định API /api/download_data trả về dữ liệu chi tiết dạng JSON
-                const params = new URLSearchParams({ ...state, date: state.date.toISOString().split('T')[0] });
-                const response = await fetch(`api/download_data?${params}`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
+            // --- INITIALIZATION ---
+            async function initializeApp() {
+                ui.filterButtons[0].classList.add('active');
+                applyTheme(localStorage.theme || 'auto'); // Thao tác này nên được tách ra để không gọi updateDashboard
                 
-                const csvString = convertToCSV(data);
-                const filename = `thong_ke_${state.period}_${new Date().toISOString().split('T')[0]}.csv`;
-                downloadCSV(csvString, filename);
-
-            } catch (error) {
-                console.error("Lỗi tải dữ liệu:", error);
-                alert("Không thể tải dữ liệu. Vui lòng thử lại.");
-            } finally {
-                elements.downloadText.textContent = 'Tải dữ liệu';
-                elements.downloadIcon.classList.remove('hidden');
-                elements.downloadSpinner.classList.add('hidden');
-                elements.downloadBtn.disabled = false;
+                await populateStoreSelector();
+                await setupNotifications();
+                
+                renderDatePickers();
+                setupPopups();
+                
+                // Gọi updateDashboard lần đầu tiên để tải dữ liệu mặc định
+                updateDashboard();
             }
+
+            initializeApp();
         });
-
-        // --- INITIALIZATION ---
-        function init() {
-            applyTheme(localStorage.getItem('theme') || 'auto');
-            populateStoreFilter();
-            fetchErrorLogs();
-            setInterval(fetchErrorLogs, 60000);
-            renderDatePickers();
-            updateDashboard();
-        }
-
-        init();
-    });
     </script>
 </body>
 </html>

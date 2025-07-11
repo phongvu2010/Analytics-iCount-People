@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="vi" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Thống Kê Lượt Khách</title>
+    <!-- Tailwind CSS & Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .filter-btn.active {
+            background-color: #2563eb; /* blue-600 */
+            color: white;
+            font-weight: 600;
+        }
+        .custom-select {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem;
+        }
+        .dark .custom-select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");}
+        .theme-btn.active { background-color: #3b82f6; color: white; }
+        .loader { border-top-color: #3b82f6; -webkit-animation: spin 1s linear infinite; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <div id="loading-overlay" class="fixed inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
+        <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="mb-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <img src="/static/logo.png" alt="Logo" class="h-10 w-10 object-contain" onerror="this.style.display='none'">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Lượt Khách</h1>
+            </div>
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- Settings -->
+                <div class="relative">
+                    <button id="settings-button" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </button>
+                    <div id="settings-panel" class="hidden absolute top-full right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50 p-4 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Giao diện</label>
+                            <div class="flex rounded-lg bg-slate-100 dark:bg-gray-700 p-1">
+                                <button data-theme="light" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Sáng</button>
+                                <button data-theme="dark" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Tối</button>
+                                <button data-theme="auto" class="theme-btn flex-1 py-1 px-2 text-sm rounded-md">Hệ thống</button>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <label for="smooth-ratio-slider" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Ngưỡng xử lý đột biến</label>
+                            <div class="flex items-center gap-4 mt-2">
+                                <input id="smooth-ratio-slider" type="range" min="1.5" max="10" value="3" step="0.5" class="w-full">
+                                <span id="smooth-ratio-value" class="font-semibold text-blue-600 dark:text-blue-400 w-12 text-center">3.0x</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button id="notification-bell" class="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
+                        <span id="notification-badge" class="hidden absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">0</span>
+                    </button>
+                    <div id="notification-panel" class="hidden absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                        <div class="p-3 border-b border-slate-200 dark:border-gray-700"><h3 class="font-semibold text-slate-900 dark:text-white">Cảnh Báo Hệ Thống</h3></div>
+                        <div id="error-log-container" class="p-2 space-y-1 overflow-y-auto" style="max-height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg">
+            <!-- Filters -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-200 dark:border-gray-700">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button data-period="day" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700">Ngày</button>
+                    <button data-period="week" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700">Tuần</button>
+                    <button data-period="month" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700">Tháng</button>
+                    <button data-period="year" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 active">Năm</button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                    <select id="store-selector" class="h-10 custom-select w-full sm:w-48 bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+                    <div id="date-picker-container" class="flex gap-2 items-center flex-wrap"></div>
+                </div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl"><h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng Lượt Vào</h3><p id="total-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p></div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl"><h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">TB Lượt Vào</h3><p id="average-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p></div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl"><h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Cao Nhất</h3><p id="max-in" class="text-3xl font-bold text-slate-900 dark:text-white mt-1">0</p></div>
+                <div class="bg-slate-100 dark:bg-gray-700/50 p-4 rounded-xl"><h3 class="text-sm font-medium text-slate-500 dark:text-slate-400">Tăng trưởng</h3><div id="growth" class="text-3xl font-bold text-slate-900 dark:text-white mt-1 flex items-center gap-2"><span>--</span></div></div>
+            </div>
+
+            <!-- Main Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+                <div class="lg:col-span-3"><h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Xu hướng lượt vào</h3><div class="h-96"><canvas id="lineChart"></canvas></div></div>
+                <div class="lg:col-span-2"><h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Tỷ trọng theo cửa</h3><div class="h-96 flex items-center justify-center"><canvas id="donutChart"></canvas></div></div>
+            </div>
+
+            <!-- Data Table -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                     <div class="flex items-center gap-4">
+                        <h3 class="text-xl font-semibold text-slate-900 dark:text-white">Dữ liệu chi tiết</h3>
+                        <p id="time-range-display" class="text-sm font-semibold text-blue-600 dark:text-blue-400"></p>
+                     </div>
+                     <button id="download-csv-button" class="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        <span>Tải CSV</span>
+                    </button>
+                </div>
+                <div class="overflow-x-auto max-h-96 rounded-lg border border-slate-200 dark:border-gray-700">
+                    <table class="w-full text-left"><thead class="bg-slate-100 dark:bg-gray-700 sticky top-0 z-10"><tr id="table-header-row"></tr></thead><tbody id="table-body"></tbody></table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- CONFIG & STATE ---
+        const API_BASE_URL = window.location.origin;
+        let lineChart, donutChart;
+        let currentTableData = [];
+        const state = {
+            period: 'year',
+            storeId: 0,
+            year: new Date().getFullYear(),
+            month: new Date().getMonth() + 1,
+            week: getWeekNumber(new Date()),
+            day: new Date().toISOString().split('T')[0],
+            smoothRatio: 3.0,
+        };
+
+        // --- UI ELEMENTS ---
+        const ui = {
+            loadingOverlay: document.getElementById('loading-overlay'),
+            filterButtons: document.querySelectorAll('.filter-btn'),
+            storeSelector: document.getElementById('store-selector'),
+            datePickerContainer: document.getElementById('date-picker-container'),
+            totalIn: document.getElementById('total-in'),
+            averageIn: document.getElementById('average-in'),
+            maxIn: document.getElementById('max-in'),
+            growth: document.getElementById('growth'),
+            timeRangeDisplay: document.getElementById('time-range-display'),
+            lineChartCanvas: document.getElementById('lineChart'),
+            donutChartCanvas: document.getElementById('donutChart'),
+            tableHeader: document.getElementById('table-header-row'),
+            tableBody: document.getElementById('table-body'),
+            downloadCsvButton: document.getElementById('download-csv-button'),
+            // Settings
+            settingsButton: document.getElementById('settings-button'),
+            settingsPanel: document.getElementById('settings-panel'),
+            themeButtons: document.querySelectorAll('.theme-btn'),
+            smoothRatioSlider: document.getElementById('smooth-ratio-slider'),
+            smoothRatioValue: document.getElementById('smooth-ratio-value'),
+            // Notifications
+            notification: {
+                bell: document.getElementById('notification-bell'),
+                badge: document.getElementById('notification-badge'),
+                panel: document.getElementById('notification-panel'),
+                logContainer: document.getElementById('error-log-container'),
+            },
+        };
+
+        // --- HELPER FUNCTIONS ---
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        const showLoader = (show) => {
+            ui.loadingOverlay.style.display = show ? 'flex' : 'none';
+        };
+
+        const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(Math.round(num));
+
+        // --- API CALLS ---
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`);
+                if (!response.ok) {
+                    console.error(`Error fetching ${endpoint}: ${response.statusText}`);
+                    return null;
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`Network error on ${endpoint}:`, error);
+                return null;
+            }
+        }
+
+        // --- MOCK API FOR DEMO ---
+        // This section simulates the backend API. Remove or replace when connecting to the real backend.
+        const MOCK_API = {
+            '/api/stores': () => ([{tid: 0, name: 'Tất cả cửa'}, {tid: 1, name: 'Cửa chính A1'}, {tid: 2, name: 'Cửa phụ A2'}, {tid: 3, name: 'Cửa hầm B1'}]),
+            '/api/errors': () => ([
+                {ID: 1, storeid: 1, LogTime: new Date(Date.now() - 3600000).toISOString(), ErrorMessage: 'Mất kết nối cảm biến'},
+                {ID: 2, storeid: 3, LogTime: new Date(Date.now() - 86400000).toISOString(), ErrorMessage: 'Lỗi nguồn điện'},
+            ]),
+            '/api/stats': (params) => {
+                // A simple data generator for demonstration
+                const generateData = (points, maxVal) => Array.from({length: points}, () => Math.random() * maxVal);
+                let labels, data, points;
+                const period = new URLSearchParams(params).get('period');
+                switch(period) {
+                    case 'day': points = 24; labels = Array.from({length: points}, (_, i) => `${i}:00`); break;
+                    case 'week': points = 7; labels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']; break;
+                    case 'month': points = 30; labels = Array.from({length: points}, (_, i) => `Ngày ${i+1}`); break;
+                    default: points = 12; labels = Array.from({length: points}, (_, i) => `Tháng ${i+1}`); break;
+                }
+                data = generateData(points, 5000);
+                const total_in = data.reduce((a,b) => a+b, 0);
+                
+                const table_data = data.map((val, i) => ({
+                    label: labels[i], value: val,
+                    difference: i > 0 && data[i-1] > 0 ? (val - data[i-1]) / data[i-1] * 100 : 0
+                }));
+
+                return {
+                    line_chart: {
+                        period, labels, data, total_in,
+                        average_in: total_in / points,
+                        max_in: Math.max(...data),
+                        growth: (Math.random() - 0.5) * 20,
+                        time_range: `Demo Time Range for ${period}`
+                    },
+                    donut_chart: {
+                        labels: ['Cửa A1', 'Cửa A2', 'Cửa B1'],
+                        data: generateData(3, 10000)
+                    },
+                    table_data: table_data
+                };
+            }
+        };
+        // Override fetch for demo
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            const path = new URL(url).pathname;
+            const params = new URL(url).search;
+            if (MOCK_API[path]) {
+                console.log(`MOCK API HIT: ${path}`);
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(MOCK_API[path](params)),
+                });
+            }
+            return originalFetch(url, options);
+        };
+        // --- END MOCK API ---
+
+        // --- THEME MANAGEMENT ---
+        const applyTheme = (theme) => {
+            const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.documentElement.classList.toggle('dark', isDark);
+            localStorage.theme = theme;
+            ui.themeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+            // Redraw charts with new theme colors
+            if (lineChart) updateChartTheme(lineChart);
+            if (donutChart) updateChartTheme(donutChart);
+        };
+
+        const updateChartTheme = (chart) => {
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+            const tickColor = isDark ? '#94a3b8' : '#64748b';
+            chart.options.scales.y.grid.color = gridColor;
+            chart.options.scales.x.grid.color = gridColor;
+            chart.options.scales.y.ticks.color = tickColor;
+            chart.options.scales.x.ticks.color = tickColor;
+            if (chart.options.plugins.legend) {
+                chart.options.plugins.legend.labels.color = tickColor;
+            }
+            chart.update('none');
+        };
+
+        // --- UI RENDERING ---
+        const renderDatePickers = () => {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            let html = '';
+            const baseClasses = "h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
+            const yearOptions = Array.from({ length: 5 }, (_, i) => `<option value="${currentYear - i}" ${state.year == (currentYear - i) ? 'selected' : ''}>${currentYear - i}</option>`).join('');
+
+            switch (state.period) {
+                case 'day':
+                    html = `<input type="date" id="day-selector" class="${baseClasses} w-full sm:w-40" value="${state.day}">`;
+                    break;
+                case 'week':
+                    const weekOptions = Array.from({length: 52}, (_, i) => `<option value="${i + 1}" ${state.week == (i + 1) ? 'selected' : ''}>Tuần ${i + 1}</option>`).join('');
+                    html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="week-selector" class="${baseClasses}">${weekOptions}</select>`;
+                    break;
+                case 'month':
+                    const monthOptions = Array.from({length: 12}, (_, i) => `<option value="${i + 1}" ${state.month == (i + 1) ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('');
+                    html = `<select id="year-selector" class="${baseClasses} w-24">${yearOptions}</select><select id="month-selector" class="${baseClasses}">${monthOptions}</select>`;
+                    break;
+                case 'year':
+                    html = `<select id="year-selector" class="${baseClasses} w-32">${yearOptions}</select>`;
+                    break;
+            }
+            ui.datePickerContainer.innerHTML = html;
+            // Add event listeners to new elements
+            ui.datePickerContainer.querySelectorAll('select, input').forEach(el => el.addEventListener('change', handleFilterChange));
+        };
+
+        const updateUI = (data) => {
+            const { line_chart, donut_chart, table_data } = data;
+
+            // Metrics
+            ui.totalIn.textContent = formatNumber(line_chart.total_in);
+            ui.averageIn.textContent = formatNumber(line_chart.average_in);
+            ui.maxIn.textContent = formatNumber(line_chart.max_in);
+            ui.timeRangeDisplay.textContent = line_chart.time_range;
+
+            const growthColor = line_chart.growth >= 0 ? 'text-green-500' : 'text-red-500';
+            const growthIcon = line_chart.growth >= 0 ? '▲' : '▼';
+            ui.growth.innerHTML = `<span class="${growthColor}">${growthIcon} ${Math.abs(line_chart.growth).toFixed(1)}%</span>`;
+
+            // Charts
+            renderLineChart(line_chart);
+            renderDonutChart(donut_chart);
+
+            // Table
+            renderTable(table_data);
+        };
+
+        const renderLineChart = (chartData) => {
+            const ctx = ui.lineChartCanvas.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+            if (lineChart) {
+                lineChart.data.labels = chartData.labels;
+                lineChart.data.datasets[0].data = chartData.data;
+                lineChart.update();
+            } else {
+                lineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            label: 'Lượt vào', data: chartData.data,
+                            backgroundColor: gradient, borderColor: '#3B82F6',
+                            borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0,
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }}, scales: {x:{}, y:{beginAtZero: true}}}
+                });
+            }
+            updateChartTheme(lineChart);
+        };
+
+        const renderDonutChart = (chartData) => {
+            if (donutChart) {
+                donutChart.data.labels = chartData.labels;
+                donutChart.data.datasets[0].data = chartData.data;
+                donutChart.update();
+            } else {
+                donutChart = new Chart(ui.donutChartCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            data: chartData.data,
+                            backgroundColor: ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6'],
+                            borderWidth: 0,
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' }}}
+                });
+            }
+            updateChartTheme(donutChart);
+        };
+
+        const renderTable = (data) => {
+            currentTableData = data;
+            let headerHtml = '';
+            switch(state.period) {
+                case 'day': headerHtml = 'Giờ'; break;
+                case 'week': headerHtml = 'Ngày'; break;
+                case 'month': headerHtml = 'Ngày'; break;
+                case 'year': headerHtml = 'Tháng'; break;
+            }
+            ui.tableHeader.innerHTML = `<th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300">${headerHtml}</th>
+                                       <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Lượt vào</th>
+                                       <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Chênh lệch</th>`;
+
+            ui.tableBody.innerHTML = data.map(row => {
+                const diff = row.difference;
+                const diffColor = diff > 0 ? 'text-green-500' : diff < 0 ? 'text-red-500' : 'text-slate-500';
+                const diffSign = diff > 0 ? '+' : '';
+                const diffText = diff.toFixed(1) !== '0.0' ? `${diffSign}${diff.toFixed(1)}%` : '--';
+                
+                return `<tr class="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                            <td class="p-3 text-sm text-slate-700 dark:text-slate-300">${row.label}</td>
+                            <td class="p-3 text-sm font-medium text-slate-900 dark:text-white text-right">${formatNumber(row.value)}</td>
+                            <td class="p-3 text-sm font-medium ${diffColor} text-right">${diffText}</td>
+                        </tr>`;
+            }).join('');
+        };
+
+        const renderNotifications = (logs) => {
+            const readLogs = JSON.parse(localStorage.getItem('readErrorLogs') || '[]');
+            const unreadLogs = logs.filter(log => !readLogs.includes(log.ID));
+
+            if (unreadLogs.length > 0) {
+                ui.notification.badge.textContent = unreadLogs.length;
+                ui.notification.badge.classList.remove('hidden');
+            } else {
+                ui.notification.badge.classList.add('hidden');
+            }
+
+            ui.notification.logContainer.innerHTML = logs.length === 0 
+                ? `<div class="text-center text-slate-500 p-4">Không có cảnh báo.</div>`
+                : logs.map(log => {
+                    const isRead = readLogs.includes(log.ID);
+                    return `<div data-log-id="${log.ID}" class="log-item flex items-start gap-3 p-3 mx-2 mb-1 rounded-lg cursor-pointer ${isRead ? 'opacity-60' : 'bg-blue-500/10'} hover:bg-slate-200 dark:hover:bg-gray-600">
+                                <div><p class="font-semibold text-sm">${log.ErrorMessage}</p><p class="text-xs text-slate-500">${new Date(log.LogTime).toLocaleString('vi-VN')}</p></div>
+                            </div>`;
+                }).join('');
+
+            // Add click event to mark as read
+            document.querySelectorAll('.log-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const logId = parseInt(item.dataset.logId);
+                    let readLogs = JSON.parse(localStorage.getItem('readErrorLogs') || '[]');
+                    if (!readLogs.includes(logId)) {
+                        readLogs.push(logId);
+                        localStorage.setItem('readErrorLogs', JSON.stringify(readLogs));
+                        fetchAndRenderNotifications(); // Re-render to update UI
+                    }
+                });
+            });
+        };
+
+        // --- EVENT HANDLERS ---
+        const handleFilterChange = async () => {
+            // Update state from UI
+            state.storeId = ui.storeSelector.value;
+            state.smoothRatio = ui.smoothRatioSlider.value;
+
+            const yearSelector = document.getElementById('year-selector');
+            if (yearSelector) state.year = yearSelector.value;
+            const monthSelector = document.getElementById('month-selector');
+            if (monthSelector) state.month = monthSelector.value;
+            const weekSelector = document.getElementById('week-selector');
+            if (weekSelector) state.week = weekSelector.value;
+            const daySelector = document.getElementById('day-selector');
+            if (daySelector) state.day = daySelector.value;
+
+            showLoader(true);
+            const params = new URLSearchParams(state);
+            const data = await fetchData(`/api/stats?${params.toString()}`);
+            if (data) {
+                updateUI(data);
+            }
+            showLoader(false);
+        };
+
+        const downloadCSV = () => {
+            if (currentTableData.length === 0) return;
+            const header = Object.keys(currentTableData[0]).join(',');
+            const rows = currentTableData.map(row => Object.values(row).join(','));
+            const csvContent = `data:text/csv;charset=utf-8,\uFEFF${header}\n${rows.join('\n')}`;
+            const link = document.createElement('a');
+            link.setAttribute('href', encodeURI(csvContent));
+            link.setAttribute('download', `export_data_${state.period}_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // --- INITIALIZATION ---
+        const init = async () => {
+            showLoader(true);
+
+            // Setup popups
+            const setupPopup = (button, panel) => {
+                button.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); });
+            };
+            setupPopup(ui.notification.bell, ui.notification.panel);
+            setupPopup(ui.settingsButton, ui.settingsPanel);
+            document.addEventListener('click', (e) => {
+                if (!ui.notification.panel.classList.contains('hidden') && !ui.notification.panel.contains(e.target)) ui.notification.panel.classList.add('hidden');
+                if (!ui.settingsPanel.classList.contains('hidden') && !ui.settingsPanel.contains(e.target)) ui.settingsPanel.classList.add('hidden');
+            });
+
+            // Setup theme
+            ui.themeButtons.forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.theme)));
+            applyTheme(localStorage.theme || 'auto');
+
+            // Setup filters & sliders
+            ui.filterButtons.forEach(button => button.addEventListener('click', () => {
+                ui.filterButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                state.period = button.dataset.period;
+                renderDatePickers();
+                handleFilterChange();
+            }));
+            ui.smoothRatioSlider.addEventListener('input', (e) => {
+                ui.smoothRatioValue.textContent = `${parseFloat(e.target.value).toFixed(1)}x`;
+            });
+            ui.smoothRatioSlider.addEventListener('change', handleFilterChange);
+            ui.storeSelector.addEventListener('change', handleFilterChange);
+            ui.downloadCsvButton.addEventListener('click', downloadCSV);
+
+            // Fetch initial data
+            const stores = await fetchData('/api/stores');
+            if (stores) {
+                ui.storeSelector.innerHTML = stores.map(s => `<option value="${s.tid}">${s.name}</option>`).join('');
+            }
+
+            await fetchAndRenderNotifications();
+
+            // Initial render
+            renderDatePickers();
+            await handleFilterChange();
+
+            showLoader(false);
+        };
+
+        async function fetchAndRenderNotifications() {
+            const errorLogs = await fetchData('/api/errors?limit=20');
+            if (errorLogs) {
+                renderNotifications(errorLogs);
+            }
+        }
+
+        init();
+    });
+    </script>
+</body>
+</html>
