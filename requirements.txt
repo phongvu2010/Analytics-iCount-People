@@ -21,6 +21,7 @@
 
 
 ### Packages
+duckdb
 fastapi[all]
 Jinja2
 pandas
