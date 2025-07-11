@@ -9,27 +9,7 @@ from datetime import date
 from sqlalchemy import create_engine, exc
 
 from app.core.config import settings
-
-def setup_logging():
-    """
-    Thiết lập hệ thống logging để ghi ra cả console và file.
-    Tự động tạo thư mục 'logs' nếu chưa tồn tại.
-    """
-    log_dir = 'logs'
-    os.makedirs(log_dir, exist_ok = True)  # Đảm bảo thư mục logs tồn tại
-
-    date_str = date.today().strftime('%Y-%m-%d')
-    log_file = os.path.join(log_dir, f'etl_{date_str}.log')
-
-    # Cấu hình logging, thêm encoding='utf-8' để hỗ trợ ghi file log có dấu tiếng Việt
-    logging.basicConfig(
-        level = logging.INFO,
-        format = '%(asctime)s - %(levelname)s - %(message)s',
-        handlers = [
-            logging.FileHandler(log_file, encoding = 'utf-8'),
-            logging.StreamHandler()
-        ]
-    )
+from app.core.logging_utils import setup_logging
 
 def extract_from_mssql(table_name: str, is_first_run: bool):
     """
@@ -149,7 +129,7 @@ def main():
     """
     Hàm điều phối chính, chạy toàn bộ quy trình ETL.
     """
-    setup_logging()
+    setup_logging('etl')
 
     parser = argparse.ArgumentParser(description='Chạy ETL từ MSSQL sang một file DuckDB đã được tối ưu.')
     parser.add_argument('--dest_db', default = 'data.duckdb', help = 'Đường dẫn tới file DuckDB đích.')
