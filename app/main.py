@@ -1,8 +1,9 @@
 # Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
 # Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, responses
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from .core.config import settings
 from .routers import router as api_router
@@ -24,6 +25,7 @@ else:
     # For local development, allow all origins.
     # In production, you should restrict this to your frontend's domain for security.
     origins = ['*']
+print(f"INFO:     CORS enabled for origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +42,10 @@ app.mount('/static', StaticFiles(directory='app/statics'), name='static')
 # Include router từ file routers.py vào ứng dụng chính
 # Tất cả các endpoint trong routers.py sẽ được thêm vào app
 app.include_router(api_router)
+
+# Cấu hình Jinja2 templates để phục vụ file HTML
+# FastAPI sẽ tìm kiếm các file HTML trong thư mục 'app/templates'
+templates = Jinja2Templates(directory='app/templates')
 
 @app.on_event('startup')
 async def startup_event():
@@ -59,9 +65,26 @@ async def startup_event():
         print('Vui lòng kiểm tra file .env, kết nối mạng, và driver ODBC.')
         print(f'Chi tiết lỗi: {e}')
 
-@app.get('/health', tags=["Health Check"])
+@app.get('/health', tags = ['Health Check'])
 def health_check():
     """
     Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
     return {'status': 'ok'}
+
+# =============================================
+# Endpoints để phục vụ giao diện
+# =============================================
+@app.get('/', include_in_schema = False)
+async def read_root():
+    """
+    Redirect từ URL gốc (/) sang trang dashboard.
+    """
+    return responses.RedirectResponse(url='/dashboard')
+
+@app.get('/dashboard', response_class = responses.HTMLResponse, include_in_schema=False)
+async def get_dashboard(request: Request):
+    """
+    Phục vụ file dashboard.html từ thư mục templates.
+    """
+    return templates.TemplateResponse('dashboard.html', {'request': request})
