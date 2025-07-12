@@ -36,7 +36,7 @@ def execute_query_as_dataframe(query: str, db: Session, params: dict = None) -> 
     """
     try:
         # Sử dụng connection của session để thực thi với pandas
-        return pd.read_sql_query(query, db.connection(), params=params)
+        return pd.read_sql_query(query, db.connection(), params = params)
     except Exception as e:
         print(f'Lỗi khi thực thi query với SQLAlchemy: {e}')
         # Trong production, bạn nên log lỗi này vào một file hoặc hệ thống logging

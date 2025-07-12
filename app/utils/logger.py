@@ -23,9 +23,9 @@ def setup_logging(log_name: str, log_dir: str = 'logs'):
         logger.handlers.clear()
 
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
+        level = logging.INFO,
+        format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers = [
             logging.FileHandler(log_file, encoding='utf-8'),
             logging.StreamHandler()
         ]

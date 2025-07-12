@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iCount - Dashboard Phân Tích</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Dashboard Phân Tích Lưu Lượng</h1>
+            <p class="text-gray-600 mt-2">Thống kê số lượng người ra vào trung tâm thương mại</p>
+        </header>
+
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded-lg shadow-md mb-8 flex flex-wrap items-center gap-4">
+            <div>
+                <label for="store-filter" class="text-sm font-medium text-gray-700">Cửa hàng:</label>
+                <select id="store-filter" class="mt-1 block w-full md:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                    <option value="all">Tất cả cửa hàng</option>
+                    {% for store in stores %}
+                    <option value="{{ store }}">{{ store }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-700">Chu kỳ:</label>
+                <div id="period-filter" class="flex items-center gap-2 mt-1">
+                    <button data-period="day" class="period-btn bg-indigo-600 text-white px-4 py-2 rounded-md shadow-sm">Ngày</button>
+                    <button data-period="week" class="period-btn bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-300">Tuần</button>
+                    <button data-period="month" class="period-btn bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-300">Tháng</button>
+                    <button data-period="year" class="period-btn bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-300">Năm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-white p-4 md:p-6 rounded-lg shadow-md">
+            <h2 id="chart-title" class="text-2xl font-semibold mb-4">Thống kê theo Ngày</h2>
+            <div id="loading-spinner" class="text-center py-16 hidden">
+                <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-gray-500">Đang tải dữ liệu...</p>
+            </div>
+            <canvas id="trafficChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        let trafficChart;
+        const periodFilter = document.getElementById('period-filter');
+        const storeFilter = document.getElementById('store-filter');
+        const chartTitle = document.getElementById('chart-title');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const chartCanvas = document.getElementById('trafficChart');
+
+
+        const periodLabels = {
+            day: 'Ngày',
+            week: 'Tuần',
+            month: 'Tháng',
+            year: 'Năm'
+        };
+
+        function initializeChart() {
+            trafficChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Lượt vào',
+                            data: [],
+                            backgroundColor: 'rgba(79, 70, 229, 0.8)', // Indigo
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Lượt ra',
+                            data: [],
+                            backgroundColor: 'rgba(220, 38, 38, 0.7)', // Red
+                            borderColor: 'rgba(220, 38, 38, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                    }
+                }
+            });
+        }
+
+        async function fetchDataAndUpdateChart(period = 'day', store = 'all') {
+            // Show spinner and hide chart
+            loadingSpinner.classList.remove('hidden');
+            chartCanvas.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/v1/analytics/traffic-data?period=${period}&store=${store}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                trafficChart.data.labels = data.labels;
+                trafficChart.data.datasets[0].data = data.in_data;
+                trafficChart.data.datasets[1].data = data.out_data;
+                trafficChart.update();
+
+                // Update chart title
+                const storeName = store === 'all' ? 'Tất cả cửa hàng' : store;
+                chartTitle.textContent = `Thống kê theo ${periodLabels[period]} - ${storeName}`;
+
+            } catch (error) {
+                console.error('Failed to fetch chart data:', error);
+                // Optionally show an error message to the user
+            } finally {
+                // Hide spinner and show chart
+                loadingSpinner.classList.add('hidden');
+                chartCanvas.style.display = 'block';
+            }
+        }
+
+        // Event listener for period filter buttons
+        periodFilter.addEventListener('click', (e) => {
+            if (e.target.classList.contains('period-btn')) {
+                // Update button styles
+                document.querySelectorAll('.period-btn').forEach(btn => {
+                    btn.classList.remove('bg-indigo-600', 'text-white');
+                    btn.classList.add('bg-white', 'text-gray-700');
+                });
+                e.target.classList.add('bg-indigo-600', 'text-white');
+                e.target.classList.remove('bg-white', 'text-gray-700');
+
+                const period = e.target.dataset.period;
+                const store = storeFilter.value;
+                fetchDataAndUpdateChart(period, store);
+            }
+        });
+
+        // Event listener for store filter dropdown
+        storeFilter.addEventListener('change', (e) => {
+            const store = e.target.value;
+            const period = document.querySelector('.period-btn.bg-indigo-600').dataset.period;
+            fetchDataAndUpdateChart(period, store);
+        });
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeChart();
+            fetchDataAndUpdateChart(); // Load with default values (day, all)
+        });
+    </script>
+
+</body>
+</html>

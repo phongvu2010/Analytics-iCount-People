@@ -20,14 +20,24 @@
 # pip3 freeze > requirements.txt
 
 
-### Packages
-duckdb
+### Core & FastAPI
 fastapi[all]
-Jinja2
+# uvicorn[standard]
+
+
+### Database & Data Handling
+duckdb
 pandas
 pyarrow
-pyodbc  # Hoặc driver MSSQL phù hợp khác
-SQLAlchemy
+pyodbc     # Driver for MSSQL, có thể thay đổi tùy hệ thống
+SQLAlchemy # For MSSQL connection
+
+
+### Templating & Settings
+Jinja2
+# pydantic-settings
+
+
 
 
 # bcrypt==4.0.1
@@ -35,7 +45,6 @@ SQLAlchemy
 # passlib[bcrypt] # Để hash mật khẩu
 # plotly
 # pydantic[email]
-# pydantic-settings
 # python-decouple
 # python-dotenv
 # python-jose[cryptography] # Để tạo JWT
@@ -43,5 +52,4 @@ SQLAlchemy
 # streamlit
 # streamlit-authenticator
 # streamlit-option-menu
-# uvicorn[standard]
 # watchdog

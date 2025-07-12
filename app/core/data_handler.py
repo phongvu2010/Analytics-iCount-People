@@ -2,17 +2,18 @@ import duckdb
 import pandas as pd
 from functools import lru_cache
 
-# Đường dẫn tới thư mục chứa dữ liệu Parquet
+# Định nghĩa đường dẫn tới các file Parquet.
+# Dấu * giúp DuckDB tự động đọc tất cả các file trong các thư mục con.
 CROWD_COUNTS_PATH = 'data/crowd_counts/*/*.parquet'
 ERROR_LOGS_PATH = 'data/error_logs/*/*.parquet'
 
 @lru_cache(maxsize=1) # Cache kết nối để không phải tạo lại liên tục
 def get_duckdb_connection():
     """
-    Tạo và trả về một kết nối DuckDB.
-    Sử dụng cache để tái sử dụng kết nối trong suốt vòng đời ứng dụng.
+    Tạo và trả về một kết nối DuckDB duy nhất cho ứng dụng.
+    Sử dụng lru_cache để đảm bảo kết nối được tái sử dụng, tăng hiệu suất.
     """
-    return duckdb.connect(database=':memory:', read_only=False)
+    return duckdb.connect(database = ':memory:', read_only = False)
 
 def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
     """
@@ -27,12 +28,11 @@ def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
     """
     con = get_duckdb_connection()
     try:
-        # Sử dụng .df() để chuyển kết quả trực tiếp sang Pandas DataFrame
+        # Thực thi câu lệnh và trả về kết quả dưới dạng Pandas DataFrame
         result_df = con.execute(query).df()
         return result_df
     except Exception as e:
-        print(f"Lỗi khi thực thi query với DuckDB: {e}")
-        # Cân nhắc logging lỗi này
+        print(f'Lỗi khi thực thi query với DuckDB: {e}')
         return pd.DataFrame()
 
 # Bạn có thể thêm các hàm helper khác ở đây, ví dụ:

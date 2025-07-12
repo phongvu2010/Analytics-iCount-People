@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     Class để quản lý toàn bộ cấu hình của ứng dụng.
     Các thuộc tính được tự động đọc từ file .env.
     """
+    # Cấu hình chung của ứng dụng
     PROJECT_NAME: str
     DESCRIPTION: str
 
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
 
-    # Database MSSQL Configuration
+    # Cấu hình cho Database MSSQL
     DB_HOST: str
     DB_PORT: int = 1433             # Cổng mặc định của MSSQL
     DB_DRIVER: str = 'SQL Server'   # 'ODBC Driver 17 for SQL Server'
