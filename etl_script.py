@@ -16,7 +16,7 @@ def extract_from_mssql(table_name: str, is_first_run: bool):
     Kết nối tới MSSQL và trích xuất dữ liệu.
     Nếu không phải lần chạy đầu, sẽ chỉ lấy dữ liệu năm hiện tại cho các bảng lớn.
     """
-    logging.info(f'->  Bắt đầu trích xuất dữ liệu từ bảng: `dbo.{table_name}`')
+    logging.info(f'    -> Bắt đầu trích xuất dữ liệu từ bảng: `dbo.{table_name}`')
 
     # Các bảng lớn và cột ngày tháng tương ứng để lọc
     incremental_tables = {'num_crowd': 'recordtime', 'ErrLog': 'LogTime'}
@@ -27,22 +27,22 @@ def extract_from_mssql(table_name: str, is_first_run: bool):
         date_column = incremental_tables[table_name]
         current_year = date.today().year
         query += f' WHERE YEAR({date_column}) = {current_year}'
-        logging.info(f'->  Chế độ tăng trưởng: Chỉ lấy dữ liệu năm {current_year}.')
+        logging.info(f'    -> Chế độ tăng trưởng: Chỉ lấy dữ liệu năm `{current_year}`.')
     else:
-        logging.info('->  Chế độ tải toàn bộ (Full Load).')
+        logging.info('    -> Chế độ tải toàn bộ (Full Load).')
 
     try:
         engine_url = settings.SQLALCHEMY_DATABASE_URI
         engine = create_engine(engine_url, echo=False)
         df = pd.read_sql(query, engine)
 
-        logging.info(f'->  Trích xuất thành công {len(df)} dòng dữ liệu.')
+        logging.info(f'    -> Trích xuất thành công {len(df)} dòng dữ liệu.\n')
         return df
     except exc.SQLAlchemyError as e:
-        logging.error(f'->  Lỗi SQLAlchemy khi kết nối hoặc truy vấn MSSQL: {e}')
+        logging.error(f'   -> Lỗi SQLAlchemy khi kết nối hoặc truy vấn MSSQL: {e}\n')
         return None
     except Exception as e:
-        logging.error(f'->  Lỗi không xác định trong quá trình trích xuất: {e}')
+        logging.error(f'   -> Lỗi không xác định trong quá trình trích xuất: {e}\n')
         return None
 
 def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str):
@@ -52,7 +52,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
     if fact_df is None or stores_df is None:
         return None
 
-    logging.info(f'->  Bắt đầu biến đổi và hợp nhất cho: {table_type}')
+    logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
     try:
         # 1. Chuẩn hóa tên cột trong bảng stores
         stores_renamed_df = stores_df.rename(columns={'tid': 'store_id', 'name': 'store_name'})
@@ -79,20 +79,20 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         # 4. Sắp xếp và chọn các cột cuối cùng
         if table_type == 'error_logs':
-            final_cols = ['id', 'store_id', 'store_name', 'log_time', 'error_code', 'error_message']
+            final_cols = ['id', 'store_name', 'log_time', 'error_code', 'error_message']
             final_df = merged_df[final_cols]
 
         elif table_type == 'crowd_counts':
-            final_cols = ['record_time', 'store_id', 'store_name', 'in_count', 'out_count']
+            final_cols = ['record_time', 'store_name', 'in_count', 'out_count']
             final_df = merged_df[final_cols]
 
         else:
             final_df = merged_df
 
-        logging.info(f'->  Biến đổi và hợp nhất thành công cho: `{table_type}`.')
+        logging.info(f'    -> Biến đổi và hợp nhất thành công cho bảng: `{table_type}`.\n')
         return final_df
     except Exception as e:
-        logging.error(f'->  Lỗi trong quá trình biến đổi và hợp nhất cho `{table_type}`: {e}')
+        logging.error(f'   -> Lỗi trong quá trình biến đổi và hợp nhất cho bảng `{table_type}`: {e}\n')
         return None
 
 def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first_run: bool):
@@ -100,7 +100,7 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
     Nạp dữ liệu vào DuckDB. Dùng chế độ phù hợp: tạo mới hoặc xóa/chèn.
     """
     if df is None:
-        logging.warning(f'->. Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
+        logging.warning(f' -> Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
         return
 
     date_columns = {'crowd_counts': 'record_time', 'error_logs': 'log_time'}
@@ -108,22 +108,22 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
     try:
         with duckdb.connect(database = duckdb_path, read_only = False) as con:
             if is_first_run:
-                logging.info(f'->  Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
+                logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
                 con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
 
             else:
-                logging.info(f'->  Chế độ [DELETE/INSERT] cho bảng `{table_name}`...')
+                logging.info(f'    -> Chế độ [DELETE/INSERT] cho bảng: `{table_name}`...')
                 date_column = date_columns[table_name]
                 current_year = date.today().year
 
                 delete_query = f'DELETE FROM {table_name} WHERE YEAR({date_column}) = {current_year}'
                 deleted_rows = con.execute(delete_query).fetchone()[0]
-                logging.info(f'-> Đã xóa {deleted_rows} dòng của năm {current_year} khỏi bảng `{table_name}`.')
+                logging.info(f'    -> Đã xóa {deleted_rows} dòng của năm {current_year} khỏi bảng `{table_name}`.')
 
                 con.execute(f'INSERT INTO {table_name} SELECT * FROM df')
-                logging.info(f'-> Đã chèn {len(df)} dòng mới của năm {current_year} vào bảng `{table_name}`.')
+                logging.info(f'    -> Đã chèn {len(df)} dòng mới của năm {current_year} vào bảng `{table_name}`.\n')
     except Exception as e:
-        logging.error(f'->  Lỗi khi nạp dữ liệu vào DuckDB cho bảng `{table_name}`: {e}')
+        logging.error(f'   -> Lỗi khi nạp dữ liệu vào DuckDB cho bảng `{table_name}`: {e}\n')
 
 def main():
     """
@@ -138,8 +138,9 @@ def main():
     is_first_run = not os.path.exists(args.dest_db)
     run_mode = 'LẦN ĐẦU (FULL LOAD)' if is_first_run else 'TĂNG TRƯỞNG (INCREMENTAL)'
 
+    logging.info('=======================================================================')
     logging.info(f'--- BẮT ĐẦU TỔNG THỂ TÁC VỤ ETL (CHẾ ĐỘ: {run_mode}) ---')
-    logging.info(f'->  File DuckDB đích: {args.dest_db}')
+    logging.info(f'    -> File DuckDB đích: `{args.dest_db}`\n')
 
     # --- 1. EXTRACT ---
     stores_df = extract_from_mssql('store', True) # Bảng store luôn tải toàn bộ
@@ -154,7 +155,7 @@ def main():
     load_to_duckdb(final_error_logs, 'error_logs', args.dest_db, is_first_run)
     load_to_duckdb(final_crowd_counts, 'crowd_counts', args.dest_db, is_first_run)
 
-    logging.info('--- KẾT THÚC TỔNG THỂ TÁC VỤ ETL ---')
+    logging.info('--- KẾT THÚC TỔNG THỂ TÁC VỤ ETL ---\n\n')
 
 if __name__ == '__main__':
     main()
