@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .core.config import settings
+from .core import settings
 from .routers import router as api_router
 
 # Khởi tạo ứng dụng FastAPI với các thông tin từ file config

@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
-from .config import settings
+from . import settings
 
 # Tạo SQLAlchemy engine từ chuỗi kết nối trong config
 # echo = False để không in các câu lệnh SQL ra console trong môi trường production
