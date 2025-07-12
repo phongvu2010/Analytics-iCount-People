@@ -1,10 +1,7 @@
-
-# iCount People Dashboard
-
-### Models DB
+### Cấu trúc DB MSSQL iCount People
 ```
 dbo.store
-├── tid:            (int, not_null, auto_increment)
+├── tid:            (int, not_null)
 ├── country:        (char(20), )
 ├── area:           (char(20), )
 ├── province:       (char(20), )
@@ -20,7 +17,7 @@ dbo.store
 └── formula:        (char(64), )
 
 dbo.ErrLog
-├── ID:             (bigint, not_null, auto_increment)
+├── ID:             (bigint, not_null)
 ├── storeid:        (int, not_null) - (mapping dbo.store.tid)
 ├── DeviceCode:     (smallint, )
 ├── LogTime:        (datetime, )
@@ -35,7 +32,7 @@ dbo.num_crowd
 └── storeid:        (int, not_null) - (mapping dbo.store.tid)
 
 dbo.Status
-├── ID:             (int, not_null, auto_increment)
+├── ID:             (int, not_null)
 ├── storeid:        (int, not_null) - (mapping dbo.store.tid)
 ├── FlashNum:       (int, )
 ├── RamNum:         (int, )

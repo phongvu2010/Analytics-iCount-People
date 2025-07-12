@@ -4,5 +4,4 @@ data/
 logs/
 
 .env
-
 *.duckdb
