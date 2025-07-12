@@ -1,6 +1,7 @@
-# Phân vùng kiểu Hive (Hive-style Partitioning)
-# .venv\Scripts\python.exe etl_parquet_script.py --dest_dir=data --full_load
+# .venv\Scripts\python.exe etl_master_script.py --output_format=parquet --destination=data --full_load
+# .venv\Scripts\python.exe etl_master_script.py --output_format=duckdb --destination=data.duckdb --full_load
 import argparse
+import duckdb
 import logging
 import os
 import pandas as pd
@@ -41,14 +42,14 @@ def extract_from_mssql(table_name: str, full_load: bool):
         logging.error(f'   -> Lỗi không xác định trong quá trình trích xuất: {e}\n')
         return None
 
-def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str):
+def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str, output_format: str):
     """
-    Thực hiện biến đổi, hợp nhất dữ liệu và thêm cột 'year' để phân vùng.
+    Thực hiện biến đổi, hợp nhất dữ liệu và thêm cột 'year' nếu cần.
     """
     if fact_df is None or stores_df is None:
         return None
-    logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho: `{table_type}`')
 
+    logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
     try:
         # 1. Chuẩn hóa tên cột trong bảng stores
         stores_renamed_df = stores_df.rename(columns={'tid': 'store_id', 'name': 'store_name'})
@@ -63,16 +64,13 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
                 'Errorcode': 'error_code', 'ErrorMessage': 'error_message'
             })
             date_column_name = 'log_time'
-
         elif table_type == 'crowd_counts':
             fact_df = fact_df.rename(columns={
                 'recordtime': 'record_time', 'in_num': 'in_count',
                 'out_num': 'out_count', 'storeid': 'store_id'
             })
             date_column_name = 'record_time'
-
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
-        fact_df['year'] = fact_df[date_column_name].dt.year
 
         # 3. Hợp nhất (join) để thêm store_name
         merged_df = pd.merge(fact_df, stores_subset_df, on='store_id', how='left')
@@ -80,19 +78,49 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
         # 4. Sắp xếp và chọn các cột cuối cùng
         final_cols = []
         if table_type == 'error_logs':
-            final_cols = ['id', 'store_name', 'log_time', 'error_code', 'error_message', 'year']
-
+            final_cols = ['id', 'store_name', 'log_time', 'error_code', 'error_message']
         elif table_type == 'crowd_counts':
-            final_cols = ['record_time', 'store_name', 'in_count', 'out_count', 'year']
+            final_cols = ['record_time', 'store_name', 'in_count', 'out_count']
 
-        final_df = merged_df[final_cols].dropna(subset=['year'])
-        final_df['year'] = final_df['year'].astype(int)
+        # Chỉ thêm cột 'year' nếu định dạng đầu ra là parquet để phân vùng
+        if output_format == 'parquet':
+            merged_df['year'] = merged_df[date_column_name].dt.year
+            final_cols.append('year')
+            final_df = merged_df[final_cols].dropna(subset=['year'])
+            final_df['year'] = final_df['year'].astype(int)
+        else:
+            final_df = merged_df[final_cols]
 
         logging.info(f'    -> Biến đổi và hợp nhất thành công cho bảng: `{table_type}`.\n')
         return final_df
     except Exception as e:
         logging.error(f'   -> Lỗi trong quá trình biến đổi và hợp nhất cho bảng `{table_type}`: {e}\n')
         return None
+
+def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first_run: bool):
+    """
+    Nạp dữ liệu vào DuckDB. Dùng chế độ phù hợp: tạo mới hoặc xóa/chèn.
+    """
+    if df is None:
+        logging.warning(f' -> Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
+        return
+
+    date_columns = {'crowd_counts': 'record_time', 'error_logs': 'log_time'}
+    try:
+        with duckdb.connect(database = duckdb_path, read_only = False) as con:
+            if is_first_run:
+                logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
+                con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
+            else:
+                logging.info(f'    -> Chế độ [DELETE/INSERT] cho bảng: `{table_name}`...')
+                date_column = date_columns[table_name]
+                current_year = date.today().year
+
+                con.execute(f'DELETE FROM {table_name} WHERE YEAR({date_column}) = {current_year}')
+                con.execute(f'INSERT INTO {table_name} SELECT * FROM df')
+        logging.info(f'    -> Nạp thành công dữ liệu vào DuckDB cho bảng `{table_name}`.\n')
+    except Exception as e:
+        logging.error(f'   -> Lỗi khi nạp dữ liệu vào DuckDB cho bảng `{table_name}`: {e}\n')
 
 def load_to_partitioned_parquet(df: pd.DataFrame, table_name: str, base_path: str, full_load: bool):
     """
@@ -113,12 +141,7 @@ def load_to_partitioned_parquet(df: pd.DataFrame, table_name: str, base_path: st
     try:
         # Ghi dữ liệu, phân vùng theo cột 'year'
         # existing_data_behavior = 'delete_matching' sẽ xóa các phân vùng đang được ghi đè
-        df.to_parquet(
-            full_path,
-            engine = 'pyarrow',
-            partition_cols = ['year'],
-            existing_data_behavior = 'delete_matching'
-        )
+        df.to_parquet(full_path, engine = 'pyarrow', partition_cols = ['year'], existing_data_behavior = 'delete_matching')
         logging.info(f'    -> Nạp thành công dữ liệu Parquet cho bảng `{table_name}`.\n')
     except Exception as e:
         logging.error(f'   -> Lỗi khi nạp dữ liệu Parquet cho bảng `{table_name}`: {e}\n')
@@ -127,20 +150,17 @@ def main():
     """
     Hàm điều phối chính, chạy toàn bộ quy trình ETL.
     """
-    setup_logging('etl_parquet')
-
-    parser = argparse.ArgumentParser(description='Chạy ETL từ MSSQL và lưu ra các file Parquet được phân vùng.')
-    parser.add_argument('--dest_dir', default = 'data', help = 'Thư mục gốc để lưu dữ liệu Parquet.')
+    setup_logging('etl_master')
+    parser = argparse.ArgumentParser(description='Chạy ETL từ MSSQL và lưu ra định dạng được chỉ định.')
+    parser.add_argument('--output_format', required = True, choices = ['duckdb', 'parquet'], help = 'Định dạng đầu ra: duckdb hoặc parquet.')
+    parser.add_argument('--destination', required = True, help = 'Đường dẫn tới file .duckdb hoặc thư mục gốc cho Parquet.')
     parser.add_argument('--full_load', action = 'store_true', help = 'Chạy chế độ full load, tải lại toàn bộ dữ liệu lịch sử.')
     args = parser.parse_args()
 
-    os.makedirs(args.dest_dir, exist_ok = True)
-
     run_mode = 'TẢI TOÀN BỘ (FULL LOAD)' if args.full_load else 'TĂNG TRƯỞNG (INCREMENTAL)'
-
-    logging.info('=======================================================================')
-    logging.info(f'--- BẮT ĐẦU TỔNG THỂ TÁC VỤ ETL (CHẾ ĐỘ: {run_mode}) ---')
-    logging.info(f'    Dữ liệu sẽ được lưu tại thư mục: `{args.dest_dir}`\n')
+    logging.info('==================================================================================')
+    logging.info(f'--- BẮT ĐẦU TÁC VỤ ETL (ĐỊNH DẠNG: {args.output_format.upper()}, CHẾ ĐỘ: {run_mode}) ---')
+    logging.info(f'    -> Đích đến: `{args.destination}`\n')
 
     # --- 1. EXTRACT ---
     stores_df = extract_from_mssql('store', args.full_load) 
@@ -148,18 +168,26 @@ def main():
     num_crowd_df = extract_from_mssql('num_crowd', args.full_load)
 
     # --- 2. TRANSFORM & JOIN ---
-    final_error_logs = transform_and_join(stores_df, errlog_df, 'error_logs')
-    final_crowd_counts = transform_and_join(stores_df, num_crowd_df, 'crowd_counts')
+    final_error_logs = transform_and_join(stores_df, errlog_df, 'error_logs', args.output_format)
+    final_crowd_counts = transform_and_join(stores_df, num_crowd_df, 'crowd_counts', args.output_format)
 
     # --- 3. LOAD ---
-    load_to_partitioned_parquet(final_error_logs, 'error_logs', args.dest_dir, args.full_load)
-    load_to_partitioned_parquet(final_crowd_counts, 'crowd_counts', args.dest_dir, args.full_load)
+    if args.output_format == 'duckdb':
+        is_first_run = not os.path.exists(args.destination)
+        if args.full_load and not is_first_run:
+            logging.warning(f' -> Chế độ Full Load: Sẽ thay thế hoàn toàn file `{args.destination}`.')
+            is_first_run = True # Coi như lần đầu để CREATE OR REPLACE
+        load_to_duckdb(final_error_logs, 'error_logs', args.destination, is_first_run)
+        load_to_duckdb(final_crowd_counts, 'crowd_counts', args.destination, is_first_run)
+    elif args.output_format == 'parquet':
+        os.makedirs(args.destination, exist_ok = True)
+        load_to_partitioned_parquet(final_error_logs, 'error_logs', args.destination, args.full_load)
+        load_to_partitioned_parquet(final_crowd_counts, 'crowd_counts', args.destination, args.full_load)
 
     logging.info('--- KẾT THÚC TỔNG THỂ TÁC VỤ ETL ---\n\n')
 
 if __name__ == '__main__':
     main()
-
 
 
 

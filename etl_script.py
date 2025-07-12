@@ -6,10 +6,10 @@ import logging
 import os
 import pandas as pd
 from datetime import date
-from sqlalchemy import create_engine, exc
+from sqlalchemy import exc
 
-from app.core.config import settings
-from app.core.logging_utils import setup_logging
+from app.core.db import engine
+from app.utils.logger import setup_logging
 
 def extract_from_mssql(table_name: str, is_first_run: bool):
     """
@@ -32,8 +32,6 @@ def extract_from_mssql(table_name: str, is_first_run: bool):
         logging.info('    -> Chế độ tải toàn bộ (Full Load).')
 
     try:
-        engine_url = settings.SQLALCHEMY_DATABASE_URI
-        engine = create_engine(engine_url, echo=False)
         df = pd.read_sql(query, engine)
 
         logging.info(f'    -> Trích xuất thành công {len(df)} dòng dữ liệu.\n')
