@@ -7,10 +7,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .core import settings
-# from .api.v1 import analytics, errors
+# from .api.v1 import errors  # analytics, 
 
 # Khởi tạo ứng dụng FastAPI với các thông tin từ file config
-app = FastAPI(title=settings.PROJECT_NAME, description=settings.DESCRIPTION, version='1.0.0')
+app = FastAPI(
+    title = settings.PROJECT_NAME,
+    description = settings.DESCRIPTION,
+    version = '1.0.0'
+)
 
 # Cấu hình CORS Middleware
 # Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
@@ -33,14 +37,16 @@ app.add_middleware(
 
 # Mount thư mục `static` để phục vụ các file: CSS, JS, Images
 # FastAPI sẽ tìm file trong thư mục `app/static` khi có request tới `/static/...`
-app.mount('/static', StaticFiles(directory='app/static'), name='static')
+app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
 
-# Cấu hình Jinja2 templates
-templates = Jinja2Templates(directory='app/templates')
+# Cấu hình Jinja2 templates để phục vụ file HTML
+# FastAPI sẽ tìm kiếm các file HTML trong thư mục `app/templates`
+templates = Jinja2Templates(directory = 'app/templates')
 
-# # Mount các router API
+# # Mount các API Routers
+# app.include_router(api_router, prefix = settings.API_V1_STR)
 # app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
-# app.include_router(errors.router, prefix="/api/v1/errors", tags=["Errors"])
+# app.include_router(errors.router, prefix = '/api/v1/errors', tags = ['Errors'])
 
 # =============================================
 # Endpoints để phục vụ giao diện
@@ -51,6 +57,14 @@ def health_check():
     Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
     return {'status': 'ok'}
+
+
+
+
+
+
+
+
 
 # @app.get("/", response_class=HTMLResponse)
 # async def read_root(request: Request):
@@ -66,15 +80,7 @@ def health_check():
 #         }
 #     )
 
-
-
-
-
-
-
-
-
-# # --- Include API Routers ---
+# # --- Include  ---
 # # Gắn các API endpoints từ module analytics vào ứng dụng chính
 # app.include_router(
 #     analytics.router, 
@@ -91,18 +97,12 @@ def health_check():
 #     return RedirectResponse(url="/api/v1/analytics/dashboard")
 
 
-
-
 # ================================================================================================
 # from .routers import router as api_router
 
 # # Include router từ file routers.py vào ứng dụng chính
 # # Tất cả các endpoint trong routers.py sẽ được thêm vào app
 # app.include_router(api_router)
-
-# # Cấu hình Jinja2 templates để phục vụ file HTML
-# # FastAPI sẽ tìm kiếm các file HTML trong thư mục 'app/templates'
-# templates = Jinja2Templates(directory='app/templates')
 
 # @app.on_event('startup')
 # async def startup_event():
@@ -122,14 +122,12 @@ def health_check():
 #         print('Vui lòng kiểm tra file .env, kết nối mạng, và driver ODBC.')
 #         print(f'Chi tiết lỗi: {e}')
 
-
 # @app.get('/', include_in_schema = False)
 # async def read_root():
 #     """
 #     Redirect từ URL gốc (/) sang trang dashboard.
 #     """
 #     return responses.RedirectResponse(url='/dashboard')
-
 
 # @app.get('/dashboard', response_class = responses.HTMLResponse, include_in_schema=False)
 # async def get_dashboard(request: Request):

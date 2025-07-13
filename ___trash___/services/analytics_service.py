@@ -1,8 +1,8 @@
-# import pandas as pd
+import pandas as pd
 # from datetime import date, timedelta
 # from typing import Optional
 
-# from ..core import query_parquet_as_dataframe, settings
+from ..core import query_parquet_as_dataframe, settings
 
 # def get_time_series_data(
 #     period: str,
@@ -90,16 +90,18 @@
 #     """
 #     return query_parquet_as_dataframe(query)
 
-# def get_error_logs() -> pd.DataFrame:
-#     """
-#     Lấy tất cả các log lỗi.
-#     """
-#     query = f"""
-#         SELECT id, store_name, log_time, error_code, error_message
-#         FROM read_parquet('{settings.ERROR_LOGS_PATH}', hive_partitioning=true)
-#         ORDER BY log_time DESC;
-#     """
-#     return query_parquet_as_dataframe(query)
+def get_error_logs() -> pd.DataFrame:
+    """
+    Lấy tất cả các log lỗi.
+    """
+    query = f"""
+        SELECT id, store_name, log_time, error_code, error_message
+        FROM read_parquet('{settings.ERROR_LOGS_PATH}', hive_partitioning=true)
+        ORDER BY log_time DESC;
+    """
+    df = query_parquet_as_dataframe(query)
+    print(df)
+    return df
 
 
 

@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     Các thuộc tính được tự động đọc từ file .env.
     """
     model_config = SettingsConfigDict(
-        case_sensitive=True,
-        env_file='.env',
-        env_file_encoding='utf-8'
+        env_file = '.env',
+        case_sensitive = True,
+        env_file_encoding = 'utf-8'
     )
 
     # Cấu hình chung của ứng dụng
