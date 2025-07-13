@@ -1,5 +1,6 @@
 import logging
 import os
+
 from datetime import date
 
 def setup_logging(log_name: str, log_dir: str = 'logs'):
@@ -13,8 +14,8 @@ def setup_logging(log_name: str, log_dir: str = 'logs'):
     """
     os.makedirs(log_dir, exist_ok = True)
 
-    date_str = date.today().strftime('%Y-%m-%d')
     # Tạo tên file log dựa trên tên script và ngày tháng
+    date_str = date.today().strftime('%Y-%m-%d')
     log_file = os.path.join(log_dir, f'{log_name}_{date_str}.log')
 
     # Tránh thêm handlers nhiều lần nếu hàm được gọi lại trong cùng một tiến trình
@@ -30,5 +31,6 @@ def setup_logging(log_name: str, log_dir: str = 'logs'):
             logging.StreamHandler()
         ]
     )
+
     # Gán tên cho logger gốc để nó xuất hiện trong format string
     logging.root.name = log_name

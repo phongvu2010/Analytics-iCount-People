@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     DESCRIPTION: str
 
     def parse_cors(v: Any) -> list[str] | str:
-        """ Helper function to parse CORS origins from a string. """
+        """
+        Helper function to parse CORS origins from a string.
+        """
         if isinstance(v, str) and not v.startswith('['):
             return [i.strip() for i in v.split(',')]
         elif isinstance(v, list | str):
