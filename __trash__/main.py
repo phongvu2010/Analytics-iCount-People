@@ -1,17 +1,5 @@
-from fastapi import Request, responses
-# from fastapi.responses import HTMLResponse, RedirectResponse
-
-# from .api.v1 import errors  # analytics, 
-
-# # Mount các API Routers
-# app.include_router(api_router, prefix = settings.API_V1_STR)
-# app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
-# app.include_router(errors.router, prefix = '/api/v1/errors', tags = ['Errors'])
-
-
-
-
-
+# from fastapi import responses
+# from fastapi.responses import RedirectResponse
 
 
 
@@ -37,7 +25,7 @@ from fastapi import Request, responses
 
 # # Include router từ file routers.py vào ứng dụng chính
 # # Tất cả các endpoint trong routers.py sẽ được thêm vào app
-# app.include_router(api_router)
+# app.include_router(api_router, prefix = settings.API_V1_STR)
 
 # @app.on_event('startup')
 # async def startup_event():
