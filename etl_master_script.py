@@ -11,7 +11,7 @@ import shutil
 from datetime import date
 from sqlalchemy import exc
 
-from app.core import engine
+from app.core.db import engine
 from app.utils.logger import setup_logging
 
 def extract_from_mssql(table_name: str, full_load: bool):
