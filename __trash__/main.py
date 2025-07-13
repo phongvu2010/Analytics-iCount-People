@@ -1,79 +1,19 @@
-# Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
-# Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-from fastapi import FastAPI     # Request, responses
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request, responses
 # from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from .core import settings
 # from .api.v1 import errors  # analytics, 
-
-# Khởi tạo ứng dụng FastAPI với các thông tin từ file config
-app = FastAPI(
-    title = settings.PROJECT_NAME,
-    description = settings.DESCRIPTION,
-    version = '1.0.0'
-)
-
-# Cấu hình CORS Middleware
-# Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
-if settings.BACKEND_CORS_ORIGINS:
-    origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins = origins,    # Cho phép các origin trong danh sách
-        allow_credentials = True,   # Cho phép gửi cookie
-        allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
-        allow_headers = ['*']       # Cho phép tất cả các header
-    )
-
-# Mount thư mục `static` để phục vụ các file: CSS, JS, Images
-# FastAPI sẽ tìm file trong thư mục `app/static` khi có request tới `/static/...`
-app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
-
-# Cấu hình Jinja2 templates để phục vụ file HTML
-# FastAPI sẽ tìm kiếm các file HTML trong thư mục `app/templates`
-templates = Jinja2Templates(directory = 'app/templates')
 
 # # Mount các API Routers
 # app.include_router(api_router, prefix = settings.API_V1_STR)
 # app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 # app.include_router(errors.router, prefix = '/api/v1/errors', tags = ['Errors'])
 
-# =============================================
-# Endpoints để phục vụ giao diện
-# =============================================
-@app.get('/health', tags = ['Health Check'])
-def health_check():
-    """
-    Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
-    """
-    return {
-        'status': 'ok'
-    }
 
 
 
 
 
 
-
-
-
-# @app.get("/", response_class=HTMLResponse)
-# async def read_root(request: Request):
-#     """
-#     Endpoint chính, phục vụ trang dashboard.
-#     """
-#     return templates.TemplateResponse(
-#         "dashboard.html", 
-#         {
-#             "request": request,
-#             "project_name": settings.PROJECT_NAME,
-#             "description": settings.DESCRIPTION
-#         }
-#     )
 
 # # --- Include  ---
 # # Gắn các API endpoints từ module analytics vào ứng dụng chính
