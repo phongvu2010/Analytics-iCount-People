@@ -1,9 +1,8 @@
 import pandas as pd
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-
 from . import settings
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 
 # Tạo SQLAlchemy engine từ chuỗi kết nối trong config
 # echo = False để không in các câu lệnh SQL ra console trong môi trường production
@@ -28,10 +27,12 @@ def execute_query_as_dataframe(query: str, db: Session, params: dict = None) -> 
     """
     Thực thi một câu lệnh SQL và trả về kết quả dưới dạng Pandas DataFrame.
     Đây là một hàm helper rất hữu ích cho việc phân tích dữ liệu.
+
     Args:
         query (str): Câu lệnh SQL (có thể chứa tham số placeholder).
         db (Session): Session SQLAlchemy được inject từ dependency.
         params (dict, optional): Các tham số cho câu lệnh SQL để tránh SQL injection.
+
     Returns:
         pd.DataFrame: DataFrame chứa kết quả, hoặc DataFrame rỗng nếu có lỗi.
     """

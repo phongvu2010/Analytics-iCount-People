@@ -1,13 +1,10 @@
 import duckdb
 import pandas as pd
+
+# from . import settings
 from functools import lru_cache
 
-# Định nghĩa đường dẫn tới các file Parquet.
-# Dấu * giúp DuckDB tự động đọc tất cả các file trong các thư mục con.
-CROWD_COUNTS_PATH = 'data/crowd_counts/*/*.parquet'
-ERROR_LOGS_PATH = 'data/error_logs/*/*.parquet'
-
-@lru_cache(maxsize=1) # Cache kết nối để không phải tạo lại liên tục
+@lru_cache(maxsize = 1) # Cache kết nối để không phải tạo lại liên tục
 def get_duckdb_connection():
     """
     Tạo và trả về một kết nối DuckDB duy nhất cho ứng dụng.
@@ -36,10 +33,18 @@ def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 # Bạn có thể thêm các hàm helper khác ở đây, ví dụ:
-# def get_total_traffic_for_store(store_name: str):
+# def get_all_stores() -> pd.DataFrame:
+#     query = f"""
+#         SELECT DISTINCT store_name
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         ORDER BY store_name;
+#     """
+#     return query_parquet_as_dataframe(query)
+
+# def get_total_traffic_for_store(store_name: str) -> pd.DataFrame:
 #     query = f"""
 #         SELECT SUM(in_count) as total_in, SUM(out_count) as total_out
-#         FROM read_parquet('{CROWD_COUNTS_PATH}', hive_partitioning=1)
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
 #         WHERE store_name = '{store_name}'
 #     """
 #     return query_parquet_as_dataframe(query)

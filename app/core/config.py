@@ -1,31 +1,49 @@
 from pydantic import AnyUrl, BeforeValidator, computed_field
 from pydantic_core import MultiHostUrl
-from pydantic_settings import BaseSettings
-from typing import Annotated, Any
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated, Any, List
 from urllib import parse
+
+def parse_cors(v: Any) -> List[str] | str:
+    """
+    Hàm helper để phân tích chuỗi CORS thành danh sách.
+    """
+    if isinstance(v, str) and not v.startswith('['):
+        return [i.strip() for i in v.split(',')]
+    elif isinstance(v, list | str):
+        return v
+    raise ValueError(v)
 
 class Settings(BaseSettings):
     """
-    Class để quản lý toàn bộ cấu hình của ứng dụng.
+    Lớp quản lý toàn bộ cấu hình của ứng dụng.
     Các thuộc tính được tự động đọc từ file .env.
     """
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file='.env',
+        env_file_encoding='utf-8'
+    )
+
     # Cấu hình chung của ứng dụng
     PROJECT_NAME: str
     DESCRIPTION: str
 
-    def parse_cors(v: Any) -> list[str] | str:
-        """
-        Helper function to parse CORS origins from a string.
-        """
-        if isinstance(v, str) and not v.startswith('['):
-            return [i.strip() for i in v.split(',')]
-        elif isinstance(v, list | str):
-            return v
-        raise ValueError(v)
-
     BACKEND_CORS_ORIGINS: Annotated[
-        list[AnyUrl] | str, BeforeValidator(parse_cors)
+        List[AnyUrl], BeforeValidator(parse_cors)
     ] = []
+
+    # Đường dẫn dữ liệu
+    DATA_PATH: str = 'data'
+
+    # Dấu * giúp DuckDB tự động đọc tất cả các file trong các thư mục con.
+    @property
+    def CROWD_COUNTS_PATH(self) -> str:
+        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+
+    @property
+    def ERROR_LOGS_PATH(self) -> str:
+        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
     # Cấu hình cho Database MSSQL
     DB_HOST: str
@@ -51,8 +69,3 @@ class Settings(BaseSettings):
             path = self.DB_NAME,
             query = f'driver={self.DB_DRIVER.replace(' ', '+')}'
         ))
-
-    class Config:
-        case_sensitive = True
-        env_file = '.env'
-        env_file_encoding = 'utf-8'
