@@ -1,8 +1,29 @@
 import pandas as pd
-# from datetime import date, timedelta
-# from typing import Optional
 
 from ..core import query_parquet_as_dataframe, settings
+
+# def get_all_stores() -> pd.DataFrame:    
+#     query = f"""
+#         SELECT DISTINCT store_name
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         ORDER BY store_name;
+#     """
+#     return query_parquet_as_dataframe(query)
+
+# def get_total_traffic_for_store(store_name: str) -> pd.DataFrame:
+#     query = f"""
+#         SELECT SUM(in_count) as total_in, SUM(out_count) as total_out
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         WHERE store_name = '{store_name}'
+#     """
+#     return query_parquet_as_dataframe(query)
+
+
+
+
+
+# from datetime import date, timedelta
+# from typing import Optional
 
 # def get_time_series_data(
 #     period: str,
@@ -112,57 +133,57 @@ def get_error_logs() -> pd.DataFrame:
 
 
 
-# # def get_traffic_data(period: str, store_name: str = None) -> pd.DataFrame:
-# #     """
-# #     Lấy dữ liệu thống kê lưu lượng người ra vào theo khoảng thời gian.
+# def get_traffic_data(period: str, store_name: str = None) -> pd.DataFrame:
+#     """
+#     Lấy dữ liệu thống kê lưu lượng người ra vào theo khoảng thời gian.
 
-# #     Args:
-# #         period (str): Khoảng thời gian thống kê ('day', 'week', 'month', 'year').
-# #         store_name (str, optional): Tên cửa hàng để lọc. Mặc định là tất cả.
+#     Args:
+#         period (str): Khoảng thời gian thống kê ('day', 'week', 'month', 'year').
+#         store_name (str, optional): Tên cửa hàng để lọc. Mặc định là tất cả.
 
-# #     Returns:
-# #         pd.DataFrame: DataFrame chứa dữ liệu đã được tổng hợp.
-# #     """
-# #     # Chọn định dạng thời gian cho việc nhóm dữ liệu (GROUP BY)
-# #     time_format_mapping = {
-# #         'day': '%Y-%m-%d',      # Theo ngày: 2023-10-27
-# #         'week': '%Y-W%W',       # Theo tuần: 2023-W43
-# #         'month': '%Y-%m',       # Theo tháng: 2023-10
-# #         'year': '%Y'            # Theo năm: 2023
-# #     }
+#     Returns:
+#         pd.DataFrame: DataFrame chứa dữ liệu đã được tổng hợp.
+#     """
+#     # Chọn định dạng thời gian cho việc nhóm dữ liệu (GROUP BY)
+#     time_format_mapping = {
+#         'day': '%Y-%m-%d',      # Theo ngày: 2023-10-27
+#         'week': '%Y-W%W',       # Theo tuần: 2023-W43
+#         'month': '%Y-%m',       # Theo tháng: 2023-10
+#         'year': '%Y'            # Theo năm: 2023
+#     }
 
-# #     time_format = time_format_mapping.get(period.lower(), '%Y-%m-%d')
+#     time_format = time_format_mapping.get(period.lower(), '%Y-%m-%d')
 
-# #     # Xây dựng mệnh đề WHERE để lọc theo cửa hàng nếu có
-# #     where_clause = ""
-# #     if store_name and store_name.lower() != 'all':
-# #         where_clause = f"WHERE store_name = '{store_name}'"
+#     # Xây dựng mệnh đề WHERE để lọc theo cửa hàng nếu có
+#     where_clause = ""
+#     if store_name and store_name.lower() != 'all':
+#         where_clause = f"WHERE store_name = '{store_name}'"
 
-# #     # Xây dựng câu lệnh SQL
-# #     # `hive_partitioning=true` giúp DuckDB hiểu cấu trúc thư mục year=...
-# #     query = f"""
-# #         SELECT
-# #             strftime(record_time, '{time_format}') AS period,
-# #             SUM(in_count) AS total_in,
-# #             SUM(out_count) AS total_out
-# #         FROM read_parquet('{CROWD_COUNTS_PATH}', hive_partitioning=true)
-# #         {where_clause}
-# #         GROUP BY period
-# #         ORDER BY period ASC;
-# #     """
-# #     return query_parquet_as_dataframe(query)
+#     # Xây dựng câu lệnh SQL
+#     # `hive_partitioning=true` giúp DuckDB hiểu cấu trúc thư mục year=...
+#     query = f"""
+#         SELECT
+#             strftime(record_time, '{time_format}') AS period,
+#             SUM(in_count) AS total_in,
+#             SUM(out_count) AS total_out
+#         FROM read_parquet('{CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         {where_clause}
+#         GROUP BY period
+#         ORDER BY period ASC;
+#     """
+#     return query_parquet_as_dataframe(query)
 
-# # def get_distinct_stores() -> list:
-# #     """
-# #     Lấy danh sách các cửa hàng duy nhất từ dữ liệu.
-# #     """
-# #     query = f"""
-# #         SELECT DISTINCT store_name
-# #         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
-# #         ORDER BY store_name;
-# #     """
-# #     df = query_parquet_as_dataframe(query)
+# def get_distinct_stores() -> list:
+#     """
+#     Lấy danh sách các cửa hàng duy nhất từ dữ liệu.
+#     """
+#     query = f"""
+#         SELECT DISTINCT store_name
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         ORDER BY store_name;
+#     """
+#     df = query_parquet_as_dataframe(query)
 
-# #     if not df.empty:
-# #         return df['store_name'].tolist()
-# #     return []
+#     if not df.empty:
+#         return df['store_name'].tolist()
+#     return []
