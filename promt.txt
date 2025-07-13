@@ -1,14 +1,14 @@
-Xin chào, tôi có sẵn Data Parquet liên quan đến hệ thống đếm người ra - vào 1 trung tâm thương mại.
+Xin chào, tôi có sẵn Data DuckDB Parquet liên quan đến hệ thống đếm người ra - vào 1 trung tâm thương mại.
 Cấu trúc data như sau:
 data/
-├── crowd_counts/ ('id', 'store_name', 'log_time', 'error_code', 'error_message')
+├── crowd_counts/ ('record_time', 'store_name', 'in_count', 'out_count')
 │   └── year=2018/
 │       └── *.parquet
 │   └── year=2019/
 │       └── *.parquet
 │   └── year=2020/
 │       └── *.parquet
-├── error_logs/ ('record_time', 'store_name', 'in_count', 'out_count')
+├── error_logs/ ('id', 'store_name', 'log_time', 'error_code', 'error_message')
 │   └── year=2018/
 │       └── *.parquet
 │   └── year=2019/
@@ -21,34 +21,37 @@ iCount-People/
 ├── app/
 │   ├── api/
 │   │   └── v1/
-│   │       └── endpoints/
-│   │           ├── __init__.py
-│   │           ├── analytics.py
-│   │           └── errors.py
+│   │       ├── __init__.py
+│   │       ├── analytics.py
+│   │       └── errors.py
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── config.py
 │   │   ├── data_handler.py       # Dành cho Parquet (DuckDB)
 │   │   └── db.py                 # Dành cho MSSQL (SQLAlchemy)
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── analytics.py
 │   ├── services/
 │   │   ├── __init__.py
 │   │   └── analytics_service.py
 │   ├── static/
-│   │   ├── logo.png
-│   │   ├── favicon.ico
-│   │   └── style.css
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── logo.png
+│   │   └── favicon.ico
 │   ├── templates/
 │   │   └── dashboard.html
 │   ├── utils/
 │   │   └── logger.py
 │   └── main.py
+├── data/
 ├── .env
 ├── .gitignore
-├── data.duckdb
 ├── requirements.txt
 └── README.md
 
-Tôi muốn triển khai dự án nhỏ về FastAPI có tích hợp trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày.
+Tôi muốn triển khai dự án nhỏ về FastAPI có tích hợp trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày & show notication báo lỗi
 Các thư viện cần thiết cho dự án này là: FastAPI, SQLAlchemy, ...
 Hãy giúp tôi xem cấu trúc dự án như vậy đã ổn chưa, có cần chỉnh sửa gì thêm hay không.
 

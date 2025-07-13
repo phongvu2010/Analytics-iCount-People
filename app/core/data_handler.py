@@ -1,7 +1,6 @@
 import duckdb
 import pandas as pd
 
-# from . import settings
 from functools import lru_cache
 
 @lru_cache(maxsize = 1) # Cache kết nối để không phải tạo lại liên tục
@@ -33,6 +32,7 @@ def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 # Bạn có thể thêm các hàm helper khác ở đây, ví dụ:
+# from .config import settings
 # def get_all_stores() -> pd.DataFrame:
 #     query = f"""
 #         SELECT DISTINCT store_name

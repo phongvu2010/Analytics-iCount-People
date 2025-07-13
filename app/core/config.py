@@ -69,3 +69,6 @@ class Settings(BaseSettings):
             path = self.DB_NAME,
             query = f'driver={self.DB_DRIVER.replace(' ', '+')}'
         ))
+
+# Tạo một instance của Settings để sử dụng trong toàn bộ ứng dụng
+settings = Settings()   # type: ignore
