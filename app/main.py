@@ -3,8 +3,8 @@
 from fastapi import FastAPI     # Request, responses
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+# from fastapi.staticfiles import StaticFiles
+# from fastapi.templating import Jinja2Templates
 
 from .core import settings
 # from .api.v1 import errors  # analytics, 
@@ -37,11 +37,11 @@ app.add_middleware(
 
 # Mount thư mục `static` để phục vụ các file: CSS, JS, Images
 # FastAPI sẽ tìm file trong thư mục `app/static` khi có request tới `/static/...`
-app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
+# app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
 
 # Cấu hình Jinja2 templates để phục vụ file HTML
 # FastAPI sẽ tìm kiếm các file HTML trong thư mục `app/templates`
-templates = Jinja2Templates(directory = 'app/templates')
+# templates = Jinja2Templates(directory = 'app/templates')
 
 # # Mount các API Routers
 # app.include_router(api_router, prefix = settings.API_V1_STR)
@@ -56,7 +56,14 @@ def health_check():
     """
     Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
-    return {'status': 'ok'}
+    # df = get_all_stores()
+    # print(df)
+    # print(df.dtypes)
+    # print(type(df))
+    return {
+        'status': 'ok',
+        'CROWD_COUNTS_PATH': settings.CROWD_COUNTS_PATH
+    }
 
 
 
