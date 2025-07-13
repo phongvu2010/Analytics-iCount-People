@@ -1,18 +1,8 @@
-# import pandas as pd
-# from ..core import query_parquet_as_dataframe, settings
+import pandas as pd
 
-# def get_all_stores() -> pd.DataFrame:
-    
-#     query = f"""
-#         SELECT DISTINCT store_name
-#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
-#         ORDER BY store_name;
-#     """
-#     return query_parquet_as_dataframe(query)
+from ..core import query_parquet_as_dataframe, settings
 
-# Bạn có thể thêm các hàm helper khác ở đây, ví dụ:
-# from .config import settings
-# def get_all_stores() -> pd.DataFrame:
+# def get_all_stores() -> pd.DataFrame:    
 #     query = f"""
 #         SELECT DISTINCT store_name
 #         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)

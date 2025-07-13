@@ -3,8 +3,8 @@
 from fastapi import FastAPI     # Request, responses
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.responses import HTMLResponse, RedirectResponse
-# from fastapi.staticfiles import StaticFiles
-# from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from .core import settings
 # from .api.v1 import errors  # analytics, 
@@ -18,30 +18,23 @@ app = FastAPI(
 
 # Cấu hình CORS Middleware
 # Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
-origins = []
 if settings.BACKEND_CORS_ORIGINS:
-    # If the environment variable is set, use it.
-    origins.extend([str(origin) for origin in settings.BACKEND_CORS_ORIGINS])
-else:
-    # For local development, allow all origins.
-    # In production, you should restrict this to your frontend's domain for security.
-    origins = ['*']
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins = origins,    # Cho phép các origin trong danh sách
-    allow_credentials = True,   # Cho phép gửi cookie
-    allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
-    allow_headers = ['*']       # Cho phép tất cả các header
-)
+    origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins = origins,    # Cho phép các origin trong danh sách
+        allow_credentials = True,   # Cho phép gửi cookie
+        allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
+        allow_headers = ['*']       # Cho phép tất cả các header
+    )
 
 # Mount thư mục `static` để phục vụ các file: CSS, JS, Images
 # FastAPI sẽ tìm file trong thư mục `app/static` khi có request tới `/static/...`
-# app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
+app.mount('/static', StaticFiles(directory = 'app/static'), name = 'static')
 
 # Cấu hình Jinja2 templates để phục vụ file HTML
 # FastAPI sẽ tìm kiếm các file HTML trong thư mục `app/templates`
-# templates = Jinja2Templates(directory = 'app/templates')
+templates = Jinja2Templates(directory = 'app/templates')
 
 # # Mount các API Routers
 # app.include_router(api_router, prefix = settings.API_V1_STR)
@@ -56,13 +49,8 @@ def health_check():
     """
     Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
-    # df = get_all_stores()
-    # print(df)
-    # print(df.dtypes)
-    # print(type(df))
     return {
-        'status': 'ok',
-        'CROWD_COUNTS_PATH': settings.CROWD_COUNTS_PATH
+        'status': 'ok'
     }
 
 
