@@ -2,16 +2,15 @@
 # from fastapi.responses import RedirectResponse
 
 
-
-# # --- Include  ---
-# # Gắn các API endpoints từ module analytics vào ứng dụng chính
-# app.include_router(
-#     analytics.router, 
-#     prefix="/api/v1/analytics", # Tiền tố cho tất cả các route trong router này
-#     tags=["Analytics"]          # Gắn tag để nhóm các API trong giao diện Swagger
-# )
-
 # # --- Root Redirect ---
+
+# @app.get('/', include_in_schema = False)
+# async def read_root():
+#     """
+#     Redirect từ URL gốc (/) sang trang dashboard.
+#     """
+#     return responses.RedirectResponse(url='/dashboard')
+
 # @app.get("/", include_in_schema=False)
 # async def root_redirect():
 #     """
@@ -44,17 +43,3 @@
 #         print('!!! LỖI: Không thể kết nối tới CSDL qua SQLAlchemy.')
 #         print('Vui lòng kiểm tra file .env, kết nối mạng, và driver ODBC.')
 #         print(f'Chi tiết lỗi: {e}')
-
-# @app.get('/', include_in_schema = False)
-# async def read_root():
-#     """
-#     Redirect từ URL gốc (/) sang trang dashboard.
-#     """
-#     return responses.RedirectResponse(url='/dashboard')
-
-# @app.get('/dashboard', response_class = responses.HTMLResponse, include_in_schema=False)
-# async def get_dashboard(request: Request):
-#     """
-#     Phục vụ file dashboard.html từ thư mục templates.
-#     """
-#     return templates.TemplateResponse('dashboard.html', {'request': request})

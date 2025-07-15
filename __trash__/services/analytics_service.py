@@ -246,3 +246,91 @@ def get_time_series_data(
 #     if not df.empty:
 #         return df['store_name'].tolist()
 #     return []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from datetime import date
+# from typing import Optional
+
+# from .core import query_parquet_as_dataframe, settings
+
+# def get_all_stores() -> pd.DataFrame:
+#     """
+#     Lấy danh sách tất cả các cửa hàng (store_name) duy nhất từ dữ liệu.
+#     """
+#     query = f"""
+#         SELECT DISTINCT store_name
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         WHERE store_name IS NOT NULL
+#         ORDER BY store_name;
+#     """
+#     return query_parquet_as_dataframe(query)
+
+# def get_error_logs(limit: int=100) -> pd.DataFrame:
+#     """
+#     Lấy tất cả các log lỗi.
+#     """
+#     query = f"""
+#         SELECT id, store_name, log_time, error_code, error_message
+#         FROM read_parquet('{settings.ERROR_LOGS_PATH}', hive_partitioning=true)
+#         ORDER BY log_time DESC
+#         LIMIT {limit};
+#     """
+#     return query_parquet_as_dataframe(query)
+
+# def get_store_distribution_data(
+#     start_date: date, 
+#     end_date: date
+# ) -> pd.DataFrame:
+#     """
+#     Lấy dữ liệu phân bổ lượt vào theo từng cửa hàng.
+#     """
+#     query = f"""
+#         SELECT
+#             store_name,
+#             SUM(in_count) as total_in
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         WHERE record_time BETWEEN '{start_date}' AND '{end_date}'
+#         GROUP BY store_name
+#         ORDER BY total_in DESC;
+#     """
+#     return query_parquet_as_dataframe(query)
+
+# def get_summary_metrics_data(
+#     start_date: date, 
+#     end_date: date, 
+#     store_name: Optional[str] = None
+# ) -> pd.DataFrame:
+#     """
+#     Lấy dữ liệu cho các thẻ tóm tắt (total, average, peak time, occupancy).
+#     """
+#     where_clauses = [f"record_time BETWEEN '{start_date}' AND '{end_date}'"]
+#     if store_name:
+#         where_clauses.append(f"store_name = '{store_name}'")
+
+#     where_sql = " AND ".join(where_clauses)
+
+#     query = f"""
+#         SELECT
+#             SUM(in_count) AS total_in,
+#             SUM(in_count - out_count) AS occupancy,
+#             EXTRACT(HOUR FROM record_time) AS hour,
+#             in_count
+#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
+#         WHERE {where_sql}
+#         GROUP BY hour, in_count;
+#     """
+#     return query_parquet_as_dataframe(query)

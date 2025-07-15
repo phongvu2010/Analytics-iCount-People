@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     def ERROR_LOGS_PATH(self) -> str:
         return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
+    # Biến cho việc xử lý outlier
+    OUTLIER_THRESHOLD: int = 100
+    OUTLIER_SCALE_RATIO: float = 0.001
+
     # Cấu hình cho Database MSSQL
     DB_HOST: str
     DB_PORT: int = 1433             # Cổng mặc định của MSSQL

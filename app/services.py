@@ -11,6 +11,7 @@ class DashboardService:
     def __init__(self, start_date: date, end_date: date, store: str = 'all'):
         self.start_date = start_date
         self.end_date = end_date
+
         # DuckDB xử lý ngày tháng hiệu quả với kiểu DATE
         self.start_date_str = self.start_date.strftime('%Y-%m-%d')
         self.end_date_str = (self.end_date + timedelta(days=1)).strftime('%Y-%m-%d') # Bao gồm cả ngày kết thúc
@@ -22,8 +23,14 @@ class DashboardService:
             SELECT
                 CAST(record_time AS TIMESTAMP) as record_time,
                 store_name,
-                in_count,
-                out_count
+                CASE
+                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    ELSE in_count
+                END as in_count,
+                CASE
+                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    ELSE out_count
+                END as out_count
             FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
             WHERE record_time >= '{self.start_date_str}' AND record_time < '{self.end_date_str}'
             {self.store_filter}
@@ -32,21 +39,6 @@ class DashboardService:
 
     def get_metrics(self) -> Dict[str, Any]:
         """Lấy các chỉ số chính (total, average, peak time...)."""
-        # query = f"""
-        # {self.base_cte}
-        # SELECT
-        #     SUM(in_count) as total_in,
-        #     AVG(in_count) as average_in,
-        #     strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
-        #     (SUM(in_count) - SUM(out_count)) as current_occupancy,
-        #     arg_max(store_name, total_store_in) as busiest_store
-        # FROM filtered_data
-        # CROSS JOIN (
-        #     SELECT store_name, SUM(in_count) as total_store_in
-        #     FROM filtered_data
-        #     GROUP BY store_name
-        # )
-        # """
         query = f"""
         {self.base_cte}
         SELECT
@@ -54,9 +46,15 @@ class DashboardService:
             AVG(in_count) as average_in,
             strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
             (SUM(in_count) - SUM(out_count)) as current_occupancy,
+            -- arg_max(store_name, total_store_in) as busiest_store
             -- Lấy cửa hàng bận rộn nhất từ subquery đã được tổng hợp
             (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
         FROM filtered_data
+        -- CROSS JOIN (
+        --     SELECT store_name, SUM(in_count) as total_store_in
+        --     FROM filtered_data
+        --     GROUP BY store_name
+        -- )
         """
         df = query_parquet_as_dataframe(query)
         if df.empty or df['total_in'].iloc[0] is None:
