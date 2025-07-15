@@ -3,7 +3,6 @@ import pandas as pd
 
 from functools import lru_cache
 
-
 # Cache kết nối để không phải tạo lại liên tục
 @lru_cache(maxsize=1)
 def get_duckdb_connection():

@@ -1,716 +1,246 @@
 <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-        // --- UI ELEMENT REFERENCES ---
-        const ui = {
-            loadingIndicator: document.getElementById('loading-indicator'),
-            chartCanvas: document.getElementById('trafficChart'),
-            storeComparisonCanvas: document.getElementById('storeComparisonChart'),
-            filterButtons: document.querySelectorAll('.filter-btn'),
-            timeRangeDisplay: document.getElementById('time-range-display'),
-            totalInDisplay: document.getElementById('total-in'),
-            averageInDisplay: document.getElementById('average-in'),
-            peakTimeDisplay: document.getElementById('peak-time'),
-            occupancyDisplay: document.getElementById('occupancy'),
-            busiestStoreDisplay: document.getElementById('busiest-store'),
-            growthDisplay: document.getElementById('growth'),
-            storeSelector: document.getElementById('store-selector'),
-            datePickerContainer: document.getElementById('date-picker-container'),
-            tableContainer: document.getElementById('table-container'),
-            downloadCsvButton: document.getElementById('download-csv-button'),
-            notification: {
-                bell: document.getElementById('notification-bell'),
-                badge: document.getElementById('notification-badge'),
-                panel: document.getElementById('notification-panel'),
-                logContainer: document.getElementById('error-log-container')
-            },
-        };
+document.addEventListener('DOMContentLoaded', function () {
+    // === DOM Elements ===
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const storeSelector = document.getElementById('store-selector');
+    const datePickerContainer = document.getElementById('date-picker-container');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const notificationBell = document.getElementById('notification-bell');
+    const notificationBadge = document.getElementById('notification-badge');
+    const notificationPanel = document.getElementById('notification-panel');
+    const errorLogContainer = document.getElementById('error-log-container');
+    
+    // === Chart instances ===
+    let trafficChart, storeComparisonChart;
 
-        let trafficChart, storeComparisonChart;
-        let currentPeriod = 'day';
-        let currentTableData = { labels: [], data: [] };
-        let stores = [];
+    // === State management ===
+    const state = {
+        startDate: new Date(),
+        endDate: new Date(),
+        store: 'all',
+        period: 'day',
+        page: 1,
+        pageSize: 10
+    };
 
-        // --- API CALLS ---
-        const showLoader = (show) => {
-            ui.loadingIndicator.classList.toggle('hidden', !show);
-        };
+    // === Helper Functions ===
+    const formatDate = (date) => date.toISOString().split('T')[0];
 
-        async function fetchAPI(url) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error("Fetch API Error:", error);
-                return null;
-            }
-        }
+    const showLoading = () => loadingIndicator.classList.remove('hidden');
+    const hideLoading = () => loadingIndicator.classList.add('hidden');
+
+    // === Chart Setup ===
+    function initializeCharts() {
+        // Traffic Chart (Line)
+        const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+        trafficChart = new Chart(trafficCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Lượt vào', data: [], borderColor: '#3b82f6', borderWidth: 2, tension: 0.1, pointBackgroundColor: '#3b82f6' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'hour' } }, y: { beginAtZero: true } } }
+        });
+
+        // Store Comparison Chart (Doughnut)
+        const storeCtx = document.getElementById('storeComparisonChart').getContext('2d');
+        storeComparisonChart = new Chart(storeCtx, {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f97316', '#8b5cf6'] }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    // === Data Fetching & UI Update ===
+    async function fetchDashboardData() {
+        showLoading();
+        const params = new URLSearchParams({
+            start_date: formatDate(state.startDate),
+            end_date: formatDate(state.endDate),
+            store: state.store,
+            page: state.page,
+            page_size: state.pageSize
+        });
         
-        async function fetchStores() {
-            return await fetchAPI('/api/stores');
+        try {
+            const response = await fetch(`/api/v1/dashboard?${params.toString()}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+
+            updateUI(data);
+
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+            // Optionally show an error message to the user
+        } finally {
+            hideLoading();
         }
+    }
 
-        async function fetchErrorLogs() {
-            return await fetchAPI('/api/error-logs');
+    function updateUI(data) {
+        // Metrics
+        document.getElementById('total-in').textContent = data.metrics.total_in.toLocaleString() || '0';
+        document.getElementById('average-in').textContent = data.metrics.average_in.toLocaleString() || '0';
+        document.getElementById('peak-time').textContent = data.metrics.peak_time || '--:--';
+        document.getElementById('occupancy').textContent = data.metrics.current_occupancy.toLocaleString() || '0';
+        document.getElementById('busiest-store').textContent = data.metrics.busiest_store || '--';
+        document.getElementById('growth').innerHTML = `<span>${data.metrics.growth > 0 ? '▲' : '▼'} ${Math.abs(data.metrics.growth)}%</span>`;
+        document.getElementById('growth').classList.toggle('text-green-500', data.metrics.growth > 0);
+        document.getElementById('growth').classList.toggle('text-red-500', data.metrics.growth <= 0);
+
+        // Charts
+        trafficChart.data.labels = data.trend_chart.series.map(d => d.x);
+        trafficChart.data.datasets[0].data = data.trend_chart.series.map(d => d.y);
+        trafficChart.options.scales.x.time.unit = state.period === 'year' ? 'month' : (state.period === 'month' || state.period === 'week' ? 'day' : 'hour');
+        trafficChart.update();
+
+        storeComparisonChart.data.labels = data.store_comparison_chart.series.map(d => d.x);
+        storeComparisonChart.data.datasets[0].data = data.store_comparison_chart.series.map(d => d.y);
+        storeComparisonChart.update();
+
+        // Table
+        updateTable(data.table_data);
+
+        // Notifications
+        updateErrorNotifications(data.error_logs);
+    }
+
+    function updateTable(tableData) {
+        const tableBody = document.getElementById('data-table-body');
+        tableBody.innerHTML = ''; // Clear existing rows
+        if (tableData.data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Không có dữ liệu.</td></tr>`;
+            return;
         }
+        tableData.data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.className = 'bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-600';
+            tr.innerHTML = `
+                <td class="px-6 py-4">${new Date(row.record_time).toLocaleString('vi-VN')}</td>
+                <td class="px-6 py-4">${row.store_name}</td>
+                <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">${row.in_count}</td>
+                <td class="px-6 py-4">${row.out_count}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+        updatePagination(tableData.total_records, tableData.page, tableData.page_size);
+    }
+    
+    function updatePagination(totalRecords, page, pageSize) {
+        const paginationControls = document.getElementById('pagination-controls');
+        const totalPages = Math.ceil(totalRecords / pageSize);
+        paginationControls.innerHTML = `
+            <span class="text-sm text-slate-500 dark:text-slate-400">
+                Hiển thị ${pageSize * (page - 1) + 1}-${Math.min(pageSize * page, totalRecords)} của ${totalRecords}
+            </span>
+            <div class="inline-flex mt-2 xs:mt-0">
+                <button ${page === 1 ? 'disabled' : ''} data-page="${page-1}" class="page-btn px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-l hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed">Prev</button>
+                <button ${page >= totalPages ? 'disabled' : ''} data-page="${page+1}" class="page-btn px-4 py-2 text-sm font-medium text-white bg-blue-600 border-0 border-l border-gray-700 rounded-r hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed">Next</button>
+            </div>
+        `;
+        document.querySelectorAll('.page-btn').forEach(button => {
+            if (!button.disabled) {
+                button.addEventListener('click', (e) => {
+                    state.page = parseInt(e.currentTarget.dataset.page);
+                    fetchDashboardData();
+                });
+            }
+        });
+    }
 
-        async function fetchDashboardData(params) {
-            const queryString = new URLSearchParams(params).toString();
-            return await fetchAPI(`/api/dashboard-data?${queryString}`);
+    function updateErrorNotifications(errors) {
+        if(errors.length > 0) {
+            notificationBadge.textContent = errors.length;
+            notificationBadge.classList.remove('hidden');
+        } else {
+            notificationBadge.classList.add('hidden');
         }
+        errorLogContainer.innerHTML = '';
+        errors.forEach(err => {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'p-3 rounded-lg bg-red-100 dark:bg-red-900/50';
+            errorEl.innerHTML = `
+                <p class="text-sm font-semibold text-red-800 dark:text-red-300">[${err.store_name}] - ${new Date(err.log_time).toLocaleString('vi-VN')}</p>
+                <p class="text-xs text-red-600 dark:text-red-400 mt-1">${err.error_code}: ${err.error_message}</p>
+            `;
+            errorLogContainer.appendChild(errorEl);
+        });
+    }
 
-        // --- HELPER FUNCTIONS ---
-        const formatDate = (date, locale = 'sv-SE') => {
-            if (!(date instanceof Date)) date = new Date(date);
-            return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        };
+    // === Initializers ===
+    async function initializeFilters() {
+        // Date Pickers
+        datePickerContainer.innerHTML = `
+            <input type="date" id="start-date" class="h-10 w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <input type="date" id="end-date" class="h-10 w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        `;
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        
+        startDateInput.value = formatDate(state.startDate);
+        endDateInput.value = formatDate(state.endDate);
 
-        const getWeekDateRange = (year, week) => {
-            const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-            const day = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 1 - day);
-            const startDate = new Date(d);
-            const endDate = new Date(d);
-            endDate.setUTCDate(d.getUTCDate() + 6);
-            return { startDate, endDate };
-        };
+        startDateInput.addEventListener('change', (e) => { state.startDate = new Date(e.target.value); fetchDashboardData(); });
+        endDateInput.addEventListener('change', (e) => { state.endDate = new Date(e.target.value); fetchDashboardData(); });
 
-        // --- UI POPULATION & INTERACTION ---
-        function populateStoreSelector(storeData) {
-            if (!storeData) return;
-            stores = storeData;
-            ui.storeSelector.innerHTML = `<option value="all">Tất cả cửa</option>`;
+        // Store Selector
+        try {
+            const response = await fetch('/api/v1/stores');
+            const stores = await response.json();
+            storeSelector.innerHTML = '<option value="all">Tất cả cửa hàng</option>';
             stores.forEach(store => {
-                ui.storeSelector.innerHTML += `<option value="${store.name}">${store.name}</option>`;
+                const option = document.createElement('option');
+                option.value = store;
+                option.textContent = store;
+                storeSelector.appendChild(option);
             });
+            storeSelector.addEventListener('change', (e) => { state.store = e.target.value; fetchDashboardData(); });
+        } catch (error) {
+            console.error('Failed to fetch stores:', error);
         }
+    }
 
-        function renderDatePickers() {
-            const now = new Date();
-            let currentYear = now.getFullYear();
-            let html = '';
-            const baseClasses = "h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
-            const yearOptions = Array.from({ length: 5 }, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
-
-            switch (currentPeriod) {
-                case 'day':
-                    html = `<input type="date" id="day-selector" class="${baseClasses} w-full sm:w-40" value="${formatDate(now)}">`;
-                    break;
-                case 'week':
-                     const weeksInYear = 52;
-                    let weekOptions = '';
-                    for(let i=1; i<=weeksInYear; i++) {
-                        const {startDate, endDate} = getWeekDateRange(currentYear, i);
-                        weekOptions += `<option value="${i}">Tuần ${i} (${formatDate(startDate, 'vi-VN')} - ${formatDate(endDate, 'vi-VN')})</option>`;
-                    }
-                    html = `<select id="year-selector-week" class="${baseClasses} w-24">${yearOptions}</select><select id="week-selector" class="${baseClasses} w-64">${weekOptions}</select>`;
-                    break;
-                case 'month':
-                    const monthOptions = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${now.getMonth() === i ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('');
-                    html = `<select id="year-selector-month" class="${baseClasses} w-24">${yearOptions}</select><select id="month-selector" class="${baseClasses} w-32">${monthOptions}</select>`;
-                    break;
-                case 'year':
-                    html = `<select id="year-selector-year" class="${baseClasses} w-32">${yearOptions}</select>`;
-                    break;
-            }
-            ui.datePickerContainer.innerHTML = html;
-            ui.datePickerContainer.querySelectorAll('select, input').forEach(el => el.addEventListener('change', updateDashboard));
-        }
-
-        function setupNotifications(errorLogs) {
-            if (!errorLogs || errorLogs.length === 0) {
-                ui.notification.badge.classList.add('hidden');
-                ui.notification.logContainer.innerHTML = `<div class="text-center text-slate-500 dark:text-slate-400 p-4">Không có cảnh báo nào.</div>`;
-                return;
-            }
-            
-            ui.notification.badge.textContent = errorLogs.length;
-            ui.notification.badge.classList.remove('hidden');
-
-            ui.notification.logContainer.innerHTML = errorLogs.map(log => {
-                return `<div class="flex items-start gap-3 p-3 mx-2 mb-2 bg-red-500/10 border-l-4 border-red-500 rounded-r-lg">
-                    <div class="flex-shrink-0 pt-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></div>
-                    <div>
-                        <p class="font-semibold text-sm text-slate-800 dark:text-white">${log.error_message} - ${log.store_name}</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        function setupPopups() {
-            const setupPopup = (button, panel) => { button.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); }); };
-            setupPopup(ui.notification.bell, ui.notification.panel);
-            document.addEventListener('click', (e) => {
-                if (!ui.notification.panel.classList.contains('hidden') && !ui.notification.panel.contains(e.target) && !ui.notification.bell.contains(e.target)) {
-                    ui.notification.panel.classList.add('hidden');
-                }
-            });
-        }
-
-        // --- DATA & CHARTING ---
-        function renderDataTable(labels, data) {
-            currentTableData = { labels, data };
-            let header = 'Thời gian';
-            switch(currentPeriod) {
-                case 'day': header = 'Giờ'; break;
-                case 'week': header = 'Ngày trong tuần'; break;
-                case 'month': header = 'Ngày'; break;
-                case 'year': header = 'Tháng'; break;
-            }
-
-            const tableRows = data.map((currentValue, index) => {
-                return `
-                <tr class="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                    <td class="p-3 text-sm text-slate-700 dark:text-slate-300">${labels[index]}</td>
-                    <td class="p-3 text-sm font-medium text-slate-900 dark:text-white text-right">${currentValue.toLocaleString('vi-VN')}</td>
-                </tr>`;
-            }).join('');
-
-            const tableHTML = `
-                <table class="w-full text-left">
-                    <thead class="bg-slate-100 dark:bg-gray-700 sticky top-0 z-10">
-                        <tr>
-                            <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300">${header}</th>
-                            <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Lượt vào</th>
-                        </tr>
-                    </thead>
-                    <tbody>${tableRows}</tbody>
-                </table>`;
-            ui.tableContainer.innerHTML = tableRows.length > 0 ? tableHTML : `<div class="p-4 text-center text-slate-500">Không có dữ liệu.</div>`;
-        }
-
-        function getChartColors() {
-            const isDark = document.documentElement.classList.contains('dark');
-            return {
-                grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                ticks: isDark ? '#94a3b8' : '#64748b',
-                tooltipBg: isDark ? '#1e293b' : '#ffffff',
-                tooltipText: isDark ? '#f1f5f9' : '#1e293b'
-            };
-        }
-
-        function initOrUpdateLineChart(chartData) {
-            const colors = getChartColors();
-            const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.ticks } }, x: { grid: { display: false }, ticks: { color: colors.ticks } } }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, titleFont: { weight: 'bold' }, bodySpacing: 4, padding: 12, cornerRadius: 8, borderColor: colors.grid, borderWidth: 1 }}, interaction: { mode: 'index', intersect: false } };
-            
-            if (trafficChart) {
-                trafficChart.data.labels = chartData.map(d => d.label);
-                trafficChart.data.datasets[0].data = chartData.map(d => d.value);
-                trafficChart.options = chartOptions;
-                trafficChart.update('none');
-            } else {
-                const ctx = ui.chartCanvas.getContext('2d');
-                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                trafficChart = new Chart(ctx, { type: 'line', data: { labels: chartData.map(d => d.label), datasets: [{ label: 'Lượt khách vào', data: chartData.map(d => d.value), backgroundColor: gradient, borderColor: '#3B82F6', borderWidth: 2, pointBackgroundColor: '#3B82F6', pointHoverRadius: 6, pointHoverBorderColor: '#fff', fill: true, tension: 0.4 }] }, options: chartOptions });
-            }
-        }
-
-        function initOrUpdateDonutChart(pieData) {
-            const colors = getChartColors();
-            const pieColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#ec4899'];
-            const chartOptions = { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: colors.ticks, usePointStyle: true, } }, tooltip: { backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString('vi-VN')} (${(c.raw / c.chart.getDatasetMeta(0).total * 100).toFixed(1)}%)` } } } };
-
-            if (storeComparisonChart) {
-                storeComparisonChart.data.labels = pieData.labels;
-                storeComparisonChart.data.datasets[0].data = pieData.data;
-                storeComparisonChart.options = chartOptions;
-                storeComparisonChart.update('none');
-            } else {
-                storeComparisonChart = new Chart(ui.storeComparisonCanvas.getContext('2d'), { type: 'doughnut', data: { labels: pieData.labels, datasets: [{ label: 'Lượt vào', data: pieData.data, backgroundColor: pieColors, borderColor: colors.tooltipBg, borderWidth: 2, }] }, options: chartOptions });
-            }
-        }
-
-        async function updateDashboard() {
-            showLoader(true);
-            
-            const storeId = ui.storeSelector.value;
-            let startDate, endDate;
-
-            switch (currentPeriod) {
-                case 'day':
-                    const selectedDay = document.getElementById('day-selector').value;
-                    startDate = new Date(selectedDay);
-                    endDate = new Date(selectedDay);
-                    break;
-                case 'week':
-                    const year_w = document.getElementById('year-selector-week').value;
-                    const week = document.getElementById('week-selector').value;
-                    ({ startDate, endDate } = getWeekDateRange(year_w, week));
-                    break;
-                case 'month':
-                    const year_m = document.getElementById('year-selector-month').value;
-                    const month = document.getElementById('month-selector').value;
-                    startDate = new Date(year_m, month - 1, 1);
-                    endDate = new Date(year_m, month, 0);
-                    break;
-                case 'year':
-                    const year = document.getElementById('year-selector-year').value;
-                    startDate = new Date(year, 0, 1);
-                    endDate = new Date(year, 11, 31);
-                    break;
-            }
-
-            const params = {
-                period: currentPeriod,
-                store_id: storeId,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
-            };
-
-            const data = await fetchDashboardData(params);
-            
-            if (data) {
-                const metrics = data.metrics;
-                ui.totalInDisplay.textContent = metrics.total_in.toLocaleString('vi-VN');
-                ui.averageInDisplay.textContent = metrics.average_in.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
-                ui.peakTimeDisplay.textContent = metrics.peak_time;
-                ui.occupancyDisplay.textContent = metrics.occupancy.toLocaleString('vi-VN');
-                ui.busiestStoreDisplay.textContent = metrics.busiest_store;
-                ui.busiestStoreDisplay.title = metrics.busiest_store;
-
-                const growth = metrics.growth_percentage;
-                const growthColor = growth > 0 ? 'text-green-500' : growth < 0 ? 'text-red-500' : 'text-slate-500';
-                const growthIcon = growth > 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>` : growth < 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>` : '';
-                ui.growthDisplay.className = `text-2xl xl:text-3xl font-bold mt-1 flex items-center gap-2 ${growthColor}`;
-                ui.growthDisplay.innerHTML = `<span>${growth.toFixed(1)}%</span> ${growthIcon}`;
-
-                initOrUpdateLineChart(data.line_chart_data);
-                initOrUpdateDonutChart(data.store_comparison_data);
-
-                renderDataTable(data.table_data.map(d => d.label), data.table_data.map(d => d.value));
-                ui.timeRangeDisplay.textContent = `${formatDate(startDate, 'vi-VN')} - ${formatDate(endDate, 'vi-VN')}`;
-            } else {
-                // Handle API error
-                ui.totalInDisplay.textContent = 'Lỗi';
-                ui.averageInDisplay.textContent = 'Lỗi';
-                ui.peakTimeDisplay.textContent = '--';
-                // ... clear other fields
-                initOrUpdateLineChart([]);
-                initOrUpdateDonutChart({labels: [], data: []});
-                renderDataTable([], []);
-            }
-
-            showLoader(false);
-        }
-
-        function downloadTableAsCSV() {
-            const { labels, data } = currentTableData;
-            if (labels.length === 0) return;
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            const header = currentPeriod === 'day' ? 'Giờ' : currentPeriod === 'week' ? 'Ngày trong tuần' : currentPeriod === 'month' ? 'Ngày' : 'Tháng';
-            csvContent += `"${header}","Lượt vào"\r\n`;
-
-            data.forEach((value, index) => {
-                csvContent += `"${labels[index]}","${value}"\r\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `du_lieu_chi_tiet_${formatDate(new Date())}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // --- EVENT LISTENERS ---
-        ui.filterButtons.forEach(button => {
+    function setupEventListeners() {
+        filterButtons.forEach(button => {
             button.addEventListener('click', () => {
-                ui.filterButtons.forEach(btn => btn.classList.remove('active'));
+                filterButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
-                currentPeriod = button.dataset.period;
-                renderDatePickers();
-                updateDashboard();
+                state.period = button.dataset.period;
+                
+                const now = new Date();
+                switch(state.period) {
+                    case 'day':
+                        state.startDate = new Date();
+                        state.endDate = new Date();
+                        break;
+                    case 'week':
+                        state.startDate = new Date(now.setDate(now.getDate() - now.getDay()));
+                        state.endDate = new Date();
+                        break;
+                    case 'month':
+                        state.startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        state.endDate = new Date();
+                        break;
+                    case 'year':
+                        state.startDate = new Date(now.getFullYear(), 0, 1);
+                        state.endDate = new Date();
+                        break;
+                }
+                document.getElementById('start-date').value = formatDate(state.startDate);
+                document.getElementById('end-date').value = formatDate(state.endDate);
+                fetchDashboardData();
             });
         });
-        ui.storeSelector.addEventListener('change', updateDashboard);
-        ui.downloadCsvButton.addEventListener('click', downloadTableAsCSV);
 
-        // --- INITIALIZATION ---
-        async function initialize() {
-            showLoader(true);
-            renderDatePickers();
-            setupPopups();
-            const [storeData, errorData] = await Promise.all([
-                fetchStores(),
-                fetchErrorLogs()
-            ]);
-            populateStoreSelector(storeData);
-            setupNotifications(errorData);
-            await updateDashboard();
-            showLoader(false);
-        }
+        notificationBell.addEventListener('click', () => {
+            notificationPanel.classList.toggle('hidden');
+        });
+    }
 
-        initialize();
-    });
+    async function initializeApp() {
+        initializeCharts();
+        await initializeFilters();
+        setupEventListeners();
+        fetchDashboardData(); // Initial data load
+    }
+
+    initializeApp();
+});
 </script>
-
-
-
-
-
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            // --- UI ELEMENT REFERENCES ---
-            const ui = {
-                loadingIndicator: document.getElementById('loading-indicator'),
-                chartCanvas: document.getElementById('trafficChart'),
-                storeComparisonCanvas: document.getElementById('storeComparisonChart'),
-                filterButtons: document.querySelectorAll('.filter-btn'),
-                timeRangeDisplay: document.getElementById('time-range-display'),
-                totalInDisplay: document.getElementById('total-in'),
-                averageInDisplay: document.getElementById('average-in'),
-                peakTimeDisplay: document.getElementById('peak-time'),
-                occupancyDisplay: document.getElementById('occupancy'),
-                busiestStoreDisplay: document.getElementById('busiest-store'),
-                growthDisplay: document.getElementById('growth'),
-                storeSelector: document.getElementById('store-selector'),
-                datePickerContainer: document.getElementById('date-picker-container'),
-                tableContainer: document.getElementById('table-container'),
-                downloadCsvButton: document.getElementById('download-csv-button'),
-                notification: {
-                    bell: document.getElementById('notification-bell'),
-                    badge: document.getElementById('notification-badge'),
-                    panel: document.getElementById('notification-panel'),
-                    logContainer: document.getElementById('error-log-container')
-                },
-            };
-
-            let trafficChart, storeComparisonChart;
-            let currentPeriod = 'day';
-            let currentTableData = { labels: [], data: [] };
-            let stores = [];
-
-            // --- API CALLS ---
-            const showLoader = (show) => {
-                ui.loadingIndicator.classList.toggle('hidden', !show);
-            };
-
-            async function fetchAPI(url) {
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return await response.json();
-                } catch (error) {
-                    console.error("Fetch API Error:", error);
-                    // Hiển thị thông báo lỗi cho người dùng
-                    return null;
-                }
-            }
-            
-            async function fetchStores() {
-                return await fetchAPI('/api/stores');
-            }
-
-            async function fetchErrorLogs() {
-                return await fetchAPI('/api/error-logs');
-            }
-
-            async function fetchDashboardData(params) {
-                const queryString = new URLSearchParams(params).toString();
-                return await fetchAPI(`/api/dashboard-data?${queryString}`);
-            }
-
-            // --- HELPER FUNCTIONS ---
-            const formatDate = (date, locale = 'sv-SE') => { // sv-SE for YYYY-MM-DD
-                if (!(date instanceof Date)) date = new Date(date);
-                return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            };
-
-            const getWeekDateRange = (year, week) => {
-                const d = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-                const day = d.getUTCDay() || 7;
-                d.setUTCDate(d.getUTCDate() + 1 - day);
-                const startDate = new Date(d);
-                const endDate = new Date(d);
-                endDate.setUTCDate(d.getUTCDate() + 6);
-                return { startDate, endDate };
-            };
-
-            // --- UI POPULATION & INTERACTION ---
-            function populateStoreSelector(storeData) {
-                if (!storeData) return;
-                stores = storeData; // Lưu lại danh sách cửa hàng
-                ui.storeSelector.innerHTML = `<option value="all">Tất cả cửa</option>`;
-                stores.forEach(store => {
-                    ui.storeSelector.innerHTML += `<option value="${store.name}">${store.name}</option>`;
-                });
-            }
-
-            function renderDatePickers() {
-                const now = new Date();
-                let currentYear = now.getFullYear();
-                let html = '';
-                const baseClasses = "h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none";
-                const yearOptions = Array.from({ length: 5 }, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
-
-                switch (currentPeriod) {
-                    case 'day':
-                        html = `<input type="date" id="day-selector" class="${baseClasses} w-full sm:w-40" value="${formatDate(now)}">`;
-                        break;
-                    case 'week':
-                         const weeksInYear = 52;
-                        let weekOptions = '';
-                        for(let i=1; i<=weeksInYear; i++) {
-                            const {startDate, endDate} = getWeekDateRange(currentYear, i);
-                            weekOptions += `<option value="${i}">Tuần ${i} (${formatDate(startDate, 'vi-VN')} - ${formatDate(endDate, 'vi-VN')})</option>`;
-                        }
-                        html = `<select id="year-selector-week" class="${baseClasses} w-24">${yearOptions}</select><select id="week-selector" class="${baseClasses} w-64">${weekOptions}</select>`;
-                        break;
-                    case 'month':
-                        const monthOptions = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${now.getMonth() === i ? 'selected' : ''}>Tháng ${i + 1}</option>`).join('');
-                        html = `<select id="year-selector-month" class="${baseClasses} w-24">${yearOptions}</select><select id="month-selector" class="${baseClasses} w-32">${monthOptions}</select>`;
-                        break;
-                    case 'year':
-                        html = `<select id="year-selector-year" class="${baseClasses} w-32">${yearOptions}</select>`;
-                        break;
-                }
-                ui.datePickerContainer.innerHTML = html;
-                ui.datePickerContainer.querySelectorAll('select, input').forEach(el => el.addEventListener('change', updateDashboard));
-            }
-
-            function setupNotifications(errorLogs) {
-                if (!errorLogs || errorLogs.length === 0) {
-                    ui.notification.badge.classList.add('hidden');
-                    ui.notification.logContainer.innerHTML = `<div class="text-center text-slate-500 dark:text-slate-400 p-4">Không có cảnh báo nào.</div>`;
-                    return;
-                }
-                
-                ui.notification.badge.textContent = errorLogs.length;
-                ui.notification.badge.classList.remove('hidden');
-
-                ui.notification.logContainer.innerHTML = errorLogs.map(log => {
-                    return `<div class="flex items-start gap-3 p-3 mx-2 mb-2 bg-red-500/10 border-l-4 border-red-500 rounded-r-lg">
-                        <div class="flex-shrink-0 pt-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></div>
-                        <div>
-                            <p class="font-semibold text-sm text-slate-800 dark:text-white">${log.error_message} - ${log.store_name}</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
-                        </div>
-                    </div>`;
-                }).join('');
-            }
-
-            function setupPopups() {
-                const setupPopup = (button, panel) => { button.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('hidden'); }); };
-                setupPopup(ui.notification.bell, ui.notification.panel);
-                document.addEventListener('click', (e) => {
-                    if (!ui.notification.panel.classList.contains('hidden') && !ui.notification.panel.contains(e.target) && !ui.notification.bell.contains(e.target)) {
-                        ui.notification.panel.classList.add('hidden');
-                    }
-                });
-            }
-
-            // --- DATA & CHARTING ---
-            function renderDataTable(labels, data) {
-                currentTableData = { labels, data };
-                let header = 'Thời gian';
-                switch(currentPeriod) {
-                    case 'day': header = 'Giờ'; break;
-                    case 'week': header = 'Ngày trong tuần'; break;
-                    case 'month': header = 'Ngày'; break;
-                    case 'year': header = 'Tháng'; break;
-                }
-
-                const tableRows = data.map((currentValue, index) => {
-                    return `
-                    <tr class="border-b border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                        <td class="p-3 text-sm text-slate-700 dark:text-slate-300">${labels[index]}</td>
-                        <td class="p-3 text-sm font-medium text-slate-900 dark:text-white text-right">${currentValue.toLocaleString('vi-VN')}</td>
-                    </tr>`;
-                }).join('');
-
-                const tableHTML = `
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-100 dark:bg-gray-700 sticky top-0 z-10">
-                            <tr>
-                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300">${header}</th>
-                                <th class="p-3 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right">Lượt vào</th>
-                            </tr>
-                        </thead>
-                        <tbody>${tableRows}</tbody>
-                    </table>`;
-                ui.tableContainer.innerHTML = tableRows ? tableHTML : `<div class="p-4 text-center text-slate-500">Không có dữ liệu.</div>`;
-            }
-
-            function getChartColors() {
-                const isDark = document.documentElement.classList.contains('dark');
-                return {
-                    grid: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                    ticks: isDark ? '#94a3b8' : '#64748b',
-                    tooltipBg: isDark ? '#1e293b' : '#ffffff',
-                    tooltipText: isDark ? '#f1f5f9' : '#1e293b'
-                };
-            }
-
-            function initOrUpdateLineChart(chartData) {
-                const colors = getChartColors();
-                const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.ticks } }, x: { grid: { display: false }, ticks: { color: colors.ticks } } }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, titleFont: { weight: 'bold' }, bodySpacing: 4, padding: 12, cornerRadius: 8, borderColor: colors.grid, borderWidth: 1 }}, interaction: { mode: 'index', intersect: false } };
-                
-                if (trafficChart) {
-                    trafficChart.data.labels = chartData.map(d => d.label);
-                    trafficChart.data.datasets[0].data = chartData.map(d => d.value);
-                    trafficChart.options = chartOptions;
-                    trafficChart.update('none');
-                } else {
-                    const ctx = ui.chartCanvas.getContext('2d');
-                    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
-                    trafficChart = new Chart(ctx, { type: 'line', data: { labels: chartData.map(d => d.label), datasets: [{ label: 'Lượt khách vào', data: chartData.map(d => d.value), backgroundColor: gradient, borderColor: '#3B82F6', borderWidth: 2, pointBackgroundColor: '#3B82F6', pointHoverRadius: 6, pointHoverBorderColor: '#fff', fill: true, tension: 0.4 }] }, options: chartOptions });
-                }
-            }
-
-            function initOrUpdateDonutChart(pieData) {
-                const colors = getChartColors();
-                const pieColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6', '#ec4899'];
-                const chartOptions = { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: colors.ticks, usePointStyle: true, } }, tooltip: { backgroundColor: colors.tooltipBg, titleColor: colors.tooltipText, bodyColor: colors.tooltipText, callbacks: { label: (c) => `${c.label}: ${c.raw.toLocaleString('vi-VN')} (${(c.raw / c.chart.getDatasetMeta(0).total * 100).toFixed(1)}%)` } } } };
-
-                if (storeComparisonChart) {
-                    storeComparisonChart.data.labels = pieData.labels;
-                    storeComparisonChart.data.datasets[0].data = pieData.data;
-                    storeComparisonChart.options = chartOptions;
-                    storeComparisonChart.update('none');
-                } else {
-                    storeComparisonChart = new Chart(ui.storeComparisonCanvas.getContext('2d'), { type: 'doughnut', data: { labels: pieData.labels, datasets: [{ label: 'Lượt vào', data: pieData.data, backgroundColor: pieColors, borderColor: colors.tooltipBg, borderWidth: 2, }] }, options: chartOptions });
-                }
-            }
-
-            async function updateDashboard() {
-                showLoader(true);
-                
-                // 1. Get current filter values
-                const storeId = ui.storeSelector.value;
-                let startDate, endDate;
-                const now = new Date();
-
-                switch (currentPeriod) {
-                    case 'day':
-                        const selectedDay = document.getElementById('day-selector').value;
-                        startDate = new Date(selectedDay);
-                        endDate = new Date(selectedDay);
-                        break;
-                    case 'week':
-                        const year_w = document.getElementById('year-selector-week').value;
-                        const week = document.getElementById('week-selector').value;
-                        ({ startDate, endDate } = getWeekDateRange(year_w, week));
-                        break;
-                    case 'month':
-                        const year_m = document.getElementById('year-selector-month').value;
-                        const month = document.getElementById('month-selector').value;
-                        startDate = new Date(year_m, month - 1, 1);
-                        endDate = new Date(year_m, month, 0);
-                        break;
-                    case 'year':
-                        const year = document.getElementById('year-selector-year').value;
-                        startDate = new Date(year, 0, 1);
-                        endDate = new Date(year, 11, 31);
-                        break;
-                }
-
-                const params = {
-                    period: currentPeriod,
-                    store_id: storeId,
-                    start_date: formatDate(startDate),
-                    end_date: formatDate(endDate)
-                };
-
-                // 2. Fetch data from backend
-                const data = await fetchDashboardData(params);
-                
-                // 3. Update UI with fetched data
-                if (data) {
-                    // Update metrics
-                    const metrics = data.metrics;
-                    ui.totalInDisplay.textContent = metrics.total_in.toLocaleString('vi-VN');
-                    ui.averageInDisplay.textContent = metrics.average_in.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
-                    ui.peakTimeDisplay.textContent = metrics.peak_time;
-                    ui.occupancyDisplay.textContent = metrics.occupancy.toLocaleString('vi-VN');
-                    ui.busiestStoreDisplay.textContent = metrics.busiest_store;
-                    ui.busiestStoreDisplay.title = metrics.busiest_store;
-
-                    const growth = metrics.growth_percentage;
-                    const growthColor = growth > 0 ? 'text-green-500' : growth < 0 ? 'text-red-500' : 'text-slate-500';
-                    const growthIcon = growth > 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>` : growth < 0 ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>` : '';
-                    ui.growthDisplay.className = `text-2xl xl:text-3xl font-bold mt-1 flex items-center gap-2 ${growthColor}`;
-                    ui.growthDisplay.innerHTML = `<span>${growth.toFixed(1)}%</span> ${growthIcon}`;
-
-                    // Update charts
-                    initOrUpdateLineChart(data.line_chart_data);
-                    initOrUpdateDonutChart(data.store_comparison_data);
-
-                    // Update table
-                    renderDataTable(data.table_data.map(d => d.label), data.table_data.map(d => d.value));
-                    ui.timeRangeDisplay.textContent = `${formatDate(startDate, 'vi-VN')} - ${formatDate(endDate, 'vi-VN')}`;
-                } else {
-                    // Handle case where data is null (API error)
-                    // Clear all data displays
-                    ui.totalInDisplay.textContent = 'Lỗi';
-                    // ... clear other fields
-                    initOrUpdateLineChart([]);
-                    initOrUpdateDonutChart({labels: [], data: []});
-                    renderDataTable([], []);
-                }
-
-                showLoader(false);
-            }
-
-            function downloadTableAsCSV() {
-                const { labels, data } = currentTableData;
-                if (labels.length === 0) return;
-
-                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM for Vietnamese in Excel
-                const header = currentPeriod === 'day' ? 'Giờ' : currentPeriod === 'week' ? 'Ngày trong tuần' : currentPeriod === 'month' ? 'Ngày' : 'Tháng';
-                csvContent += `"${header}","Lượt vào"\r\n`;
-
-                data.forEach((value, index) => {
-                    csvContent += `"${labels[index]}","${value}"\r\n`;
-                });
-
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `du_lieu_chi_tiet_${formatDate(new Date())}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-
-            // --- EVENT LISTENERS ---
-            ui.filterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    ui.filterButtons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active');
-                    currentPeriod = button.dataset.period;
-                    renderDatePickers();
-                    updateDashboard();
-                });
-            });
-            ui.storeSelector.addEventListener('change', updateDashboard);
-            ui.downloadCsvButton.addEventListener('click', downloadTableAsCSV);
-
-            // --- INITIALIZATION ---
-            async function initialize() {
-                showLoader(true);
-                renderDatePickers();
-                setupPopups();
-                const [storeData, errorData] = await Promise.all([
-                    fetchStores(),
-                    fetchErrorLogs()
-                ]);
-                populateStoreSelector(storeData);
-                setupNotifications(errorData);
-                await updateDashboard();
-                showLoader(false);
-            }
-
-            initialize();
-        });
-    </script>

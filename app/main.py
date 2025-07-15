@@ -1,5 +1,7 @@
 # # Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
 # # Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -8,9 +10,13 @@ from fastapi.templating import Jinja2Templates
 
 from .core.config import settings
 from .routers import router as api_router
+from .utils.logger import setup_logging
 
 # Khởi tạo ứng dụng FastAPI với các thông tin từ file config
-app = FastAPI(title=settings.PROJECT_NAME, description=settings.DESCRIPTION)
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description=settings.DESCRIPTION
+)
 
 # Cấu hình CORS Middleware
 # Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
@@ -35,18 +41,24 @@ templates = Jinja2Templates(directory='templates')
 # ======================================================================
 # Endpoints API
 # ======================================================================
-app.include_router(api_router, prefix='/api/v1', tags=['Dashboard'])
+app.include_router(
+    api_router,
+    prefix='/api/v1',       # Tiền tố cho tất cả các route trong router này
+    tags=['Dashboard']      # Gắn tag để nhóm các API trong giao diện Swagger
+)
 
 @app.on_event('startup')
 async def startup_event():
     # Có thể thực hiện các tác vụ khi khởi động ở đây
     # Ví dụ: khởi tạo kết nối, tải cache, v.v.
-    print('Application startup...')
+    # Setup logging khi ứng dụng khởi động
+    setup_logging(log_name=settings.PROJECT_NAME) # <<< THÊM DÒNG NÀY
+    logging.info('Application startup...')
 
 @app.on_event('shutdown')
 async def shutdown_event():
     # Dọn dẹp khi ứng dụng tắt
-    print('Application shutdown.')
+    logging.info('Application shutdown.') # <<< THAY ĐỔI DÒNG NÀY
 
 @app.get('/health', tags=['Health Check'])
 def health_check():
@@ -58,37 +70,16 @@ def health_check():
     }
 
 # Endpoint để phục vụ trang dashboard chính
-@app.get('/', response_class=HTMLResponse)
+@app.get('/', response_class=HTMLResponse, include_in_schema=False)
 async def read_root(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # =====================================================================================
-# from fastapi import Request
-# from fastapi.responses import HTMLResponse
-
-
-# @app.get("/", response_class=HTMLResponse)
-# async def read_root(request: Request):
-#     """
-#     Endpoint chính, phục vụ trang dashboard.
-#     """
-#     return templates.TemplateResponse(
-#         "dashboard.html", 
-#         {
-#             "request": request,
-#             "project_name": settings.PROJECT_NAME,
-#             "description": settings.DESCRIPTION
-#         }
-#     )
+    """
+    Endpoint chính, phục vụ trang dashboard.
+    """
+    return templates.TemplateResponse(
+        'dashboard.html', 
+        {
+            'request': request,
+            'project_name': settings.PROJECT_NAME,
+            'description': settings.DESCRIPTION
+        }
+    )

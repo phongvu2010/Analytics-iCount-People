@@ -1,166 +1,146 @@
-# import pandas as pd
-# from datetime import datetime, timedelta
+from datetime import date, timedelta
+from typing import List, Dict, Any
 
-from .core.config import settings
 from .core.data_handler import query_parquet_as_dataframe
+from .core.config import settings
 
+class DashboardService:
+    """
+    Lớp chứa tất cả logic nghiệp vụ để lấy dữ liệu cho dashboard.
+    """
+    def __init__(self, start_date: date, end_date: date, store: str = 'all'):
+        self.start_date = start_date
+        self.end_date = end_date
+        # DuckDB xử lý ngày tháng hiệu quả với kiểu DATE
+        self.start_date_str = self.start_date.strftime('%Y-%m-%d')
+        self.end_date_str = (self.end_date + timedelta(days=1)).strftime('%Y-%m-%d') # Bao gồm cả ngày kết thúc
+        self.store_filter = f"AND store_name = '{store}'" if store != 'all' else ""
 
-def get_dashboard_data(period: str, store_id: str, start_date: str, end_date: str):
-    """
-    Xây dựng câu lệnh SQL, truy vấn và xử lý dữ liệu cho dashboard.
-    """
-    # 1. Xây dựng câu lệnh SQL dựa trên bộ lọc
-    # Ví dụ: chọn cột, nhóm theo thời gian, lọc theo ngày và cửa hàng
-    # DuckDB có các hàm thời gian rất mạnh (ví dụ: YEAR(), MONTH(), DAYOFWEEK())
-    query = f"""
+        # Tạo CTE (Common Table Expression) để tái sử dụng bộ dữ liệu đã lọc
+        self.base_cte = f"""
+        WITH filtered_data AS (
+            SELECT
+                CAST(record_time AS TIMESTAMP) as record_time,
+                store_name,
+                in_count,
+                out_count
+            FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
+            WHERE record_time >= '{self.start_date_str}' AND record_time < '{self.end_date_str}'
+            {self.store_filter}
+        )
+        """
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Lấy các chỉ số chính (total, average, peak time...)."""
+        # query = f"""
+        # {self.base_cte}
+        # SELECT
+        #     SUM(in_count) as total_in,
+        #     AVG(in_count) as average_in,
+        #     strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
+        #     (SUM(in_count) - SUM(out_count)) as current_occupancy,
+        #     arg_max(store_name, total_store_in) as busiest_store
+        # FROM filtered_data
+        # CROSS JOIN (
+        #     SELECT store_name, SUM(in_count) as total_store_in
+        #     FROM filtered_data
+        #     GROUP BY store_name
+        # )
+        # """
+        query = f"""
+        {self.base_cte}
         SELECT
-            CAST(record_time AS TIMESTAMP) as record_time,
-            in_count,
-            out_count,
-            store_name
-        FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
-        WHERE record_time BETWEEN '{start_date}' AND '{end_date}'
-    """
-    if store_id != 'all':
-        query += f" AND store_name = '{store_id}'"
+            SUM(in_count) as total_in,
+            AVG(in_count) as average_in,
+            strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
+            (SUM(in_count) - SUM(out_count)) as current_occupancy,
+            -- Lấy cửa hàng bận rộn nhất từ subquery đã được tổng hợp
+            (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
+        FROM filtered_data
+        """
+        df = query_parquet_as_dataframe(query)
+        if df.empty or df['total_in'].iloc[0] is None:
+            return { "total_in": 0, "average_in": 0, "peak_time": "--:--", "current_occupancy": 0, "busiest_store": "N/A", "growth": 0.0 }
 
-    df = query_parquet_as_dataframe(query)
+        # Logic tính toán tăng trưởng (ví dụ: so với kỳ trước)
+        # Tạm thời để giá trị giả định
+        growth = 15.5 
 
-    if df.empty:
-        # Xử lý trường hợp không có dữ liệu
-        return None
+        data = df.iloc[0].to_dict()
+        data['average_in'] = round(data.get('average_in', 0), 1)
+        data['growth'] = growth
+        return data
 
-    # 2. Xử lý DataFrame với Pandas để tính toán các chỉ số
-    # Ví dụ:
-    # - Tổng lượt vào: df['in_count'].sum()
-    # - Lượt vào trung bình: df['in_count'].mean()
-    # - Giờ cao điểm: df.groupby(df['record_time'].dt.hour)['in_count'].sum().idxmax()
-    # - ... và các chỉ số khác bạn cần
+    def get_trend_chart_data(self) -> List[Dict[str, Any]]:
+        """Lấy dữ liệu cho biểu đồ đường (xu hướng theo thời gian)."""
+        time_unit = 'hour' # Mặc định, có thể thay đổi tùy theo khoảng thời gian
+        if self.end_date - self.start_date > timedelta(days=30):
+            time_unit = 'day'
 
-    # 3. Định dạng dữ liệu trả về theo các schema đã định nghĩa
-    # ... (logic xử lý và định dạng)
+        query = f"""
+        {self.base_cte}
+        SELECT
+            date_trunc('{time_unit}', record_time) as x,
+            SUM(in_count) as y
+        FROM filtered_data
+        GROUP BY x
+        ORDER BY x
+        """
+        df = query_parquet_as_dataframe(query)
+        return df.to_dict(orient='records')
 
-    # Dữ liệu trả về cuối cùng sẽ có dạng của schema DashboardData
-    # Ví dụ (đây là dữ liệu giả, bạn cần thay bằng logic thật):
-    mock_data = {
-        "metrics": {
-            "total_in": 12345,
-            "average_in": 514.3,
-            "peak_time": "19:00",
-            "occupancy": 150,
-            "busiest_store": "Cửa chính A1",
-            "growth_percentage": 15.2
-        },
-        "line_chart_data": [{"label": "10:00", "value": 100}, {"label": "11:00", "value": 150}],
-        "store_comparison_data": {"labels": ["Cửa A1", "Cửa A2"], "data": [7000, 5345]},
-        "table_data": [{"label": "10:00", "value": 100}, {"label": "11:00", "value": 150}]
-    }
-    return mock_data
+    def get_store_comparison_chart_data(self) -> List[Dict[str, Any]]:
+        """Lấy dữ liệu cho biểu đồ donut (tỷ trọng theo cửa)."""
+        query = f"""
+        {self.base_cte}
+        SELECT
+            store_name as x,
+            SUM(in_count) as y
+        FROM filtered_data
+        GROUP BY x
+        ORDER BY y DESC
+        """
+        df = query_parquet_as_dataframe(query)
+        return df.to_dict(orient='records')
 
-def get_error_logs():
-    """
-    Lấy các log lỗi gần nhất.
-    """
-    query = f"""
-        SELECT store_name, log_time, error_message
+    def get_paginated_details(self, page: int, page_size: int) -> Dict[str, Any]:
+        """Lấy dữ liệu chi tiết cho bảng, có phân trang."""
+        offset = (page - 1) * page_size
+
+        count_query = f"{self.base_cte} SELECT COUNT(*) as total FROM filtered_data"
+        total_records = query_parquet_as_dataframe(count_query)['total'].iloc[0]
+
+        data_query = f"""
+        {self.base_cte}
+        SELECT record_time, store_name, in_count, out_count
+        FROM filtered_data
+        ORDER BY record_time DESC
+        LIMIT {page_size} OFFSET {offset}
+        """
+        df = query_parquet_as_dataframe(data_query)
+
+        return {
+            "total_records": int(total_records),
+            "page": page,
+            "page_size": page_size,
+            "data": df.to_dict(orient='records')
+        }
+
+    @staticmethod
+    def get_all_stores() -> List[str]:
+        """Lấy danh sách tất cả các cửa hàng."""
+        query = f"SELECT DISTINCT store_name FROM read_parquet('{settings.CROWD_COUNTS_PATH}') ORDER BY store_name"
+        df = query_parquet_as_dataframe(query)
+        return df['store_name'].tolist()
+
+    @staticmethod
+    def get_error_logs(limit: int = 10) -> List[Dict[str, Any]]:
+        """Lấy các log lỗi gần nhất."""
+        query = f"""
+        SELECT id, store_name, log_time, error_code, error_message
         FROM read_parquet('{settings.ERROR_LOGS_PATH}')
         ORDER BY log_time DESC
-        LIMIT 10;
-    """
-    df = query_parquet_as_dataframe(query)
-    return df.to_dict(orient='records')
-
-def get_all_stores():
-    """
-    Lấy danh sách các cửa hàng duy nhất.
-    """
-    query = f"""
-        SELECT DISTINCT store_name
-        FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
-        WHERE store_name IS NOT NULL;
-    """
-    df = query_parquet_as_dataframe(query)
-    # Giả sử bạn muốn trả về dạng [{id: 1, name: 'Cửa A'}, ...]
-    df['id'] = range(1, len(df) + 1)
-    return df[['id', 'store_name']].rename(columns={'store_name': 'name'}).to_dict(orient='records')
-
-
-
-
-
-
-
-
-
-# from datetime import date
-# from typing import Optional
-
-# from .core import query_parquet_as_dataframe, settings
-
-# def get_all_stores() -> pd.DataFrame:
-#     """
-#     Lấy danh sách tất cả các cửa hàng (store_name) duy nhất từ dữ liệu.
-#     """
-#     query = f"""
-#         SELECT DISTINCT store_name
-#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
-#         WHERE store_name IS NOT NULL
-#         ORDER BY store_name;
-#     """
-#     return query_parquet_as_dataframe(query)
-
-# def get_error_logs(limit: int=100) -> pd.DataFrame:
-#     """
-#     Lấy tất cả các log lỗi.
-#     """
-#     query = f"""
-#         SELECT id, store_name, log_time, error_code, error_message
-#         FROM read_parquet('{settings.ERROR_LOGS_PATH}', hive_partitioning=true)
-#         ORDER BY log_time DESC
-#         LIMIT {limit};
-#     """
-#     return query_parquet_as_dataframe(query)
-
-# def get_store_distribution_data(
-#     start_date: date, 
-#     end_date: date
-# ) -> pd.DataFrame:
-#     """
-#     Lấy dữ liệu phân bổ lượt vào theo từng cửa hàng.
-#     """
-#     query = f"""
-#         SELECT
-#             store_name,
-#             SUM(in_count) as total_in
-#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
-#         WHERE record_time BETWEEN '{start_date}' AND '{end_date}'
-#         GROUP BY store_name
-#         ORDER BY total_in DESC;
-#     """
-#     return query_parquet_as_dataframe(query)
-
-# def get_summary_metrics_data(
-#     start_date: date, 
-#     end_date: date, 
-#     store_name: Optional[str] = None
-# ) -> pd.DataFrame:
-#     """
-#     Lấy dữ liệu cho các thẻ tóm tắt (total, average, peak time, occupancy).
-#     """
-#     where_clauses = [f"record_time BETWEEN '{start_date}' AND '{end_date}'"]
-#     if store_name:
-#         where_clauses.append(f"store_name = '{store_name}'")
-
-#     where_sql = " AND ".join(where_clauses)
-
-#     query = f"""
-#         SELECT
-#             SUM(in_count) AS total_in,
-#             SUM(in_count - out_count) AS occupancy,
-#             EXTRACT(HOUR FROM record_time) AS hour,
-#             in_count
-#         FROM read_parquet('{settings.CROWD_COUNTS_PATH}', hive_partitioning=true)
-#         WHERE {where_sql}
-#         GROUP BY hour, in_count;
-#     """
-#     return query_parquet_as_dataframe(query)
+        LIMIT {limit}
+        """
+        df = query_parquet_as_dataframe(query)
+        return df.to_dict(orient='records')

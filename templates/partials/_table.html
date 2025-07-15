@@ -1,4 +1,4 @@
-<div>
+<!-- <div>
     <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
          <div class="flex items-center gap-4">
             <h3 class="text-xl font-semibold text-slate-900 dark:text-white">Dữ liệu chi tiết</h3>
@@ -10,6 +10,27 @@
         </button>
     </div>
     <div id="table-container" class="overflow-x-auto max-h-96 rounded-lg border border-slate-200 dark:border-gray-700">
-        <!-- Bảng dữ liệu sẽ được tạo ở đây -->
+        Bảng dữ liệu sẽ được tạo ở đây
     </div>
+</div> -->
+
+
+<div class="mt-8">
+    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">Dữ liệu chi tiết</h3>
+    <div class="overflow-x-auto bg-slate-100 dark:bg-gray-700/50 rounded-xl">
+        <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+            <thead class="text-xs text-slate-700 uppercase bg-slate-200 dark:bg-gray-700 dark:text-slate-300">
+                <tr>
+                    <th scope="col" class="px-6 py-3">Thời gian</th>
+                    <th scope="col" class="px-6 py-3">Tên cửa</th>
+                    <th scope="col" class="px-6 py-3">Lượt vào</th>
+                    <th scope="col" class="px-6 py-3">Lượt ra</th>
+                </tr>
+            </thead>
+            <tbody id="data-table-body">
+                </tbody>
+        </table>
+    </div>
+    <div id="pagination-controls" class="flex justify-between items-center mt-4 px-2">
+        </div>
 </div>

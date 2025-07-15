@@ -1,80 +1,50 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 
-
-# Dữ liệu cho một điểm trên biểu đồ
-class TrafficDataPoint(BaseModel):
-    label: str  # Ví dụ: "14:00", "Thứ Hai", "Ngày 15", "Tháng 7"
-    value: int
-
-# Các chỉ số tổng quan
-class DashboardMetrics(BaseModel):
+# Dùng cho các thẻ metric
+class Metric(BaseModel):
     total_in: int
     average_in: float
-    peak_time: str
-    occupancy: int
-    busiest_store: str
-    growth_percentage: float
+    peak_time: Optional[str]
+    current_occupancy: int
+    busiest_store: Optional[str]
+    growth: float
 
-# Dữ liệu cho biểu đồ tròn so sánh các cửa
-class StoreComparison(BaseModel):
-    labels: List[str]
-    data: List[int]
+# Dùng cho biểu đồ (time-series và donut)
+class ChartDataPoint(BaseModel):
+    x: Any
+    y: int
 
-# Dữ liệu đầy đủ cho Dashboard
-class DashboardData(BaseModel):
-    metrics: DashboardMetrics
-    line_chart_data: List[TrafficDataPoint]
-    store_comparison_data: StoreComparison
-    table_data: List[TrafficDataPoint] # Có thể tái sử dụng TrafficDataPoint cho bảng
+class ChartData(BaseModel):
+    series: List[ChartDataPoint]
 
-# Dữ liệu cho một cảnh báo lỗi
+# Dùng cho một dòng trong bảng dữ liệu
+class TableRow(BaseModel):
+    record_time: datetime
+    store_name: str
+    in_count: int
+    out_count: int
+
+# Dùng cho bảng dữ liệu có phân trang
+class PaginatedTable(BaseModel):
+    total_records: int
+    page: int
+    page_size: int
+    data: List[TableRow]
+
+# Dùng cho log lỗi
 class ErrorLog(BaseModel):
+    id: int
     store_name: str
     log_time: datetime
+    error_code: int
     error_message: str
 
-# Dữ liệu cho một cửa hàng
-class Store(BaseModel):
-    id: int
-    name: str
-
-
-
-
-
-
-
-
-
-
-# class Store(BaseModel):
-#     store_name: str
-
-# class ErrorLog(BaseModel):
-#     id: int
-#     store_name: str
-#     log_time: datetime
-#     error_code: int
-#     error_message: str
-
-#     class Config:
-#         from_attributes = True
-
-# class TimeSeriesData(BaseModel):
-#     labels: List[str]
-#     data: List[int]
-
-# class SummaryMetrics(BaseModel):
-#     total_in: int
-#     # total_out: int
-#     average_in: float
-#     # average_out: float
-#     peak_time: str
-#     occupancy: int
-#     growth: float
-
-# class StoreDistribution(BaseModel):
-#     labels: List[str]
-#     data: List[int]
+# Model tổng hợp cho response của API dashboard
+class DashboardData(BaseModel):
+    metrics: Metric
+    trend_chart: ChartData
+    store_comparison_chart: ChartData
+    table_data: PaginatedTable
+    error_logs: List[ErrorLog]
