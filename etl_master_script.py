@@ -8,10 +8,11 @@ import logging
 import os
 import pandas as pd
 import shutil
+
 from datetime import date
 from sqlalchemy import exc
 
-from app.core.db import engine
+from app.core.database import engine
 from app.utils.logger import setup_logging
 
 def extract_from_mssql(table_name: str, full_load: bool):
@@ -77,7 +78,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         # 3. Hợp nhất (join) để thêm store_name
         merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
-        # merged_df.dropna(subset=['store_name'], inplace=True)
+        merged_df.dropna(subset=['store_name'], inplace=True)
 
         # 4. Sắp xếp và chọn các cột cuối cùng
         final_cols = []
@@ -111,7 +112,7 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
 
     date_columns = {'crowd_counts': 'record_time', 'error_logs': 'log_time'}
     try:
-        with duckdb.connect(database = duckdb_path, read_only = False) as con:
+        with duckdb.connect(database=duckdb_path, read_only=False) as con:
             if is_first_run:
                 logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
                 con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
@@ -144,8 +145,8 @@ def load_to_partitioned_parquet(df: pd.DataFrame, table_name: str, base_path: st
 
     try:
         # Ghi dữ liệu, phân vùng theo cột 'year'
-        # existing_data_behavior = 'delete_matching' sẽ xóa các phân vùng đang được ghi đè
-        df.to_parquet(full_path, engine = 'pyarrow', partition_cols = ['year'], existing_data_behavior = 'delete_matching')
+        # existing_data_behavior='delete_matching' sẽ xóa các phân vùng đang được ghi đè
+        df.to_parquet(full_path, engine='pyarrow', partition_cols=['year'], existing_data_behavior='delete_matching')
         logging.info(f'    -> Nạp thành công dữ liệu Parquet cho bảng `{table_name}`.\n')
     except Exception as e:
         logging.error(f'   -> Lỗi khi nạp dữ liệu Parquet cho bảng `{table_name}`: {e}\n')
@@ -156,9 +157,9 @@ def main():
     """
     setup_logging('etl_master')
     parser = argparse.ArgumentParser(description='Chạy ETL từ MSSQL và lưu ra định dạng được chỉ định.')
-    parser.add_argument('--output_format', required = True, choices = ['duckdb', 'parquet'], help = 'Định dạng đầu ra: duckdb hoặc parquet.')
-    parser.add_argument('--destination', required = True, help = 'Đường dẫn tới file .duckdb hoặc thư mục gốc cho Parquet.')
-    parser.add_argument('--full_load', action = 'store_true', help = 'Chạy chế độ full load, tải lại toàn bộ dữ liệu lịch sử.')
+    parser.add_argument('--output_format', required=True, choices=['duckdb', 'parquet'], help='Định dạng đầu ra: duckdb hoặc parquet.')
+    parser.add_argument('--destination', required=True, help='Đường dẫn tới file .duckdb hoặc thư mục gốc cho Parquet.')
+    parser.add_argument('--full_load', action='store_true', help='Chạy chế độ full load, tải lại toàn bộ dữ liệu lịch sử.')
     args = parser.parse_args()
 
     run_mode = 'TẢI TOÀN BỘ (FULL LOAD)' if args.full_load else 'TĂNG TRƯỞNG (INCREMENTAL)'
@@ -184,7 +185,7 @@ def main():
         load_to_duckdb(final_error_logs, 'error_logs', args.destination, is_first_run)
         load_to_duckdb(final_crowd_counts, 'crowd_counts', args.destination, is_first_run)
     elif args.output_format == 'parquet':
-        os.makedirs(args.destination, exist_ok = True)
+        os.makedirs(args.destination, exist_ok=True)
         load_to_partitioned_parquet(final_error_logs, 'error_logs', args.destination, args.full_load)
         load_to_partitioned_parquet(final_crowd_counts, 'crowd_counts', args.destination, args.full_load)
 

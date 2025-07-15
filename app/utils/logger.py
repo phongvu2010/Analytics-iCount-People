@@ -3,8 +3,7 @@ import os
 
 from datetime import date
 
-
-def setup_logging(log_name: str, log_dir: str = 'logs'):
+def setup_logging(log_name: str, log_dir: str='logs'):
     """
     Thiết lập hệ thống logging để ghi ra cả console và file.
     Tên file log sẽ được tạo dựa trên tên được cung cấp.
@@ -13,7 +12,7 @@ def setup_logging(log_name: str, log_dir: str = 'logs'):
         log_name (str): Tên của logger, thường là tên script (ví dụ: 'etl_script').
         log_dir (str): Thư mục để lưu file log.
     """
-    os.makedirs(log_dir, exist_ok = True)
+    os.makedirs(log_dir, exist_ok=True)
 
     # Tạo tên file log dựa trên tên script và ngày tháng
     date_str = date.today().strftime('%Y-%m-%d')
@@ -28,7 +27,7 @@ def setup_logging(log_name: str, log_dir: str = 'logs'):
         level = logging.INFO,
         format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers = [
-            logging.FileHandler(log_file, encoding = 'utf-8'),
+            logging.FileHandler(log_file, encoding='utf-8'),
             logging.StreamHandler()
         ]
     )

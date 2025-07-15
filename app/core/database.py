@@ -1,8 +1,9 @@
 import pandas as pd
 
-from . import settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+
+from .config import settings
 
 # Tạo SQLAlchemy engine từ chuỗi kết nối trong config
 # echo = False để không in các câu lệnh SQL ra console trong môi trường production
@@ -23,7 +24,7 @@ def get_db():
     finally:
         db.close()
 
-def execute_query_as_dataframe(query: str, db: Session, params: dict = None) -> pd.DataFrame:
+def execute_query_as_dataframe(query: str, db: Session, params: dict=None) -> pd.DataFrame:
     """
     Thực thi một câu lệnh SQL và trả về kết quả dưới dạng Pandas DataFrame.
     Đây là một hàm helper rất hữu ích cho việc phân tích dữ liệu.
@@ -38,7 +39,7 @@ def execute_query_as_dataframe(query: str, db: Session, params: dict = None) -> 
     """
     try:
         # Sử dụng connection của session để thực thi với pandas
-        return pd.read_sql_query(query, db.connection(), params = params)
+        return pd.read_sql_query(query, db.connection(), params=params)
     except Exception as e:
         print(f'Lỗi khi thực thi query với SQLAlchemy: {e}')
         # Trong production, bạn nên log lỗi này vào một file hoặc hệ thống logging

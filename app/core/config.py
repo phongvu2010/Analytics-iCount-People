@@ -4,7 +4,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Annotated, Any, List
 from urllib import parse
 
-
 def parse_cors(v: Any) -> List[str] | str:
     """
     Hàm helper để phân tích chuỗi CORS thành danh sách.
@@ -21,9 +20,9 @@ class Settings(BaseSettings):
     Các thuộc tính được tự động đọc từ file `.env`.
     """
     model_config = SettingsConfigDict(
-        env_file='.env',
-        case_sensitive=True,
-        env_file_encoding='utf-8'
+        env_file = '.env',
+        case_sensitive = True,
+        env_file_encoding = 'utf-8'
     )
 
     # Cấu hình chung của ứng dụng
@@ -49,7 +48,7 @@ class Settings(BaseSettings):
     # Cấu hình cho Database MSSQL
     DB_HOST: str
     DB_PORT: int = 1433             # Cổng mặc định của MSSQL
-    DB_DRIVER: str = 'SQL Server'   # 'ODBC Driver 17 for SQL Server'
+    DB_DRIVER: str = 'ODBC Driver 17 for SQL Server'    # SQL Server
     DB_NAME: str
     DB_USER: str
     DB_PASS: str
