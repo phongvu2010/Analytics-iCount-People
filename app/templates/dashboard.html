@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Chính{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4 md:p-6 lg:p-8">
+    
+    {% include 'partials/_header.html' %}
+
+    <main class="relative bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg">
+        <!-- Filters -->
+        {% include 'partials/_filters.html' %}
+        <!-- Metrics -->
+        {% include 'partials/_metrics.html' %}
+        <!-- Main Charts Section -->
+        {% include 'partials/_charts.html' %}
+        <!-- Data Table -->
+        {% include 'partials/_table.html' %}
+
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {% include 'partials/_scripts.html' %}
+{% endblock %}

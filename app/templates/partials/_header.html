@@ -1,0 +1,22 @@
+<header class="mb-6 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+        <img src="{{ url_for('static', path='/logo.png') }}" alt="Logo" class="h-10" onerror="this.style.display='none'">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Lượt Khách</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm sm:text-base">Phân tích và thống kê lưu lượng người ra vào.</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <!-- Notification Bell -->
+        <div class="relative">
+            <button id="notification-bell" class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
+                <span id="notification-badge" class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white hidden">0</span>
+            </button>
+            <div id="notification-panel" class="hidden absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+                <div class="p-4 border-b border-slate-200 dark:border-gray-700"><h3 class="font-semibold text-slate-900 dark:text-white">Cảnh Báo Hệ Thống</h3></div>
+                <div id="error-log-container" class="p-2 space-y-2 overflow-y-auto" style="max-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</header>
