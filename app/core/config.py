@@ -11,18 +11,6 @@ class Settings(BaseSettings):
         env_file_encoding = 'utf-8'
     )
 
-    # Đường dẫn dữ liệu
-    DATA_PATH: str = 'data'
-
-    # Dấu * giúp DuckDB tự động đọc tất cả các file trong các thư mục con.
-    @property
-    def CROWD_COUNTS_PATH(self) -> str:
-        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
-
-    @property
-    def ERROR_LOGS_PATH(self) -> str:
-        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
-
     # Cấu hình cho Database MSSQL
     DB_HOST: str
     DB_PORT: int = 1433             # Cổng mặc định của MSSQL

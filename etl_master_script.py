@@ -54,9 +54,9 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
     logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
     try:
         # 1. Chuẩn hóa tên cột trong bảng stores
-        stores_renamed_df = stores_df.rename(columns={'tid': 'store_id', 'name': 'store_name'})
-        stores_subset_df = stores_renamed_df[['store_id', 'store_name']].copy()
-        stores_subset_df['store_name'] = stores_subset_df['store_name'].str.strip().astype('string')
+        stores_df.rename(columns={'tid': 'store_id', 'name': 'store_name'}, inplace=True)
+        stores_df = stores_df[['store_id', 'store_name']].copy()
+        stores_df['store_name'] = stores_df['store_name'].str.strip().astype('string')
 
         # 2. Biến đổi bảng dữ liệu chính (fact table)
         date_column_name = ''
@@ -65,6 +65,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
                 'ID': 'id', 'storeid': 'store_id', 'LogTime': 'log_time',
                 'Errorcode': 'error_code', 'ErrorMessage': 'error_message'
             })
+            fact_df['error_message'] = fact_df['error_message'].str.strip().astype('string')
             date_column_name = 'log_time'
         elif table_type == 'crowd_counts':
             fact_df = fact_df.rename(columns={
@@ -75,7 +76,8 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
 
         # 3. Hợp nhất (join) để thêm store_name
-        merged_df = pd.merge(fact_df, stores_subset_df, on='store_id', how='left')
+        merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
+        # merged_df.dropna(subset=['store_name'], inplace=True)
 
         # 4. Sắp xếp và chọn các cột cuối cùng
         final_cols = []

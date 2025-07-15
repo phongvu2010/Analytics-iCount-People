@@ -19,33 +19,32 @@ data/
 Tôi có ý tưởng sơ đồ cấu trúc ứng dụng FastAPI như sau:
 iCount-People/
 ├── app/
-│   ├── api/
-│   │   └── v1/
-│   │       ├── __init__.py
-│   │       ├── analytics.py
-│   │       └── errors.py
 │   ├── core/
-│   │   ├── __init__.py
 │   │   ├── config.py
 │   │   ├── data_handler.py       # Dành cho Parquet (DuckDB)
-│   │   └── db.py                 # Dành cho MSSQL (SQLAlchemy)
-│   ├── schemas/
-│   │   ├── __init__.py
-│   │   └── analytics.py
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── analytics_service.py
-│   ├── static/
-│   │   ├── css/
-│   │   │   └── style.css
-│   │   ├── logo.png
-│   │   └── favicon.ico
-│   ├── templates/
-│   │   └── dashboard.html
+│   │   └── db.py                 # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
 │   ├── utils/
 │   │   └── logger.py
-│   └── main.py
+│   ├── main.py
+│   ├── routers.py
+│   ├── schemas.py
+│   └── services.py
 ├── data/
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── logo.png
+│   └── favicon.ico
+├── templates/
+│   ├── partials/
+│   │   ├── _charts.html        # Phần chứa các biểu đồ
+│   │   ├── _filters.html       # Phần chứa các bộ lọc
+│   │   ├── _header.html        # Phần header của trang
+│   │   ├── _metrics.html       # Phần chứa các thẻ chỉ số
+│   │   ├── _scripts.html       # Toàn bộ code JavaScript
+│   │   └── _table.html         # Phần bảng dữ liệu chi tiết
+│   ├── base.html               # File layout chính, chứa cấu trúc chung
+│   └── dashboard.html          # File nội dung chính, kế thừa từ base.html
 ├── .env
 ├── .gitignore
 ├── requirements.txt
