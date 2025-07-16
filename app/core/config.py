@@ -45,9 +45,13 @@ class Settings(BaseSettings):
     def ERROR_LOGS_PATH(self) -> str:
         return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
-    # Biến cho việc xử lý outlier
+    # Biến cho việc xử lý dữ liệu bất thường (outlier)
     OUTLIER_THRESHOLD: int = 100
     OUTLIER_SCALE_RATIO: float = 0.001
+
+    # Biến định nghĩa giờ làm việc
+    WORKING_HOUR_START: int = 9     # 09:00
+    WORKING_HOUR_END: int = 2       # 02:00 sáng hôm sau
 
     # Cấu hình cho Database MSSQL
     DB_HOST: str

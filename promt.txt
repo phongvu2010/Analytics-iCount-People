@@ -63,13 +63,18 @@ Các tính năng tôi muốn:
 
 
 
-
-- Thêm bộ lọc chọn cửa ra - vào.
+Tôi muốn điều chỉnh lại dữ liệu tổng hợp như sau:
+- 1 ngày làm việc sẽ lấy dữ liệu từ 09:00 hôm nay tới 02:00 hôm sau (Thời gian có thể điều chỉnh trong file config.py)
 - Thêm bộ lọc ngày, tuần, tháng, năm: Mặc định sẽ hiển thị dữ liệu theo option `năm` hiện tại & tất cả cửa ra - vào.
-    - Nếu chọn năm thì thêm bộ lọc chọn năm: mặc định năm hiện tại
-    - Nếu chọn tháng thì thêm bộ lọc chọn năm và tháng: mặc định năm & tháng hiện tại
-    - Nếu chọn tuần thì thêm bộ lọc chọn năm & tuần (thể hiện từ ngày đến ngày): mặc định khi chọn sẽ hiển thị năm & tuần hiện tại.
-    - Nếu chọn ngày thì thêm bộ lọc (Date Picker): mặc định chọn ngày hiện tại.
+    - Nếu chọn năm thì thêm bộ lọc chọn năm: mặc định năm hiện tại, dữ liệu hiển thị theo tháng trong năm
+    - Nếu chọn tháng thì thêm bộ lọc chọn năm và tháng: mặc định năm & tháng hiện tại, dữ liệu hiển thị theo ngày trong tháng
+    - Nếu chọn tuần thì thêm bộ lọc chọn năm & tuần (thể hiện từ ngày đến ngày): mặc định khi chọn sẽ hiển thị năm & tuần hiện tại, dữ liệu hiển thị theo ngày trong tuần
+    - Nếu chọn ngày thì thêm bộ lọc (Date Picker): mặc định chọn ngày hiện tại, dữ liệu hiển thị theo giờ (tổng hợp theo từng giờ)
+- Bộ lọc chọn cửa ra - vào chưa hoạt động chỉ hiển thị `Tất cả cửa hàng`.
+
+
+
+
 - Thêm line chart dữ liệu cửa ra vào.
 - Thêm donut chart so sánh các cửa ra vào.
 - Thêm notication hiện thị cảnh báo ErrLog ngay trên nút chuông góc phải phía trên màn hình. Mỗi khi nhấp vào log nào thì sẽ cache (tại trình duyệt) lại đã đọc & giảm số notication.

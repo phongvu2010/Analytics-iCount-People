@@ -7,8 +7,9 @@ from .services import DashboardService
 
 router = APIRouter()
 
-@router.get("/dashboard", response_model=schemas.DashboardData)
+@router.get('/dashboard', response_model=schemas.DashboardData)
 def get_dashboard_data(
+    period: str, # Thêm period
     start_date: date,
     end_date: date,
     store: str = 'all',
@@ -19,7 +20,7 @@ def get_dashboard_data(
     Endpoint chính để cung cấp toàn bộ dữ liệu cho dashboard,
     bao gồm các chỉ số, dữ liệu biểu đồ, bảng và log lỗi.
     """
-    service = DashboardService(start_date, end_date, store)
+    service = DashboardService(period, start_date, end_date, store)
 
     metrics = service.get_metrics()
     trend_data = service.get_trend_chart_data()
@@ -35,7 +36,7 @@ def get_dashboard_data(
         error_logs=error_logs
     )
 
-@router.get("/stores", response_model=List[str])
+@router.get('/stores', response_model=List[str])
 def get_stores():
     """
     Endpoint để lấy danh sách tất cả các cửa hàng
