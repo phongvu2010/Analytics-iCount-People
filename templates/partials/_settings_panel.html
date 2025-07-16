@@ -1,0 +1,25 @@
+<div id="settings-panel" class="hidden absolute top-16 right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-slate-200 dark:border-gray-700 z-50">
+    <div class="p-4 border-b border-slate-200 dark:border-gray-700">
+        <h3 class="font-semibold text-slate-900 dark:text-white">Cài Đặt Giao Diện</h3>
+    </div>
+
+    <div class="p-4 space-y-6">
+        <div>
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Giao diện</label>
+            <div id="theme-selector" class="mt-2 grid grid-cols-3 gap-2 rounded-lg bg-slate-100 dark:bg-gray-900 p-1">
+                <button data-theme="light" class="theme-btn px-3 py-1 text-sm font-medium rounded-md">Sáng</button>
+                <button data-theme="dark" class="theme-btn px-3 py-1 text-sm font-medium rounded-md">Tối</button>
+                <button data-theme="auto" class="theme-btn px-3 py-1 text-sm font-medium rounded-md">Tự động</button>
+            </div>
+        </div>
+
+        <div>
+            <label for="smoothing-slider" class="text-sm font-medium text-slate-700 dark:text-slate-300">Độ mượt biểu đồ</label>
+            <div class="flex items-center gap-3 mt-2">
+                <span class="text-xs text-slate-500">Thẳng</span>
+                <input id="smoothing-slider" type="range" min="0" max="0.5" step="0.01" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+                <span class="text-xs text-slate-500">Cong</span>
+            </div>
+        </div>
+    </div>
+</div>
