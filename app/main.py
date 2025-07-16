@@ -1,5 +1,5 @@
-# # Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
-# # Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
+# Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 import logging
 
 from fastapi import FastAPI, Request

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Dashboard Thống Kê Lượt Khách{% endblock %}</title>
+    <title>Dashboard - {% block title %}{% endblock %}</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -99,7 +99,6 @@
     {% block head_extra %}{% endblock %}
 </head>
 <body class="text-slate-800 dark:text-slate-200 transition-colors duration-300">
-
     <div id="loading-indicator" class="loading-overlay hidden">
         <div class="loader"></div>
     </div>
