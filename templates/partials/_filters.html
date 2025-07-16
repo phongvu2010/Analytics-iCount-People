@@ -1,12 +1,27 @@
 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-200 dark:border-gray-700">
     <div class="flex items-center gap-2 flex-wrap">
-        <button data-period="day" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors active">Ngày</button>
+        <button data-period="day" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Ngày</button>
         <button data-period="week" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tuần</button>
         <button data-period="month" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Tháng</button>
-        <button data-period="year" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors">Năm</button>
+        <button data-period="year" class="filter-btn px-4 py-2 text-sm rounded-lg bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 transition-colors active">Năm</button>
     </div>
     <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <select id="store-selector" class="h-10 custom-select w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
-        <div id="date-picker-container" class="flex gap-4 items-center flex-wrap"></div>
+        <div id="date-pickers-wrapper" class="flex gap-4 items-center flex-wrap">
+            <div id="year-filter-container" class="hidden">
+                <select id="year-selector" class="h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm"></select>
+            </div>
+            <div id="month-filter-container" class="hidden">
+                <select id="month-year-selector" class="h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm"></select>
+                <select id="month-selector" class="h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm"></select>
+            </div>
+            <div id="week-filter-container" class="hidden">
+                 <select id="week-year-selector" class="h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm"></select>
+                <select id="week-selector" class="h-10 custom-select bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm"></select>
+            </div>
+            <div id="day-filter-container" class="hidden">
+                <input type="date" id="date-picker" class="h-10 w-full sm:w-auto bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded-lg px-3 text-sm">
+            </div>
+        </div>
     </div>
 </div>
