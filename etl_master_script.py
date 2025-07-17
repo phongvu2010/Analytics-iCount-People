@@ -25,7 +25,12 @@ def extract_from_mssql(table_name: str, full_load: bool):
     incremental_tables = {'num_crowd': 'recordtime', 'ErrLog': 'LogTime'}
     query = f'SELECT * FROM dbo.{table_name}'
 
-    # Nếu không phải full_load, chỉ lấy dữ liệu năm hiện tại cho các bảng lớn
+    # [Note] Chiến lược Tăng trưởng (Incremental Strategy):
+    # Để đơn giản, chế độ tăng trưởng sẽ tải lại toàn bộ dữ liệu của năm hiện tại.
+    # Điều này đảm bảo dữ liệu trong năm luôn được cập nhật và giúp script có tính
+    # idempotent (chạy lại nhiều lần không gây ra lỗi dữ liệu).
+    # Một giải pháp nâng cao hơn có thể dùng "high-water mark" (lưu lại timestamp
+    # cuối cùng) để chỉ tải những dòng thực sự mới.
     if table_name in incremental_tables and not full_load:
         date_column = incremental_tables[table_name]
         current_year = date.today().year
@@ -48,6 +53,7 @@ def extract_from_mssql(table_name: str, full_load: bool):
 def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str, output_format: str):
     """
     Thực hiện biến đổi, hợp nhất dữ liệu và thêm cột 'year' nếu cần.
+    [UPDATE] Cải thiện xử lý lỗi để bắt các lỗi cụ thể hơn.
     """
     if fact_df is None or stores_df is None:
         return None
@@ -74,7 +80,9 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
                 'out_num': 'out_count', 'storeid': 'store_id'
             })
             date_column_name = 'record_time'
+
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
+        fact_df.dropna(subset=[date_column_name], inplace=True) # Loại bỏ các dòng có ngày tháng không hợp lệ
 
         # 3. Hợp nhất (join) để thêm store_name
         merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
@@ -98,15 +106,23 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         logging.info(f'    -> Biến đổi và hợp nhất thành công cho bảng: `{table_type}`.\n')
         return final_df
+
+    # [UPDATE] Bắt các lỗi cụ thể hơn để dễ dàng gỡ rối
+    except KeyError as e:
+        logging.error(f'   -> Lỗi không tìm thấy cột (KeyError) trong quá trình biến đổi cho bảng `{table_type}`. Vui lòng kiểm tra lại tên cột trong DB. Lỗi: {e}\n')
+        return None
+    except AttributeError as e:
+        logging.error(f'   -> Lỗi thuộc tính (AttributeError), có thể do kiểu dữ liệu không đúng (ví dụ: áp dụng .str cho cột không phải chuỗi). Bảng `{table_type}`. Lỗi: {e}\n')
+        return None
     except Exception as e:
-        logging.error(f'   -> Lỗi trong quá trình biến đổi và hợp nhất cho bảng `{table_type}`: {e}\n')
+        logging.error(f'   -> Lỗi không xác định trong quá trình biến đổi và hợp nhất cho bảng `{table_type}`: {e}\n')
         return None
 
 def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first_run: bool):
     """
     Nạp dữ liệu vào DuckDB. Dùng chế độ phù hợp: tạo mới hoặc xóa/chèn.
     """
-    if df is None:
+    if df is None or df.empty:
         logging.warning(f' -> Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
         return
 
@@ -114,9 +130,14 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
     try:
         with duckdb.connect(database=duckdb_path, read_only=False) as con:
             if is_first_run:
+                # Lần đầu chạy hoặc khi full_load, tạo mới hoặc thay thế hoàn toàn bảng
                 logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
                 con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
             else:
+                # [Note] Chế độ tăng trưởng cho DuckDB:
+                # 1. Xóa dữ liệu của năm hiện tại trong bảng đích.
+                # 2. Chèn dữ liệu mới của năm hiện tại vừa được trích xuất.
+                # Cách này đảm bảo dữ liệu cho năm hiện tại luôn được làm mới.
                 logging.info(f'    -> Chế độ [DELETE/INSERT] cho bảng: `{table_name}`...')
                 date_column = date_columns[table_name]
                 current_year = date.today().year
@@ -138,14 +159,15 @@ def load_to_partitioned_parquet(df: pd.DataFrame, table_name: str, base_path: st
     full_path = os.path.join(base_path, table_name)
     logging.info(f'    -> Bắt đầu nạp dữ liệu vào thư mục Parquet phân vùng: `{full_path}`...')
 
-    # Nếu là full load và thư mục đã tồn tại, xóa đi để làm mới hoàn toàn
     if full_load and os.path.exists(full_path):
         logging.warning(f' -> Chế độ Full Load: Xóa thư mục cũ `{full_path}` để làm mới.')
         shutil.rmtree(full_path)
 
     try:
-        # Ghi dữ liệu, phân vùng theo cột 'year'
-        # existing_data_behavior='delete_matching' sẽ xóa các phân vùng đang được ghi đè
+        # [Note] Ghi dữ liệu, phân vùng theo cột 'year'.
+        # existing_data_behavior='delete_matching' sẽ tự động xóa các phân vùng (năm)
+        # đang được ghi đè. Điều này phù hợp hoàn hảo với chiến lược tải lại
+        # toàn bộ dữ liệu của năm hiện tại trong chế độ tăng trưởng.
         df.to_parquet(full_path, engine='pyarrow', partition_cols=['year'], existing_data_behavior='delete_matching')
         logging.info(f'    -> Nạp thành công dữ liệu Parquet cho bảng `{table_name}`.\n')
     except Exception as e:

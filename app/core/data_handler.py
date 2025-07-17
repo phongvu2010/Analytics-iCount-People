@@ -1,4 +1,5 @@
 import duckdb
+import logging
 import pandas as pd
 
 from functools import lru_cache
@@ -16,7 +17,7 @@ def get_duckdb_connection():
     # return duckdb.connect(database=':memory:', read_only=False)
     return duckdb.connect(database=settings.DUCKDB_PATH, read_only=True)
 
-def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
+def query_parquet_as_dataframe(query: str, params: list = None) -> pd.DataFrame:
     """
     Thực thi một câu lệnh SQL trên các file Parquet bằng DuckDB.
 
@@ -30,7 +31,8 @@ def query_parquet_as_dataframe(query: str) -> pd.DataFrame:
     con = get_duckdb_connection()
     try:
         # Thực thi câu lệnh và trả về kết quả dưới dạng Pandas DataFrame
-        return con.execute(query).df()
+        # Truyền tham số vào hàm execute nếu có
+        return con.execute(query, parameters=params).df()
     except Exception as e:
         setup_logging('database_duckdb')
         logging.error(f'Lỗi khi thực thi query với DuckDB: {e}\n')
