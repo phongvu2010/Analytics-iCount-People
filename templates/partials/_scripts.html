@@ -1,0 +1,263 @@
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // --- STATE MANAGEMENT ---
+    const state = {
+        currentPage: 1,
+        pageSize: 10,
+        filters: {
+            period: 'month',
+            startDate: '',
+            endDate: '',
+            store: 'all'
+        }
+    };
+
+    // --- DOM ELEMENTS ---
+    const elements = {
+        loadingOverlay: document.getElementById('loading-overlay'),
+        applyFiltersBtn: document.getElementById('apply-filters-btn'),
+        periodSelector: document.getElementById('period-selector'),
+        storeSelector: document.getElementById('store-selector'),
+        tableBody: document.getElementById('details-table-body'),
+        pagination: {
+            from: document.getElementById('pagination-from'),
+            to: document.getElementById('pagination-to'),
+            total: document.getElementById('pagination-total'),
+            prevDesktop: document.getElementById('prev-page-desktop'),
+            nextDesktop: document.getElementById('next-page-desktop'),
+        },
+        metrics: {
+            totalIn: document.getElementById('metric-total-in'),
+            averageIn: document.getElementById('metric-average-in'),
+            peakTime: document.getElementById('metric-peak-time'),
+            busiestStore: document.getElementById('metric-busiest-store'),
+            growth: document.getElementById('metric-growth'),
+        },
+        error: {
+            indicator: document.getElementById('error-indicator'),
+            bell: document.getElementById('notification-bell'),
+            modal: document.getElementById('error-modal'),
+            modalPanel: document.getElementById('error-modal-panel'),
+            closeBtn: document.getElementById('close-error-modal-btn'),
+            logList: document.getElementById('error-log-list'),
+        }
+    };
+
+    // --- CHART INSTANCES ---
+    let trendChart, storeChart;
+
+    // --- CHART OPTIONS ---
+    const commonChartOptions = {
+        chart: {
+            toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: true } },
+            foreColor: '#9ca3af' // Gray-400
+        },
+        grid: { borderColor: '#374151' },
+        tooltip: { theme: 'dark' }
+    };
+    
+    const trendChartOptions = {
+        ...commonChartOptions,
+        series: [],
+        chart: { ...commonChartOptions.chart, type: 'area', height: 350, background: 'transparent' },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: 3 },
+        xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { colors: '#9ca3af' } } },
+        yaxis: { title: { text: 'Lượt vào', style: { color: '#9ca3af' } }, labels: { style: { colors: '#9ca3af' } } },
+        markers: { size: 0 },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shade: 'dark',
+                type: "vertical",
+                shadeIntensity: 0.5,
+                gradientToColors: undefined,
+                inverseColors: true,
+                opacityFrom: 0.4,
+                opacityTo: 0.0,
+                stops: [0, 90, 100],
+            }
+        },
+        noData: { text: 'Không có dữ liệu', style: { color: '#d1d5db' } }
+    };
+
+    const storeChartOptions = {
+        ...commonChartOptions,
+        series: [],
+        chart: { ...commonChartOptions.chart, type: 'donut', height: 350, background: 'transparent' },
+        labels: [],
+        legend: { position: 'bottom', labels: { colors: '#d1d5db' } },
+        dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` },
+        noData: { ...trendChartOptions.noData }
+    };
+
+    // --- UTILITY FUNCTIONS ---
+    const showLoading = (isLoading) => elements.loadingOverlay.classList.toggle('hidden', !isLoading);
+    const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
+    const toggleModal = (show) => {
+        if (show) {
+            elements.error.modal.classList.remove('hidden');
+            elements.error.modal.classList.add('flex');
+            setTimeout(() => {
+                elements.error.modalPanel.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        } else {
+            elements.error.modalPanel.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                elements.error.modal.classList.add('hidden');
+                elements.error.modal.classList.remove('flex');
+            }, 300);
+        }
+    };
+
+    // --- INITIALIZATION ---
+    function init() {
+        initCharts();
+        initDatePicker();
+        loadStores();
+        addEventListeners();
+        fetchDashboardData();
+    }
+
+    function initCharts() {
+        trendChart = new ApexCharts(document.querySelector("#trend-chart"), trendChartOptions);
+        storeChart = new ApexCharts(document.querySelector("#store-chart"), storeChartOptions);
+        trendChart.render();
+        storeChart.render();
+    }
+    
+    function initDatePicker() {
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        state.filters.startDate = firstDayOfMonth.toISOString().split('T')[0];
+        state.filters.endDate = today.toISOString().split('T')[0];
+        new Litepicker({
+            element: document.getElementById('date-range-picker'),
+            singleMode: false, format: 'YYYY-MM-DD', startDate: firstDayOfMonth, endDate: today,
+            setup: (picker) => picker.on('selected', (d1, d2) => {
+                state.filters.startDate = d1.format('YYYY-MM-DD');
+                state.filters.endDate = d2.format('YYYY-MM-DD');
+            })
+        });
+    }
+
+    function addEventListeners() {
+        elements.applyFiltersBtn.addEventListener('click', () => {
+            state.currentPage = 1;
+            state.filters.period = elements.periodSelector.value;
+            state.filters.store = elements.storeSelector.value;
+            fetchDashboardData();
+        });
+
+        elements.pagination.prevDesktop.addEventListener('click', () => { state.currentPage--; fetchDashboardData(); });
+        elements.pagination.nextDesktop.addEventListener('click', () => { state.currentPage++; fetchDashboardData(); });
+        
+        // Modal listeners
+        elements.error.bell.addEventListener('click', () => toggleModal(true));
+        elements.error.closeBtn.addEventListener('click', () => toggleModal(false));
+        elements.error.modal.addEventListener('click', (e) => { if (e.target === elements.error.modal) toggleModal(false); });
+    }
+
+    // --- DATA FETCHING & UI UPDATING ---
+    async function loadStores() {
+        try {
+            const response = await fetch('/api/v1/stores');
+            if (!response.ok) throw new Error('Failed to load stores');
+            const stores = await response.json();
+            stores.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store;
+                option.textContent = store;
+                elements.storeSelector.appendChild(option);
+            });
+        } catch (error) { console.error("Error loading stores:", error); }
+    }
+
+    async function fetchDashboardData() {
+        showLoading(true);
+        const { period, startDate, endDate, store } = state.filters;
+        const { currentPage, pageSize } = state;
+        const url = `/api/v1/dashboard?period=${period}&start_date=${startDate}&end_date=${endDate}&store=${store}&page=${currentPage}&page_size=${pageSize}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            updateUI(data);
+        } catch (error) {
+            console.error('Failed to fetch dashboard data:', error);
+            elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-400">Tải dữ liệu thất bại. Vui lòng thử lại.</td></tr>`;
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function updateUI(data) {
+        updateMetrics(data.metrics);
+        updateCharts(data.trend_chart, data.store_comparison_chart);
+        updateTable(data.table_data);
+        updatePagination(data.table_data);
+        updateErrorNotifications(data.error_logs);
+    }
+
+    function updateMetrics(metrics) {
+        elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);
+        elements.metrics.averageIn.textContent = formatNumber(metrics.average_in.toFixed(1));
+        elements.metrics.peakTime.textContent = metrics.peak_time || '--:--';
+        elements.metrics.busiestStore.textContent = metrics.busiest_store || 'N/A';
+        elements.metrics.growth.textContent = `${metrics.growth.toFixed(1)}%`;
+    }
+
+    function updateCharts(trendData, storeData) {
+        trendChart.updateSeries([{ name: 'Lượt vào', data: trendData.series.map(p => ({ x: p.x, y: p.y })) }]);
+        storeChart.updateOptions({ series: storeData.series.map(p => p.y), labels: storeData.series.map(p => p.x) });
+    }
+
+    function updateTable(tableData) {
+        if (!tableData.data || tableData.data.length === 0) {
+            elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">Không có dữ liệu chi tiết.</td></tr>`;
+            return;
+        }
+        elements.tableBody.innerHTML = tableData.data.map(row => `
+            <tr class="hover:bg-gray-800 transition-colors duration-200">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${new Date(row.record_time).toLocaleString('vi-VN')}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${row.store_name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-400 font-semibold">${formatNumber(row.in_count)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-400 font-semibold">${formatNumber(row.out_count)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function updatePagination({ total_records, page, page_size }) {
+        const from = total_records > 0 ? (page - 1) * page_size + 1 : 0;
+        const to = Math.min(page * page_size, total_records);
+        elements.pagination.from.textContent = formatNumber(from);
+        elements.pagination.to.textContent = formatNumber(to);
+        elements.pagination.total.textContent = formatNumber(total_records);
+        elements.pagination.prevDesktop.disabled = page <= 1;
+        elements.pagination.nextDesktop.disabled = to >= total_records;
+    }
+    
+    function updateErrorNotifications(errorLogs) {
+        elements.error.indicator.classList.toggle('hidden', !errorLogs || errorLogs.length === 0);
+        if (!errorLogs || errorLogs.length === 0) {
+            elements.error.logList.innerHTML = `<li class="text-gray-400">Không có lỗi nào được ghi nhận gần đây.</li>`;
+            return;
+        }
+        elements.error.logList.innerHTML = errorLogs.map(log => `
+            <li class="p-4 rounded-lg bg-gray-800/70 border border-gray-700">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-red-400">${log.error_message}</p>
+                        <p class="text-sm text-gray-400">Cửa hàng: <span class="font-medium text-gray-300">${log.store_name}</span> | Mã lỗi: ${log.error_code}</p>
+                    </div>
+                    <p class="text-xs text-gray-500 whitespace-nowrap pl-4">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
+                </div>
+            </li>
+        `).join('');
+    }
+
+    // --- RUN ---
+    init();
+});
+</script>

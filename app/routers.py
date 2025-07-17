@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import List
 
 from . import schemas
@@ -7,12 +7,17 @@ from .services import DashboardService
 
 router = APIRouter()
 
-@router.get('/dashboard', response_model=schemas.DashboardData)
-def get_dashboard_data(
-    period: str, # Thêm period
+def get_dashboard_service(
+    period: str,
     start_date: date,
     end_date: date,
-    store: str = 'all',
+    store: str = 'all'
+) -> DashboardService:
+    return DashboardService(period, start_date, end_date, store)
+
+@router.get('/dashboard', response_model=schemas.DashboardData)
+def get_dashboard_data(
+    service: DashboardService = Depends(get_dashboard_service), # Inject service ở đây
     page: int = 1,
     page_size: int = Query(10, ge=1, le=100)
 ):
@@ -20,8 +25,6 @@ def get_dashboard_data(
     Endpoint chính để cung cấp toàn bộ dữ liệu cho dashboard,
     bao gồm các chỉ số, dữ liệu biểu đồ, bảng và log lỗi.
     """
-    service = DashboardService(period, start_date, end_date, store)
-
     metrics = service.get_metrics()
     trend_data = service.get_trend_chart_data()
     store_data = service.get_store_comparison_chart_data()

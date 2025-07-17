@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     DB_USER: str
     DB_PASS: str
 
+    # File database DuckDB
+    DUCKDB_PATH: str
+
     @computed_field # type: ignore[misc]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

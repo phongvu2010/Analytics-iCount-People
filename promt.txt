@@ -21,8 +21,8 @@ iCount-People/
 ├── app/
 │   ├── core/
 │   │   ├── config.py
-│   │   ├── data_handler.py       # Dành cho Parquet (DuckDB)
-│   │   └── db.py                 # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
+│   │   ├── data_handler.py         # Dành cho Parquet (DuckDB)
+│   │   └── database.py             # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
 │   ├── utils/
 │   │   └── logger.py
 │   ├── main.py
@@ -56,6 +56,14 @@ Tôi muốn triển khai dự án nhỏ về FastAPI có tích hợp trang Dashb
 Các thư viện cần thiết cho dự án này là: FastAPI, SQLAlchemy, ...
 Hãy giúp tôi xem cấu trúc dự án như vậy đã ổn chưa, có cần chỉnh sửa gì thêm hay không.
 Đính kèm là các file Python và Templates mẫu tôi đã viết sẵn, hãy giúp tôi đánh giá chúng.
+
+
+
+
+
+
+
+
 
 Data `crowd_counts` thể hiện dữ liêu ra - vào theo thời gian (data sẽ có nhiều rows bị lỗi tín hiệu nên sẽ bị tăng vọt bất thường, nên cần xử lý chia theo tỷ lệ tham số truyền vào).
 Các tính năng tôi muốn:

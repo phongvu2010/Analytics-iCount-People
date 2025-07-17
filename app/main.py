@@ -52,13 +52,13 @@ async def startup_event():
     # Có thể thực hiện các tác vụ khi khởi động ở đây
     # Ví dụ: khởi tạo kết nối, tải cache, v.v.
     # Setup logging khi ứng dụng khởi động
-    setup_logging(log_name=settings.PROJECT_NAME) # <<< THÊM DÒNG NÀY
+    setup_logging('FastAPI')
     logging.info('Application startup...')
 
 @app.on_event('shutdown')
 async def shutdown_event():
     # Dọn dẹp khi ứng dụng tắt
-    logging.info('Application shutdown.') # <<< THAY ĐỔI DÒNG NÀY
+    logging.info('Application shutdown.')
 
 @app.get('/health', tags=['Health Check'])
 def health_check():

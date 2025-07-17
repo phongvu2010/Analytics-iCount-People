@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from .config import settings
+from ..utils.logger import setup_logging
 
 # Tạo SQLAlchemy engine từ chuỗi kết nối trong config
 # echo = False để không in các câu lệnh SQL ra console trong môi trường production
@@ -41,6 +42,7 @@ def execute_query_as_dataframe(query: str, db: Session, params: dict=None) -> pd
         # Sử dụng connection của session để thực thi với pandas
         return pd.read_sql_query(query, db.connection(), params=params)
     except Exception as e:
-        print(f'Lỗi khi thực thi query với SQLAlchemy: {e}')
+        setup_logging('database_mssql')
+        logging.error(f'Lỗi khi thực thi query với SQLAlchemy: {e}\n')
         # Trong production, bạn nên log lỗi này vào một file hoặc hệ thống logging
         return pd.DataFrame()
