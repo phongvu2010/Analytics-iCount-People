@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DOM ELEMENTS ---
     const elements = {
         loadingOverlay: document.getElementById('loading-overlay'),
+        dashboardContent: document.getElementById('dashboard-content'),
         applyFiltersBtn: document.getElementById('apply-filters-btn'),
         periodSelector: document.getElementById('period-selector'),
         storeSelector: document.getElementById('store-selector'),
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
             peakTime: document.getElementById('metric-peak-time'),
             busiestStore: document.getElementById('metric-busiest-store'),
             growth: document.getElementById('metric-growth'),
+            growthCard: document.getElementById('metric-growth-card'),
         },
         error: {
             indicator: document.getElementById('error-indicator'),
@@ -43,50 +45,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
-    // --- CHART INSTANCES ---
-    let trendChart, storeChart;
+    // --- CHART & DATEPICKER INSTANCES ---
+    let trendChart, storeChart, datePickerInstance;
 
-    // --- CHART OPTIONS ---
+    // --- CHART OPTIONS (Không thay đổi) ---
     const commonChartOptions = {
         chart: {
             toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: true } },
-            foreColor: '#9ca3af' // Gray-400
+            foreColor: '#9ca3af'
         },
         grid: { borderColor: '#374151' },
         tooltip: { theme: 'dark' }
     };
-    
     const trendChartOptions = {
         ...commonChartOptions,
-        series: [],
-        chart: { ...commonChartOptions.chart, type: 'area', height: 350, background: 'transparent' },
-        dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 3 },
+        series: [], chart: { ...commonChartOptions.chart, type: 'area', height: 350, background: 'transparent' },
+        dataLabels: { enabled: false }, stroke: { curve: 'smooth', width: 3 },
         xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { colors: '#9ca3af' } } },
         yaxis: { title: { text: 'Lượt vào', style: { color: '#9ca3af' } }, labels: { style: { colors: '#9ca3af' } } },
         markers: { size: 0 },
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shade: 'dark',
-                type: "vertical",
-                shadeIntensity: 0.5,
-                gradientToColors: undefined,
-                inverseColors: true,
-                opacityFrom: 0.4,
-                opacityTo: 0.0,
-                stops: [0, 90, 100],
-            }
-        },
+        fill: { type: 'gradient', gradient: { shade: 'dark', type: "vertical", shadeIntensity: 0.5, gradientToColors: undefined, inverseColors: true, opacityFrom: 0.4, opacityTo: 0.0, stops: [0, 90, 100]} },
         noData: { text: 'Không có dữ liệu', style: { color: '#d1d5db' } }
     };
-
     const storeChartOptions = {
         ...commonChartOptions,
-        series: [],
-        chart: { ...commonChartOptions.chart, type: 'donut', height: 350, background: 'transparent' },
-        labels: [],
-        legend: { position: 'bottom', labels: { colors: '#d1d5db' } },
+        series: [], chart: { ...commonChartOptions.chart, type: 'donut', height: 350, background: 'transparent' },
+        labels: [], legend: { position: 'bottom', labels: { colors: '#d1d5db' } },
         dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` },
         noData: { ...trendChartOptions.noData }
     };
@@ -96,63 +80,61 @@ document.addEventListener('DOMContentLoaded', function () {
     const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
     const toggleModal = (show) => {
         if (show) {
-            elements.error.modal.classList.remove('hidden');
-            elements.error.modal.classList.add('flex');
-            setTimeout(() => {
-                elements.error.modalPanel.classList.remove('scale-95', 'opacity-0');
-            }, 10);
+            elements.error.modal.classList.remove('hidden'); elements.error.modal.classList.add('flex');
+            setTimeout(() => { elements.error.modalPanel.classList.remove('scale-95', 'opacity-0'); }, 10);
         } else {
             elements.error.modalPanel.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => {
-                elements.error.modal.classList.add('hidden');
-                elements.error.modal.classList.remove('flex');
-            }, 300);
+            setTimeout(() => { elements.error.modal.classList.add('hidden'); elements.error.modal.classList.remove('flex'); }, 300);
         }
+    };
+    const debounce = (func, delay) => {
+        let timeout;
+        return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
     };
 
     // --- INITIALIZATION ---
     function init() {
-        initCharts();
-        initDatePicker();
-        loadStores();
-        addEventListeners();
-        fetchDashboardData();
+        initCharts(); initDatePicker(); loadStores(); addEventListeners(); fetchDashboardData();
     }
-
     function initCharts() {
         trendChart = new ApexCharts(document.querySelector("#trend-chart"), trendChartOptions);
         storeChart = new ApexCharts(document.querySelector("#store-chart"), storeChartOptions);
-        trendChart.render();
-        storeChart.render();
+        trendChart.render(); storeChart.render();
     }
-    
     function initDatePicker() {
         const today = new Date();
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         state.filters.startDate = firstDayOfMonth.toISOString().split('T')[0];
         state.filters.endDate = today.toISOString().split('T')[0];
-        new Litepicker({
+        datePickerInstance = new Litepicker({
             element: document.getElementById('date-range-picker'),
             singleMode: false, format: 'YYYY-MM-DD', startDate: firstDayOfMonth, endDate: today,
             setup: (picker) => picker.on('selected', (d1, d2) => {
-                state.filters.startDate = d1.format('YYYY-MM-DD');
-                state.filters.endDate = d2.format('YYYY-MM-DD');
+                state.filters.startDate = d1.format('YYYY-MM-DD'); state.filters.endDate = d2.format('YYYY-MM-DD');
             })
         });
     }
-
+    function handlePeriodChange() {
+        const period = elements.periodSelector.value;
+        const today = new Date();
+        let startDate = new Date(), endDate = new Date();
+        switch (period) {
+            case 'day': startDate = today; break;
+            case 'week': startDate = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1) )); break;
+            case 'month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
+            case 'year': startDate = new Date(today.getFullYear(), 0, 1); break;
+        }
+        if (startDate && endDate && datePickerInstance) { datePickerInstance.setDateRange(startDate, endDate); }
+    }
     function addEventListeners() {
-        elements.applyFiltersBtn.addEventListener('click', () => {
-            state.currentPage = 1;
-            state.filters.period = elements.periodSelector.value;
-            state.filters.store = elements.storeSelector.value;
-            fetchDashboardData();
-        });
-
+        const debouncedFetch = debounce(() => {
+            state.currentPage = 1; state.filters.period = elements.periodSelector.value;
+            state.filters.store = elements.storeSelector.value; fetchDashboardData();
+        }, 400);
+        elements.applyFiltersBtn.addEventListener('click', debouncedFetch);
+        elements.periodSelector.addEventListener('change', handlePeriodChange);
         elements.pagination.prevDesktop.addEventListener('click', () => { state.currentPage--; fetchDashboardData(); });
         elements.pagination.nextDesktop.addEventListener('click', () => { state.currentPage++; fetchDashboardData(); });
-        
-        // Modal listeners
         elements.error.bell.addEventListener('click', () => toggleModal(true));
         elements.error.closeBtn.addEventListener('click', () => toggleModal(false));
         elements.error.modal.addEventListener('click', (e) => { if (e.target === elements.error.modal) toggleModal(false); });
@@ -165,16 +147,15 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error('Failed to load stores');
             const stores = await response.json();
             stores.forEach(store => {
-                const option = document.createElement('option');
-                option.value = store;
-                option.textContent = store;
+                const option = document.createElement('option'); option.value = store; option.textContent = store;
                 elements.storeSelector.appendChild(option);
             });
         } catch (error) { console.error("Error loading stores:", error); }
     }
-
     async function fetchDashboardData() {
-        showLoading(true);
+        if (elements.dashboardContent.classList.contains('invisible')) { elements.loadingOverlay.classList.remove('hidden'); } 
+        else { showLoading(true); }
+        
         const { period, startDate, endDate, store } = state.filters;
         const { currentPage, pageSize } = state;
         const url = `/api/v1/dashboard?period=${period}&start_date=${startDate}&end_date=${endDate}&store=${store}&page=${currentPage}&page_size=${pageSize}`;
@@ -188,24 +169,64 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Failed to fetch dashboard data:', error);
             elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-400">Tải dữ liệu thất bại. Vui lòng thử lại.</td></tr>`;
         } finally {
-            showLoading(false);
+            if (!elements.dashboardContent.classList.contains('invisible')) { showLoading(false); }
         }
     }
-
     function updateUI(data) {
+        if (elements.dashboardContent.classList.contains('invisible')) {
+            elements.dashboardContent.classList.remove('invisible');
+            elements.loadingOverlay.classList.add('hidden');
+        }
         updateMetrics(data.metrics);
         updateCharts(data.trend_chart, data.store_comparison_chart);
         updateTable(data.table_data);
         updatePagination(data.table_data);
         updateErrorNotifications(data.error_logs);
     }
-
+    
+    // [FIX] Cập nhật hàm updateMetrics để sử dụng selector ổn định
     function updateMetrics(metrics) {
         elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);
         elements.metrics.averageIn.textContent = formatNumber(metrics.average_in.toFixed(1));
         elements.metrics.peakTime.textContent = metrics.peak_time || '--:--';
         elements.metrics.busiestStore.textContent = metrics.busiest_store || 'N/A';
-        elements.metrics.growth.textContent = `${metrics.growth.toFixed(1)}%`;
+        
+        const growthValue = metrics.growth;
+        const growthEl = elements.metrics.growth;
+        const growthCard = elements.metrics.growthCard;
+        const growthIconDiv = growthCard.querySelector('[data-container="icon"]');
+        
+        if (!growthIconDiv) return;
+
+        // [FIX] Chọn icon bằng `data-lucide` thay vì tag `<i>`
+        const growthIcon = growthIconDiv.querySelector('[data-lucide]');
+        if (!growthIcon) return; // Bảo vệ thêm một lớp nữa
+
+        growthEl.textContent = `${growthValue.toFixed(1)}%`;
+        
+        ['text-green-400', 'text-red-400', 'text-white'].forEach(c => growthEl.classList.remove(c));
+        ['hover:shadow-green-500/20', 'hover:border-green-500/50', 'hover:shadow-red-500/20', 'hover:border-red-500/50'].forEach(c => growthCard.classList.remove(c));
+        ['bg-green-500/20', 'bg-red-500/20', 'bg-gray-500/20'].forEach(c => growthIconDiv.classList.remove(c));
+        
+        let iconName = 'arrow-right'; let iconColor = 'text-gray-400';
+        if (growthValue > 0) {
+            growthEl.classList.add('text-green-400');
+            growthCard.classList.add('hover:shadow-green-500/20', 'hover:border-green-500/50');
+            growthIconDiv.classList.add('bg-green-500/20');
+            iconName = 'arrow-up-right'; iconColor = 'text-green-400';
+        } else if (growthValue < 0) {
+            growthEl.classList.add('text-red-400');
+            growthCard.classList.add('hover:shadow-red-500/20', 'hover:border-red-500/50');
+            growthIconDiv.classList.add('bg-red-500/20');
+            iconName = 'arrow-down-right'; iconColor = 'text-red-400';
+        } else {
+            growthEl.classList.add('text-white');
+            growthIconDiv.classList.add('bg-gray-500/20');
+        }
+        
+        growthIcon.setAttribute('data-lucide', iconName);
+        growthIcon.className = `h-5 w-5 ${iconColor}`;
+        lucide.createIcons();
     }
 
     function updateCharts(trendData, storeData) {
