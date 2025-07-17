@@ -57,6 +57,30 @@
         ::-webkit-scrollbar-track { background: #1f2937; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .main-content {
+            transition: padding-left 0.3s ease-in-out;
+        }
+        /* Trạng thái khi sidebar bị ẩn */
+        body.sidebar-collapsed .sidebar {
+            transform: translateX(-100%);
+        }
+        body.sidebar-collapsed .main-content {
+            padding-left: 0 !important;
+        }
+        /* Thêm lớp này để tùy chỉnh select dropdown */
+        .custom-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem; /* Thêm khoảng trống để mũi tên không đè lên chữ */
+        }
     </style>
 </head>
 <body class="min-h-screen">

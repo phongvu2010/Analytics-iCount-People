@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
         periodSelector: document.getElementById('period-selector'),
         storeSelector: document.getElementById('store-selector'),
         tableBody: document.getElementById('details-table-body'),
+        sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'),
         pagination: {
             from: document.getElementById('pagination-from'),
             to: document.getElementById('pagination-to'),
@@ -95,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- INITIALIZATION ---
     function init() {
         initCharts(); initDatePicker(); loadStores(); addEventListeners(); fetchDashboardData();
+        document.body.classList.add('sidebar-collapsed'); // Ẩn sidebar khi tải trang
     }
     function initCharts() {
         trendChart = new ApexCharts(document.querySelector("#trend-chart"), trendChartOptions);
@@ -138,6 +140,10 @@ document.addEventListener('DOMContentLoaded', function () {
         elements.error.bell.addEventListener('click', () => toggleModal(true));
         elements.error.closeBtn.addEventListener('click', () => toggleModal(false));
         elements.error.modal.addEventListener('click', (e) => { if (e.target === elements.error.modal) toggleModal(false); });
+        // Thêm event cho nút toggle
+        elements.sidebarToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-collapsed');
+        });
     }
 
     // --- DATA FETCHING & UI UPDATING ---
@@ -158,7 +164,16 @@ document.addEventListener('DOMContentLoaded', function () {
         
         const { period, startDate, endDate, store } = state.filters;
         const { currentPage, pageSize } = state;
-        const url = `/api/v1/dashboard?period=${period}&start_date=${startDate}&end_date=${endDate}&store=${store}&page=${currentPage}&page_size=${pageSize}`;
+        const params = new URLSearchParams({
+            period: state.filters.period,
+            start_date: state.filters.startDate,
+            end_date: state.filters.endDate,
+            store: state.filters.store,
+            page: state.currentPage,
+            page_size: state.pageSize
+        });
+        const url = `/api/v1/dashboard?${params.toString()}`;
+        // const url = `/api/v1/dashboard?period=${period}&start_date=${startDate}&end_date=${endDate}&store=${store}&page=${currentPage}&page_size=${pageSize}`;
 
         try {
             const response = await fetch(url);

@@ -53,9 +53,10 @@ iCount-People/
 └── requirements.txt
 
 Tôi muốn triển khai dự án nhỏ về FastAPI có tích hợp trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày & show notication báo lỗi
-Các thư viện cần thiết cho dự án này là: FastAPI, SQLAlchemy, ...
-Hãy giúp tôi xem cấu trúc dự án như vậy đã ổn chưa, có cần chỉnh sửa gì thêm hay không.
 Đính kèm là các file Python và Templates mẫu tôi đã viết sẵn, hãy giúp tôi đánh giá chúng.
+Hãy giúp tôi xem cấu trúc dự án như vậy đã ổn chưa, có cần chỉnh sửa gì thêm hay không.
+
+Các thư viện cần thiết cho dự án này là: FastAPI, SQLAlchemy, ...
 
 
 
