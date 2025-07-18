@@ -45,11 +45,13 @@ class DashboardService:
                 CAST(record_time AS TIMESTAMP) as record_time,
                 store_name,
                 CASE
-                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    -- WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN 1
                     ELSE in_count
                 END as in_count,
                 CASE
-                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    -- WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
+                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN 1
                     ELSE out_count
                 END as out_count
             FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
@@ -171,17 +173,46 @@ class DashboardService:
         data['growth'] = growth
         return data
 
+    # def get_trend_chart_data(self) -> List[Dict[str, Any]]:
+    #     """
+    #     Lấy dữ liệu cho biểu đồ đường, nhóm theo period được chọn.
+    #     """
+    #     time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
+
+    #     # Sử dụng cột 'adjusted_time' để nhóm dữ liệu
+    #     query = f"""
+    #     {self.base_cte}
+    #     SELECT
+    #         date_trunc('{time_unit}', adjusted_time) as x,
+    #         SUM(in_count) as y
+    #     FROM filtered_data
+    #     GROUP BY x
+    #     ORDER BY x
+    #     """
+    #     df = query_parquet_as_dataframe(query, params=self.params)
+
+    #     # Định dạng lại output cho phù hợp
+    #     if time_unit == 'month':
+    #         df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m')
+    #     elif time_unit == 'day':
+    #         df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d')
+    #     else: # hour
+    #          df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d %H:00')
+
+    #     return df.to_dict(orient='records')
     def get_trend_chart_data(self) -> List[Dict[str, Any]]:
         """
-        Lấy dữ liệu cho biểu đồ đường, nhóm theo period được chọn.
+        [ĐÃ CẬP NHẬT] Lấy dữ liệu cho biểu đồ đường, nhóm theo period được chọn và
+        hiển thị đúng thời gian gốc.
         """
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
 
-        # Sử dụng cột 'adjusted_time' để nhóm dữ liệu
+        # Câu lệnh SQL được cập nhật để cộng lại số giờ đã dịch chuyển
         query = f"""
         {self.base_cte}
         SELECT
-            date_trunc('{time_unit}', adjusted_time) as x,
+            -- THAY ĐỔI Ở ĐÂY: Cộng lại số giờ đã dịch chuyển để hiển thị thời gian gốc trên biểu đồ
+            (date_trunc('{time_unit}', adjusted_time) + INTERVAL '{settings.WORKING_HOUR_START} hours') as x,
             SUM(in_count) as y
         FROM filtered_data
         GROUP BY x
@@ -189,13 +220,13 @@ class DashboardService:
         """
         df = query_parquet_as_dataframe(query, params=self.params)
 
-        # Định dạng lại output cho phù hợp
+        # Phần định dạng lại output cho phù hợp không cần thay đổi
         if time_unit == 'month':
             df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m')
         elif time_unit == 'day':
             df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d')
         else: # hour
-             df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d %H:00')
+            df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d %H:00')
 
         return df.to_dict(orient='records')
 
@@ -215,32 +246,165 @@ class DashboardService:
         df = query_parquet_as_dataframe(query, params=self.params)
         return df.to_dict(orient='records')
 
+    # def get_paginated_details(self, page: int, page_size: int) -> Dict[str, Any]:
+    #     """
+    #     [ĐÃ CẬP NHẬT] Lấy dữ liệu tổng hợp động theo period (ngày/tuần/tháng/năm),
+    #     có phân trang và tính toán chênh lệch so với kỳ trước đó.
+    #     """
+    #     offset = (page - 1) * page_size
+
+    #     # Tự động xác định đơn vị thời gian (time_unit) dựa trên bộ lọc period
+    #     time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
+
+    #     # Định dạng chuỗi ngày tháng cho cột hiển thị trên bảng
+    #     date_format = {
+    #         'hour': '%Y-%m-%d %H:00',
+    #         'day': '%Y-%m-%d',
+    #         'month': '%Y-%m',
+    #     }.get(time_unit, '%Y-%m-%d')
+
+    #     # CTE để nhóm theo time_unit, sau đó dùng window function LAG() để tính chênh lệch
+    #     aggregation_query = f"""
+    #     {self.base_cte}
+    #     , period_summary AS (
+    #         SELECT
+    #             date_trunc('{time_unit}', adjusted_time) as period_start,
+    #             SUM(in_count) as total_in
+    #         FROM filtered_data
+    #         GROUP BY period_start
+    #     ),
+    #     period_summary_with_lag AS (
+    #         SELECT
+    #             period_start,
+    #             total_in,
+    #             LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_period_in
+    #         FROM period_summary
+    #     )
+    #     SELECT
+    #         strftime(period_start, '{date_format}') as period,
+    #         total_in,
+    #         CASE
+    #             WHEN previous_period_in = 0 THEN 0.0
+    #             ELSE ROUND(((total_in - previous_period_in) * 100.0) / previous_period_in, 1)
+    #         END as pct_change
+    #     FROM period_summary_with_lag
+    #     """
+
+    #     # Lấy tổng số bản ghi để phân trang
+    #     count_query = f"WITH query_result AS ({aggregation_query}) SELECT COUNT(*) as total FROM query_result"
+    #     total_records_df = query_parquet_as_dataframe(count_query, params=self.params)
+    #     total_records = total_records_df['total'].iloc[0] if not total_records_df.empty else 0
+
+    #     # Lấy dữ liệu đã phân trang
+    #     paginated_params = self.params + [page_size, offset]
+    #     data_query = f"""
+    #     WITH query_result AS ({aggregation_query})
+    #     SELECT * FROM query_result
+    #     ORDER BY period DESC
+    #     LIMIT ? OFFSET ?
+    #     """
+    #     df = query_parquet_as_dataframe(data_query, params=paginated_params)
+
+    #     return {
+    #         'total_records': int(total_records),
+    #         'page': page,
+    #         'page_size': page_size,
+    #         'data': df.to_dict(orient='records')
+    #     }
     def get_paginated_details(self, page: int, page_size: int) -> Dict[str, Any]:
         """
-        Lấy dữ liệu chi tiết cho bảng, có phân trang.
+        [CẬP NHẬT] Lấy dữ liệu tổng hợp động theo period, trả về một trang duy nhất
+        và kèm theo dữ liệu tổng kết.
         """
         offset = (page - 1) * page_size
+        time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
+        date_format = {'hour': '%Y-%m-%d %H:00', 'day': '%Y-%m-%d', 'month': '%Y-%m',}.get(time_unit, '%Y-%m-%d')
 
-        count_query = f"{self.base_cte} SELECT COUNT(*) as total FROM filtered_data"
-        total_records_df = query_parquet_as_dataframe(count_query, params=self.params)
-        total_records = total_records_df['total'].iloc[0] if not total_records_df.empty else 0
+        # aggregation_query = f"""
+        # {self.base_cte}
+        # , period_summary AS (...)
+        # , period_summary_with_lag AS (...)
+        # SELECT ... FROM period_summary_with_lag
+        # """
+        # # (Phần aggregation_query giữ nguyên như cũ, tôi rút gọn để bạn dễ nhìn)
+        # aggregation_query = f"""
+        # {self.base_cte}
+        # , period_summary AS (
+        #     SELECT date_trunc('{time_unit}', adjusted_time) as period_start, SUM(in_count) as total_in
+        #     FROM filtered_data GROUP BY period_start
+        # ),
+        # period_summary_with_lag AS (
+        #     SELECT period_start, total_in, LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_period_in
+        #     FROM period_summary
+        # )
+        # SELECT
+        #     strftime(period_start, '{date_format}') as period, total_in,
+        #     CASE WHEN previous_period_in = 0 THEN 0.0 ELSE ROUND(((total_in - previous_period_in) * 100.0) / previous_period_in, 1) END as pct_change
+        # FROM period_summary_with_lag
+        # """
 
-        # Thêm LIMIT và OFFSET vào danh sách tham số
+        # CTE để nhóm theo time_unit, sau đó dùng window function LAG() để tính chênh lệch
+        aggregation_query = f"""
+        {self.base_cte}
+        , period_summary AS (
+            SELECT
+                date_trunc('{time_unit}', adjusted_time) as period_start,
+                SUM(in_count) as total_in
+            FROM filtered_data
+            GROUP BY period_start
+        ),
+        period_summary_with_lag AS (
+            SELECT
+                period_start,
+                total_in,
+                LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_period_in
+            FROM period_summary
+        )
+        SELECT
+            -- THAY ĐỔI DUY NHẤT Ở DÒNG DƯỚI ĐÂY:
+            -- Cộng lại số giờ đã dịch chuyển để hiển thị thời gian gốc
+            strftime(period_start + INTERVAL '{settings.WORKING_HOUR_START} hours', '{date_format}') as period,
+            total_in,
+            CASE
+                WHEN previous_period_in = 0 THEN 0.0
+                ELSE ROUND(((total_in - previous_period_in) * 100.0) / previous_period_in, 1)
+            END as pct_change
+        FROM period_summary_with_lag
+        """
+
+        # --- THAY ĐỔI BẮT ĐẦU TỪ ĐÂY ---
+
+        # Tạo một CTE chung để tái sử dụng
+        final_query_cte = f"WITH query_result AS ({aggregation_query})"
+
+        # 1. Lấy dữ liệu cho bảng (tối đa 31 dòng)
         paginated_params = self.params + [page_size, offset]
         data_query = f"""
-        {self.base_cte}
-        SELECT record_time, store_name, in_count, out_count
-        FROM filtered_data
-        ORDER BY record_time DESC
+        {final_query_cte}
+        SELECT * FROM query_result
+        ORDER BY period DESC
         LIMIT ? OFFSET ?
         """
         df = query_parquet_as_dataframe(data_query, params=paginated_params)
 
+        # 2. Lấy dữ liệu tổng kết trên TOÀN BỘ khoảng thời gian (không phân trang)
+        summary_query = f"""
+        {final_query_cte}
+        SELECT
+            SUM(total_in) as total_sum,
+            AVG(total_in) as average_in
+        FROM query_result
+        """
+        summary_df = query_parquet_as_dataframe(summary_query, params=self.params)
+        summary_data = summary_df.iloc[0].to_dict() if not summary_df.empty else {'total_sum': 0, 'average_in': 0}
+
+        # 3. Trả về cả dữ liệu bảng và dữ liệu tổng kết
         return {
-            'total_records': int(total_records),
+            'total_records': len(df), # Total records giờ là số dòng thực tế trả về
             'page': page,
             'page_size': page_size,
-            'data': df.to_dict(orient='records')
+            'data': df.to_dict(orient='records'),
+            'summary': summary_data # Trả về summary
         }
 
     @staticmethod
