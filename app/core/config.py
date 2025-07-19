@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     def ERROR_LOGS_PATH(self) -> str:
         return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
+    # File database DuckDB
+    DUCKDB_PATH: str = 'data.duckdb'
+
     # Biến cho việc xử lý dữ liệu bất thường (outlier)
     OUTLIER_THRESHOLD: int = 100
     OUTLIER_SCALE_RATIO: float = 0.00001    # ~ 0.01%
@@ -55,14 +58,11 @@ class Settings(BaseSettings):
 
     # Cấu hình cho Database MSSQL
     DB_HOST: str
-    DB_PORT: int = 1433             # Cổng mặc định của MSSQL
+    DB_PORT: int = 1433                                 # Cổng mặc định của MSSQL
     DB_DRIVER: str = 'ODBC Driver 17 for SQL Server'    # SQL Server
     DB_NAME: str
     DB_USER: str
     DB_PASS: str
-
-    # File database DuckDB
-    DUCKDB_PATH: str
 
     @computed_field # type: ignore[misc]
     @property
