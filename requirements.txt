@@ -21,6 +21,7 @@
 
 
 ### Packages
+cachetools
 duckdb
 fastapi[all]
 pandas

@@ -2,13 +2,13 @@ import duckdb
 import logging
 import pandas as pd
 
-from functools import lru_cache
+# from functools import lru_cache
 
 # from .config import settings
 from ..utils.logger import setup_logging
 
-# Cache kết nối để không phải tạo lại liên tục
-@lru_cache(maxsize=1)
+# # Cache kết nối để không phải tạo lại liên tục
+# @lru_cache(maxsize=1)
 def get_duckdb_connection():
     """
     Tạo và trả về một kết nối DuckDB duy nhất cho ứng dụng.
@@ -35,5 +35,7 @@ def query_parquet_as_dataframe(query: str, params: list=None) -> pd.DataFrame:
         return con.execute(query, parameters=params).df()
     except Exception as e:
         setup_logging('database_duckdb')
-        logging.error(f'Lỗi khi thực thi query với DuckDB: {e}\n')
+        logging.error(f'Lỗi khi thực thi query với DuckDB: {e}\nQuery: {query}\nParams: {params}')
         return pd.DataFrame()
+    finally:
+        con.close()
