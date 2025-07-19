@@ -14,8 +14,8 @@ from .utils.logger import setup_logging
 
 # Khởi tạo ứng dụng FastAPI với các thông tin từ file config
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description=settings.DESCRIPTION
+    title = settings.PROJECT_NAME,
+    description = settings.DESCRIPTION
 )
 
 # Cấu hình CORS Middleware
@@ -24,10 +24,10 @@ if settings.BACKEND_CORS_ORIGINS:
     origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,    # Cho phép các origin trong danh sách
-        allow_credentials=True,   # Cho phép gửi cookie
-        allow_methods=['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
-        allow_headers=['*']       # Cho phép tất cả các header
+        allow_origins = origins,    # Cho phép các origin trong danh sách
+        allow_credentials = True,   # Cho phép gửi cookie
+        allow_methods = ['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
+        allow_headers = ['*']       # Cho phép tất cả các header
     )
 
 # Mount thư mục `static` để phục vụ các file: CSS, JS, Images
@@ -43,8 +43,8 @@ templates = Jinja2Templates(directory='templates')
 # ======================================================================
 app.include_router(
     api_router,
-    prefix='/api/v1',       # Tiền tố cho tất cả các route trong router này
-    tags=['Dashboard']      # Gắn tag để nhóm các API trong giao diện Swagger
+    prefix = '/api/v1',       # Tiền tố cho tất cả các route trong router này
+    tags = ['Dashboard']      # Gắn tag để nhóm các API trong giao diện Swagger
 )
 
 @app.on_event('startup')
@@ -65,9 +65,7 @@ def health_check():
     """
     Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
     """
-    return {
-        'status': 'ok'
-    }
+    return {'status': 'ok'}
 
 # Endpoint để phục vụ trang dashboard chính
 @app.get('/', response_class=HTMLResponse, include_in_schema=False)
@@ -76,7 +74,7 @@ async def read_root(request: Request):
     Endpoint chính, phục vụ trang dashboard.
     """
     return templates.TemplateResponse(
-        'dashboard.html', 
+        'dashboard.html',
         {
             'request': request,
             'project_name': settings.PROJECT_NAME,

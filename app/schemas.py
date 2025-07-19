@@ -2,7 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 
-# Dùng cho các thẻ metric (giữ nguyên)
+# Dùng cho các thẻ metric
 class Metric(BaseModel):
     total_in: int
     average_in: float
@@ -11,7 +11,7 @@ class Metric(BaseModel):
     busiest_store: Optional[str]
     growth: float
 
-# Dùng cho biểu đồ (giữ nguyên)
+# Dùng cho biểu đồ
 class ChartDataPoint(BaseModel):
     x: Any
     y: int
@@ -19,28 +19,20 @@ class ChartDataPoint(BaseModel):
 class ChartData(BaseModel):
     series: List[ChartDataPoint]
 
-# --- THAY ĐỔI Ở ĐÂY ---
-# Bỏ model TableRow cũ và thay bằng model cho dữ liệu tổng hợp
+# Dùng cho dữ liệu tổng hợp
 class SummaryTableRow(BaseModel):
     period: str
     total_in: int
     pct_change: float
 
-# # Cập nhật PaginatedTable để sử dụng model mới
-# class PaginatedTable(BaseModel):
-#     total_records: int
-#     page: int
-#     page_size: int
-#     data: List[SummaryTableRow] # <-- Thay đổi từ List[TableRow] thành List[SummaryTableRow]
-# # --- KẾT THÚC THAY ĐỔI ---
 class PaginatedTable(BaseModel):
     total_records: int
     page: int
     page_size: int
     data: List[SummaryTableRow]
-    summary: Dict[str, Any] # <-- THÊM DÒNG NÀY
+    summary: Dict[str, Any]
 
-# Dùng cho log lỗi (giữ nguyên)
+# Dùng cho log lỗi
 class ErrorLog(BaseModel):
     id: int
     store_name: str
@@ -48,7 +40,7 @@ class ErrorLog(BaseModel):
     error_code: int
     error_message: str
 
-# Model tổng hợp cho response của API dashboard (giữ nguyên)
+# Model tổng hợp cho response của API dashboard
 class DashboardData(BaseModel):
     metrics: Metric
     trend_chart: ChartData
