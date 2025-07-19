@@ -4,7 +4,7 @@ import pandas as pd
 
 from functools import lru_cache
 
-from .config import settings
+# from .config import settings
 from ..utils.logger import setup_logging
 
 # Cache kết nối để không phải tạo lại liên tục
@@ -14,8 +14,8 @@ def get_duckdb_connection():
     Tạo và trả về một kết nối DuckDB duy nhất cho ứng dụng.
     Sử dụng lru_cache để đảm bảo kết nối được tái sử dụng, tăng hiệu suất.
     """
-    # return duckdb.connect(database=':memory:', read_only=False)
-    return duckdb.connect(database=settings.DUCKDB_PATH, read_only=True)
+    return duckdb.connect(database=':memory:', read_only=False)
+    # return duckdb.connect(database=settings.DUCKDB_PATH, read_only=True)
 
 def query_parquet_as_dataframe(query: str, params: list=None) -> pd.DataFrame:
     """
