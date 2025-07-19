@@ -68,12 +68,28 @@ document.addEventListener('DOMContentLoaded', async function () {
         ...commonChartOptions,
         series: [], chart: {
             ...commonChartOptions.chart,
-            type: 'area',
+            // type: 'area',
+            type: 'bar',
             height: 350,
             background: 'transparent'
         },
+
+        // Thêm các tùy chọn cho biểu đồ cột
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: '60%', // Điều chỉnh độ rộng của các cột
+                borderRadius: 4     // Bo tròn nhẹ các góc của cột cho đẹp mắt
+            },
+        },
         dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: 3 },
+        stroke: {
+            show: true,
+            // curve: 'smooth',
+            // width: 3
+            width: 2,
+            colors: ['transparent'] // Tạo khoảng cách nhỏ giữa các cột
+        },
         xaxis: {
             type: 'datetime',
             labels: {
@@ -90,20 +106,24 @@ document.addEventListener('DOMContentLoaded', async function () {
                 style: { colors: '#9ca3af' }
             }
         },
-        markers: { size: 0 },
+        // Bỏ phần fill gradient của area chart
         fill: {
-            type: 'gradient',
-            gradient: {
-                shade: 'dark',
-                type: "vertical",
-                shadeIntensity: 0.5,
-                gradientToColors: undefined,
-                inverseColors: true,
-                opacityFrom: 0.4,
-                opacityTo: 0.0,
-                stops: [0, 90, 100]
-            }
+            opacity: 1
         },
+        // markers: { size: 0 },
+        // fill: {
+        //     type: 'gradient',
+        //     gradient: {
+        //         shade: 'dark',
+        //         type: "vertical",
+        //         shadeIntensity: 0.5,
+        //         gradientToColors: undefined,
+        //         inverseColors: true,
+        //         opacityFrom: 0.4,
+        //         opacityTo: 0.0,
+        //         stops: [0, 90, 100]
+        //     }
+        // },
         noData: {
             text: 'Không có dữ liệu',
             style: { color: '#d1d5db' }
