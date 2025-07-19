@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project_name }} - Dashboard</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Litepicker - Date Range Picker -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
-    
+
     <!-- Custom Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,7 +42,6 @@
         .litepicker .month-item:hover { background-color: #374151 !important; }
         .litepicker .button-apply { background-color: #3b82f6 !important; color: white !important; }
         .litepicker .button-cancel { background-color: #4b5563 !important; }
-        
         /* Spinner cho loading overlay */
         .loader {
             border-top-color: #3b82f6;
@@ -51,7 +50,6 @@
         }
         @-webkit-keyframes spin { 0% { -webkit-transform: rotate(0deg); } 100% { -webkit-transform: rotate(360deg); } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
         /* Scrollbar styling */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
@@ -99,7 +97,7 @@
             </main>
         </div>
     </div>
-    
+
     <!-- Modal cho log lỗi -->
     {% include "partials/_error_modal.html" %}
 
