@@ -66,14 +66,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     };
     const trendChartOptions = {
         ...commonChartOptions,
-        series: [], chart: {
+        series: [],
+        chart: {
             ...commonChartOptions.chart,
-            // type: 'area',
+            // type: 'area',        // Line Chart
             type: 'bar',
             height: 350,
             background: 'transparent'
         },
-
         // Thêm các tùy chọn cho biểu đồ cột
         plotOptions: {
             bar: {
@@ -85,8 +85,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         dataLabels: { enabled: false },
         stroke: {
             show: true,
-            // curve: 'smooth',
-            // width: 3
+            // curve: 'smooth',     // Line Chart
+            // width: 3             // Line Chart
             width: 2,
             colors: ['transparent'] // Tạo khoảng cách nhỏ giữa các cột
         },
@@ -106,10 +106,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 style: { colors: '#9ca3af' }
             }
         },
-        // Bỏ phần fill gradient của area chart
-        fill: {
-            opacity: 1
-        },
+        fill: { opacity: 1 },
+        // Line Chart
         // markers: { size: 0 },
         // fill: {
         //     type: 'gradient',
@@ -131,13 +129,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     };
     const storeChartOptions = {
         ...commonChartOptions,
-        series: [], chart: {
+        series: [],
+        chart: {
             ...commonChartOptions.chart,
             type: 'donut',
             height: 350,
             background: 'transparent'
         },
-        labels: [], legend: {
+        labels: [],
+        legend: {
             position: 'bottom',
             labels: { colors: '#d1d5db' }
         },
@@ -335,6 +335,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Thêm hàm updateLatestTimestamp mới vào khu vực các hàm cập nhật UI
     function updateLatestTimestamp(timestamp) {
         const timestampEl = document.getElementById('latest-data-timestamp');
+
         if (timestampEl && timestamp) {
             const date = new Date(timestamp);
             // Định dạng lại ngày giờ theo kiểu Việt Nam
@@ -460,12 +461,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             elements.error.logList.innerHTML = `<li class="text-gray-400">Không có lỗi nào được ghi nhận gần đây.</li>`;
             return;
         }
+
         elements.error.logList.innerHTML = errorLogs.map(log => `
             <li class="p-4 rounded-lg bg-gray-800/70 border border-gray-700">
                 <div class="flex justify-between items-start">
                     <div>
                         <p class="font-bold text-red-400">${log.error_message}</p>
-                        <p class="text-sm text-gray-400">Cửa hàng: <span class="font-medium text-gray-300">${log.store_name}</span> | Mã lỗi: ${log.error_code}</p>
+                        <p class="text-sm text-gray-400">Vị trí: <span class="font-medium text-gray-300">${log.store_name}</span> | Mã lỗi: ${log.error_code}</p>
                     </div>
                     <p class="text-xs text-gray-500 whitespace-nowrap pl-4">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
                 </div>
