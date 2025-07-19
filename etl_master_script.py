@@ -53,7 +53,6 @@ def extract_from_mssql(table_name: str, full_load: bool):
 def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str, output_format: str):
     """
     Thực hiện biến đổi, hợp nhất dữ liệu và thêm cột 'year' nếu cần.
-    [UPDATE] Cải thiện xử lý lỗi để bắt các lỗi cụ thể hơn.
     """
     if fact_df is None or stores_df is None:
         return None
@@ -69,22 +68,27 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
         date_column_name = ''
         if table_type == 'error_logs':
             fact_df = fact_df.rename(columns={
-                'ID': 'id', 'storeid': 'store_id', 'LogTime': 'log_time',
-                'Errorcode': 'error_code', 'ErrorMessage': 'error_message'
+                'ID': 'id',
+                'storeid': 'store_id',
+                'LogTime': 'log_time',
+                'Errorcode': 'error_code',
+                'ErrorMessage': 'error_message'
             })
             fact_df['error_message'] = fact_df['error_message'].str.strip().astype('string')
             date_column_name = 'log_time'
         elif table_type == 'crowd_counts':
             fact_df = fact_df.rename(columns={
-                'recordtime': 'record_time', 'in_num': 'in_count',
-                'out_num': 'out_count', 'storeid': 'store_id'
+                'recordtime': 'record_time',
+                'in_num': 'in_count',
+                'out_num': 'out_count',
+                'storeid': 'store_id'
             })
             date_column_name = 'record_time'
 
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
         fact_df.dropna(subset=[date_column_name], inplace=True) # Loại bỏ các dòng có ngày tháng không hợp lệ
 
-        # 3. Hợp nhất (join) để thêm store_name
+        # 3. Hợp nhất (join) để thêm store_name, loại bỏ các dòng có store_name rỗng
         merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
         merged_df.dropna(subset=['store_name'], inplace=True)
 
@@ -106,8 +110,6 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         logging.info(f'    -> Biến đổi và hợp nhất thành công cho bảng: `{table_type}`.\n')
         return final_df
-
-    # [UPDATE] Bắt các lỗi cụ thể hơn để dễ dàng gỡ rối
     except KeyError as e:
         logging.error(f'   -> Lỗi không tìm thấy cột (KeyError) trong quá trình biến đổi cho bảng `{table_type}`. Vui lòng kiểm tra lại tên cột trong DB. Lỗi: {e}\n')
         return None
@@ -190,8 +192,8 @@ def main():
     logging.info(f'    -> Đích đến: `{args.destination}`\n')
 
     # --- 1. EXTRACT ---
-    stores_df = extract_from_mssql('store', args.full_load) 
-    errlog_df = extract_from_mssql('ErrLog', args.full_load)
+    stores_df = extract_from_mssql('store', True)
+    errlog_df = extract_from_mssql('ErrLog', False)
     num_crowd_df = extract_from_mssql('num_crowd', args.full_load)
 
     # --- 2. TRANSFORM & JOIN ---
@@ -211,7 +213,7 @@ def main():
         load_to_partitioned_parquet(final_error_logs, 'error_logs', args.destination, args.full_load)
         load_to_partitioned_parquet(final_crowd_counts, 'crowd_counts', args.destination, args.full_load)
 
-    logging.info('--- KẾT THÚC TỔNG THỂ TÁC VỤ ETL ---\n\n')
+    logging.info('--- KẾT THÚC TỔNG THỂ TÁC VỤ ETL ---\n')
 
 if __name__ == '__main__':
     main()

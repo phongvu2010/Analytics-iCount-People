@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # Biến cho việc xử lý dữ liệu bất thường (outlier)
     OUTLIER_THRESHOLD: int = 100
-    OUTLIER_SCALE_RATIO: float = 0.001
+    OUTLIER_SCALE_RATIO: float = 0.00001    # ~ 0.01%
 
     # Biến định nghĩa giờ làm việc
     WORKING_HOUR_START: int = 9     # 09:00

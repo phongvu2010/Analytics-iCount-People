@@ -55,3 +55,4 @@ class DashboardData(BaseModel):
     store_comparison_chart: ChartData
     table_data: PaginatedTable
     error_logs: List[ErrorLog]
+    latest_record_time: Optional[datetime] = None

@@ -1,7 +1,7 @@
 import pandas as pd
 
 from datetime import date, timedelta, datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dateutil.relativedelta import relativedelta
 
 from .core.data_handler import query_parquet_as_dataframe
@@ -38,6 +38,14 @@ class DashboardService:
             store_filter_clause = "AND store_name = ?"
             self.params.append(store)
 
+        # Xác định logic sẽ được áp dụng KHI vượt ngưỡng
+        if settings.OUTLIER_SCALE_RATIO != 0:
+            then_logic_in = f"CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)"
+            then_logic_out = f"CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)"
+        else:
+            then_logic_in = "1"
+            then_logic_out = "1"
+
         # Tạo CTE (Common Table Expression) để tái sử dụng bộ dữ liệu đã lọc
         self.base_cte = f"""
         WITH source_data AS (
@@ -45,13 +53,11 @@ class DashboardService:
                 CAST(record_time AS TIMESTAMP) as record_time,
                 store_name,
                 CASE
-                    -- WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
-                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN 1
+                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in}
                     ELSE in_count
                 END as in_count,
                 CASE
-                    -- WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)
-                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN 1
+                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out}
                     ELSE out_count
                 END as out_count
             FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
@@ -130,47 +136,225 @@ class DashboardService:
             return 0
         return int(df['total'].iloc[0])
 
+    # def get_metrics(self) -> Dict[str, Any]:
+    #     """
+    #     Lấy các chỉ số chính (total, average, peak time...).
+    #     """
+    #     query = f"""
+    #     {self.base_cte}
+    #     SELECT
+    #         SUM(in_count) as total_in,
+    #         AVG(in_count) as average_in,
+    #         strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
+    #         (SUM(in_count) - SUM(out_count)) as current_occupancy,
+    #         (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
+    #     FROM filtered_data
+    #     """
+    #     # Mỗi hàm gọi query_parquet_as_dataframe phải truyền self.params
+    #     df = query_parquet_as_dataframe(query, params=self.params)
+
+    #     if df.empty or df['total_in'].iloc[0] is None:
+    #         return {
+    #             'total_in': 0,
+    #             'average_in': 0,
+    #             'peak_time': '--:--',
+    #             'current_occupancy': 0,
+    #             'busiest_store': 'N/A',
+    #             'growth': 0.0
+    #         }
+
+    #     # --- [NEW] Tính toán tăng trưởng động ---
+    #     total_in_current = df['total_in'].iloc[0]
+    #     total_in_previous = self._get_previous_period_total_in()
+
+    #     # Logic tính toán tăng trưởng (ví dụ: so với kỳ trước)
+    #     growth = 0.0
+    #     if total_in_previous > 0:
+    #         growth = round(((total_in_current - total_in_previous) / total_in_previous) * 100, 1)
+    #     elif total_in_current > 0:
+    #         growth = 100.0 # Nếu kỳ trước không có dữ liệu nhưng kỳ này có -> Tăng trưởng 100%
+
+    #     data = df.iloc[0].to_dict()
+    #     data['average_in'] = round(data.get('average_in', 0), 1)
+    #     data['growth'] = growth
+    #     return data
+    # def get_metrics(self) -> Dict[str, Any]:
+    #     """
+    #     Lấy các chỉ số chính (total, average, peak time...).
+    #     """
+    #     query = f"""
+    #     {self.base_cte}
+    #     SELECT
+    #         SUM(in_count) as total_in,
+    #         AVG(in_count) as average_in,
+    #         strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
+    #         (SUM(in_count) - SUM(out_count)) as current_occupancy,
+    #         (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
+    #     FROM filtered_data
+    #     """
+    #     df = query_parquet_as_dataframe(query, params=self.params)
+
+    #     if df.empty or df['total_in'].iloc[0] is None:
+    #         return {
+    #             'total_in': 0,
+    #             'average_in': 0,
+    #             'peak_time': '--:--',
+    #             'current_occupancy': 0,
+    #             'busiest_store': 'N/A',
+    #             'growth': 0.0
+    #         }
+
+    #     total_in_current = df['total_in'].iloc[0]
+    #     total_in_previous = self._get_previous_period_total_in()
+
+    #     growth = 0.0
+    #     if total_in_previous > 0:
+    #         growth = round(((total_in_current - total_in_previous) / total_in_previous) * 100, 1)
+    #     elif total_in_current > 0:
+    #         growth = 100.0
+
+    #     data = df.iloc[0].to_dict()
+    #     data['average_in'] = round(data.get('average_in', 0), 1)
+    #     data['growth'] = growth
+        
+    #     # --- THÊM KHỐI CODE MỚI ĐỂ ĐỊNH DẠNG LẠI TÊN CỬA HÀNG ---
+    #     busiest_store_raw = data.get('busiest_store')
+    #     if busiest_store_raw:
+    #         # 1. Thay thế "Floor " bằng "F_"
+    #         formatted_store = busiest_store_raw.replace('Floor ', 'Floor ')
+            
+    #         # 2. Tìm và loại bỏ phần mô tả trong ngoặc đơn (nếu có)
+    #         try:
+    #             extra_info_pos = formatted_store.index(' (')
+    #             formatted_store = formatted_store[:extra_info_pos]
+    #         except ValueError:
+    #             # Bỏ qua nếu không tìm thấy " ("
+    #             pass
+            
+    #         data['busiest_store'] = formatted_store
+    #     # --- KẾT THÚC KHỐI CODE MỚI ---
+        
+    #     return data
+    # def get_metrics(self) -> Dict[str, Any]:
+    #     """
+    #     Lấy các chỉ số chính (total, average, peak time...).
+    #     """
+    #     # --- THÊM MỚI: Tự động xác định định dạng cho peak_time ---
+    #     if self.period == 'day':
+    #         peak_time_format = '%H:%M'
+    #     elif self.period in ['week', 'month']:
+    #         peak_time_format = '%d/%m'
+    #     else:  # 'year' hoặc khoảng thời gian tùy chỉnh
+    #         peak_time_format = '%m'
+    #     # --- KẾT THÚC THÊM MỚI ---
+
+    #     query = f"""
+    #     {self.base_cte}
+    #     SELECT
+    #         SUM(in_count) as total_in,
+    #         AVG(in_count) as average_in,
+    #         -- THAY ĐỔI: Sử dụng định dạng đã xác định ở trên
+    #         strftime(arg_max(record_time, in_count), '{peak_time_format}') as peak_time,
+    #         (SUM(in_count) - SUM(out_count)) as current_occupancy,
+    #         (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
+    #     FROM filtered_data
+    #     """
+    #     df = query_parquet_as_dataframe(query, params=self.params)
+
+    #     if df.empty or df['total_in'].iloc[0] is None:
+    #         return {
+    #             'total_in': 0, 'average_in': 0, 'peak_time': '--:--',
+    #             'current_occupancy': 0, 'busiest_store': 'N/A', 'growth': 0.0
+    #         }
+
+    #     total_in_current = df['total_in'].iloc[0]
+    #     total_in_previous = self._get_previous_period_total_in()
+
+    #     growth = 0.0
+    #     if total_in_previous > 0:
+    #         growth = round(((total_in_current - total_in_previous) / total_in_previous) * 100, 1)
+    #     elif total_in_current > 0:
+    #         growth = 100.0
+
+    #     data = df.iloc[0].to_dict()
+    #     data['average_in'] = round(data.get('average_in', 0), 1)
+    #     data['growth'] = growth
+        
+    #     busiest_store_raw = data.get('busiest_store')
+    #     if busiest_store_raw:
+    #         formatted_store = busiest_store_raw.replace('Floor ', 'Floor ')
+    #         try:
+    #             extra_info_pos = formatted_store.index(' (')
+    #             formatted_store = formatted_store[:extra_info_pos]
+    #         except ValueError:
+    #             pass
+    #         data['busiest_store'] = formatted_store
+        
+    #     return data
     def get_metrics(self) -> Dict[str, Any]:
         """
         Lấy các chỉ số chính (total, average, peak time...).
         """
+        # --- THAY ĐỔI 1: Cập nhật lại định dạng cho "Cao điểm" ---
+        if self.period == 'day':
+            peak_time_format = '%H:%M'
+        elif self.period in ['week', 'month']:
+            # Hiển thị theo ngày/tháng
+            peak_time_format = '%d/%m'
+        else:  # 'year'
+            # Hiển thị theo "Tháng X"
+            peak_time_format = 'Tháng %m'
+        
+        time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
+
         query = f"""
         {self.base_cte}
+        , period_summary AS (
+            SELECT SUM(in_count) as total_in_per_period
+            FROM filtered_data
+            GROUP BY date_trunc('{time_unit}', adjusted_time)
+        )
         SELECT
-            SUM(in_count) as total_in,
-            AVG(in_count) as average_in,
-            strftime(arg_max(record_time, in_count), '%H:%M') as peak_time,
-            (SUM(in_count) - SUM(out_count)) as current_occupancy,
+            (SELECT SUM(in_count) FROM filtered_data) as total_in,
+            (SELECT AVG(total_in_per_period) FROM period_summary) as average_in,
+            (SELECT strftime(arg_max(record_time, in_count), '{peak_time_format}') FROM filtered_data) as peak_time,
+            (SELECT SUM(in_count) - SUM(out_count) FROM filtered_data) as current_occupancy,
             (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
-        FROM filtered_data
         """
-        # Mỗi hàm gọi query_parquet_as_dataframe phải truyền self.params
         df = query_parquet_as_dataframe(query, params=self.params)
 
         if df.empty or df['total_in'].iloc[0] is None:
             return {
-                'total_in': 0,
-                'average_in': 0,
-                'peak_time': '--:--',
-                'current_occupancy': 0,
-                'busiest_store': 'N/A',
-                'growth': 0.0
+                'total_in': 0, 'average_in': 0, 'peak_time': '--:--',
+                'current_occupancy': 0, 'busiest_store': 'N/A', 'growth': 0.0
             }
 
-        # --- [NEW] Tính toán tăng trưởng động ---
         total_in_current = df['total_in'].iloc[0]
         total_in_previous = self._get_previous_period_total_in()
 
-        # Logic tính toán tăng trưởng (ví dụ: so với kỳ trước)
         growth = 0.0
         if total_in_previous > 0:
             growth = round(((total_in_current - total_in_previous) / total_in_previous) * 100, 1)
         elif total_in_current > 0:
-            growth = 100.0 # Nếu kỳ trước không có dữ liệu nhưng kỳ này có -> Tăng trưởng 100%
+            growth = 100.0
 
         data = df.iloc[0].to_dict()
-        data['average_in'] = round(data.get('average_in', 0), 1)
+        
+        # --- THAY ĐỔI 2: Làm tròn số TB lượt vào thành số nguyên ---
+        data['average_in'] = int(round(data.get('average_in', 0) or 0))
+        
         data['growth'] = growth
+        
+        busiest_store_raw = data.get('busiest_store')
+        if busiest_store_raw:
+            formatted_store = busiest_store_raw.replace('Floor ', 'Floor ')
+            try:
+                extra_info_pos = formatted_store.index(' (')
+                formatted_store = formatted_store[:extra_info_pos]
+            except ValueError:
+                pass
+            data['busiest_store'] = formatted_store
+        
         return data
 
     # def get_trend_chart_data(self) -> List[Dict[str, Any]]:
@@ -406,6 +590,18 @@ class DashboardService:
             'data': df.to_dict(orient='records'),
             'summary': summary_data # Trả về summary
         }
+
+    @staticmethod
+    def get_latest_record_time() -> Optional[datetime]:
+        """Lấy ra timestamp của bản ghi gần nhất."""
+        try:
+            query = f"SELECT MAX(record_time) as latest_time FROM read_parquet('{settings.CROWD_COUNTS_PATH}')"
+            df = query_parquet_as_dataframe(query)
+            if not df.empty and pd.notna(df['latest_time'].iloc[0]):
+                return df['latest_time'].iloc[0]
+        except Exception:
+            return None
+        return None
 
     @staticmethod
     def get_all_stores() -> List[str]:

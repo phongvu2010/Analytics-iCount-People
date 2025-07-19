@@ -196,10 +196,29 @@ document.addEventListener('DOMContentLoaded', async function () {
         updateCharts(data.trend_chart, data.store_comparison_chart);
         updateTable(data.table_data);
         // updatePagination(data.table_data);
-        updateSummaryRow(data.table_data.summary); // <-- THÊM DÒNG NÀY
+        updateSummaryRow(data.table_data.summary);
         updateErrorNotifications(data.error_logs);
+        updateLatestTimestamp(data.latest_record_time); // <-- THÊM DÒNG NÀY
     }
-    
+    // 2. Thêm hàm updateLatestTimestamp mới vào khu vực các hàm cập nhật UI
+    function updateLatestTimestamp(timestamp) {
+        const timestampEl = document.getElementById('latest-data-timestamp');
+        if (timestampEl && timestamp) {
+            const date = new Date(timestamp);
+            // Định dạng lại ngày giờ theo kiểu Việt Nam
+            const formattedDate = date.toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(',', ''); // Xóa dấu phẩy nếu có
+
+            timestampEl.innerHTML = `Dữ liệu gần nhất: <br> <span class="font-semibold text-gray-400">${formattedDate}</span>`;
+        } else if (timestampEl) {
+            timestampEl.textContent = 'Dữ liệu gần nhất: Không rõ';
+        }
+    }
     // [FIX] Cập nhật hàm updateMetrics để sử dụng selector ổn định
     function updateMetrics(metrics) {
         elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);

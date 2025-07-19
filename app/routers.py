@@ -37,9 +37,9 @@ def get_dashboard_service(
 #         table_data=schemas.PaginatedTable(**table_data),
 #         error_logs=error_logs
 #     )
+
 @router.get('/dashboard', response_model=schemas.DashboardData)
 def get_dashboard_data(
-    # XÓA BỎ page và page_size khỏi đây
     service: DashboardService = Depends(get_dashboard_service)
 ):
     """
@@ -51,13 +51,16 @@ def get_dashboard_data(
     # GỌI HÀM VỚI CÁC GIÁ TRỊ CỐ ĐỊNH
     table_data = service.get_paginated_details(page=1, page_size=31)
     error_logs = DashboardService.get_error_logs()
+    # THÊM MỚI: Gọi hàm lấy thời gian gần nhất
+    latest_record_time = DashboardService.get_latest_record_time()
 
     return schemas.DashboardData(
         metrics=schemas.Metric(**metrics),
         trend_chart=schemas.ChartData(series=trend_data),
         store_comparison_chart=schemas.ChartData(series=store_data),
         table_data=schemas.PaginatedTable(**table_data),
-        error_logs=error_logs
+        error_logs=error_logs,
+        latest_record_time=latest_record_time
     )
 
 @router.get('/stores', response_model=List[str])
