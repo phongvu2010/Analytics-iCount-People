@@ -45,9 +45,6 @@ class Settings(BaseSettings):
     def ERROR_LOGS_PATH(self) -> str:
         return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
-    # File database DuckDB
-    DUCKDB_PATH: str = 'data.duckdb'
-
     # Biến cho việc xử lý dữ liệu bất thường (outlier)
     OUTLIER_THRESHOLD: int = 100
     OUTLIER_SCALE_RATIO: float = 0.00001    # ~ 0.01%

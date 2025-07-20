@@ -45,5 +45,4 @@ def execute_query_as_dataframe(query: str, db: Session, params: dict=None) -> pd
     except Exception as e:
         setup_logging('database_mssql')
         logging.error(f'Lỗi khi thực thi query với SQLAlchemy: {e}\n')
-        # Trong production, bạn nên log lỗi này vào một file hoặc hệ thống logging
         return pd.DataFrame()

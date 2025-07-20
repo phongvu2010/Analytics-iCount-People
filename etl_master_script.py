@@ -217,22 +217,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-# 1. Đếm tổng số lượt khách vào/ra trong năm 2025:
-# SELECT 
-#     SUM(in_count) AS total_in, 
-#     SUM(out_count) AS total_out 
-# FROM 'data/crowd_counts/';
-
-# 2. Tìm 10 cửa hàng có nhiều lỗi nhất trong năm 2025:
-# SELECT 
-#     store_name, 
-#     COUNT(*) AS error_count
-# FROM 'data/error_logs/'
-# GROUP BY store_name
-# ORDER BY error_count DESC
-# LIMIT 10;

@@ -2,7 +2,6 @@ from cachetools import TTLCache
 from functools import wraps
 from typing import Callable, Any
 
-# --- BỘ NHỚ CACHE TOÀN CỤC ---
 # Tạo một bộ nhớ cache duy nhất cho toàn bộ ứng dụng.
 # - maxsize=128: Lưu trữ tối đa 128 kết quả gần nhất.
 # - ttl=300: Time-To-Live, mỗi item trong cache sẽ hết hạn sau 300 giây (5 phút).
@@ -44,5 +43,4 @@ def async_cache(func: Callable) -> Callable:
         # Lưu kết quả vào cache trước khi trả về
         service_cache[key] = result
         return result
-
     return wrapper
