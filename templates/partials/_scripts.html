@@ -1,21 +1,20 @@
 <script>
 document.addEventListener('DOMContentLoaded', async function () {
-    // --- STATE MANAGEMENT ---
+    // --- STATE MANAGEMENT & CONSTANTS ---
+    let isInitialLoad = true; // Cờ để kiểm tra lần tải đầu tiên
+
+    const API_BASE_URL = '/api/v1';
     const state = {
         currentPage: 1,
         pageSize: 10,
         tableData: [],
-        filters: {
-            period: 'month',
-            startDate: '',
-            endDate: '',
-            store: 'all'
-        }
+        filters: { period: 'month', startDate: '', endDate: '', store: 'all' }
     };
 
     // --- DOM ELEMENTS ---
     const elements = {
-        loadingOverlay: document.getElementById('loading-overlay'),
+        skeletonLoader: document.getElementById('skeleton-loader'),
+        contentOverlay: document.getElementById('content-overlay'),
         dashboardContent: document.getElementById('dashboard-content'),
         applyFiltersBtn: document.getElementById('apply-filters-btn'),
         periodSelector: document.getElementById('period-selector'),
@@ -67,97 +66,50 @@ document.addEventListener('DOMContentLoaded', async function () {
     const trendChartOptions = {
         ...commonChartOptions,
         series: [],
-        chart: {
-            ...commonChartOptions.chart,
-            // type: 'area',        // Line Chart
-            type: 'bar',
-            height: 350,
-            background: 'transparent'
-        },
+        chart: { ...commonChartOptions.chart, type: 'bar', height: 350, background: 'transparent' },
         // Thêm các tùy chọn cho biểu đồ cột
         plotOptions: {
             bar: {
                 horizontal: false,
                 columnWidth: '60%', // Điều chỉnh độ rộng của các cột
                 borderRadius: 4     // Bo tròn nhẹ các góc của cột cho đẹp mắt
-            },
+            }
         },
         dataLabels: { enabled: false },
-        stroke: {
-            show: true,
-            // curve: 'smooth',     // Line Chart
-            // width: 3             // Line Chart
-            width: 2,
-            colors: ['transparent'] // Tạo khoảng cách nhỏ giữa các cột
-        },
+        stroke: { show: true, width: 2, colors: ['transparent'] },
         xaxis: {
             type: 'datetime',
-            labels: {
-                datetimeUTC: false,
-                style: { colors: '#9ca3af' }
-            }
+            labels: { datetimeUTC: false, style: { colors: '#9ca3af' } }
         },
         yaxis: {
-            title: {
-                text: 'Lượt vào',
-                style: { color: '#9ca3af' }
-            },
-            labels: {
-                style: { colors: '#9ca3af' }
-            }
+            title: { text: 'Lượt vào', style: { color: '#9ca3af' } },
+            labels: { style: { colors: '#9ca3af' } }
         },
         fill: { opacity: 1 },
-        // Line Chart
-        // markers: { size: 0 },
-        // fill: {
-        //     type: 'gradient',
-        //     gradient: {
-        //         shade: 'dark',
-        //         type: "vertical",
-        //         shadeIntensity: 0.5,
-        //         gradientToColors: undefined,
-        //         inverseColors: true,
-        //         opacityFrom: 0.4,
-        //         opacityTo: 0.0,
-        //         stops: [0, 90, 100]
-        //     }
-        // },
-        noData: {
-            text: 'Không có dữ liệu',
-            style: { color: '#d1d5db' }
-        }
+        noData: { text: 'Không có dữ liệu', style: { color: '#d1d5db' } }
     };
     const storeChartOptions = {
         ...commonChartOptions,
         series: [],
-        chart: {
-            ...commonChartOptions.chart,
-            type: 'donut',
-            height: 350,
-            background: 'transparent'
-        },
+        chart: { ...commonChartOptions.chart, type: 'donut', height: 350, background: 'transparent' },
         labels: [],
-        legend: {
-            position: 'bottom',
-            labels: { colors: '#d1d5db' }
-        },
-        dataLabels: {
-            enabled: true,
-            formatter: (val) => `${val.toFixed(1)}%`
-        },
+        legend: { position: 'bottom', labels: { colors: '#d1d5db' } },
+        dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` },
         noData: { ...trendChartOptions.noData }
     };
 
     // --- UTILITY FUNCTIONS ---
-    const showLoading = (isLoading) => elements.loadingOverlay.classList.toggle('hidden', !isLoading);
+    const showLoading = (isLoading) => {
+        if (isInitialLoad) return; // Lần đầu không làm gì, skeleton đã hiển thị sẵn
+        elements.contentOverlay.classList.toggle('hidden', !isLoading);
+        elements.contentOverlay.classList.toggle('flex', isLoading);
+    };
     const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
     const toggleModal = (show) => {
         if (show) {
             elements.error.modal.classList.remove('hidden');
             elements.error.modal.classList.add('flex');
-            setTimeout(() => {
-                elements.error.modalPanel.classList.remove('scale-95', 'opacity-0');
-            }, 10);
+            setTimeout(() => elements.error.modalPanel.classList.remove('scale-95', 'opacity-0'), 10);
         } else {
             elements.error.modalPanel.classList.add('scale-95', 'opacity-0');
             setTimeout(() => {
@@ -176,9 +128,10 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // --- INITIALIZATION FUNCTIONS ---
     function initCharts() {
-        trendChart = new ApexCharts(document.querySelector("#trend-chart"), trendChartOptions);
-        storeChart = new ApexCharts(document.querySelector("#store-chart"), storeChartOptions);
-        trendChart.render(); storeChart.render();
+        trendChart = new ApexCharts(document.querySelector('#trend-chart'), trendChartOptions);
+        storeChart = new ApexCharts(document.querySelector('#store-chart'), storeChartOptions);
+        trendChart.render();
+        storeChart.render();
     }
 
     function initDatePicker() {
@@ -187,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         state.filters.startDate = firstDayOfMonth.toISOString().split('T')[0];
         state.filters.endDate = today.toISOString().split('T')[0];
+
         datePickerInstance = new Litepicker({
             element: document.getElementById('date-range-picker'),
             singleMode: false,
@@ -208,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         switch (period) {
             case 'day': startDate = today; break;
-            case 'week': startDate = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1) )); break;
+            case 'week': startDate = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))); break;
             case 'month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
             case 'year': startDate = new Date(today.getFullYear(), 0, 1); break;
         }
@@ -235,37 +189,31 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (e.target === elements.error.modal) toggleModal(false);
         });
         // Thêm event cho nút toggle
-        elements.sidebarToggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('sidebar-collapsed');
-        });
+        elements.sidebarToggleBtn.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
     }
 
     function downloadCsv() {
         if (state.tableData.length === 0) {
-            alert("Không có dữ liệu để tải.");
+            alert('Không có dữ liệu để tải.');
             return;
         }
 
         const headers = ['Kỳ báo cáo', 'Tổng lượt vào', 'Chênh lệch (%)'];
+
         // Tạo các hàng dữ liệu cho file CSV
         const csvRows = [
-            headers.join(','), // Hàng tiêu đề
-            ...state.tableData.map(row =>
-                // Nối các giá trị của mỗi hàng, đảm bảo không có dấu phẩy trong chuỗi
-                [row.period, row.total_in, row.pct_change].join(',')
-            )
-        ];
+        headers.join(','), // Hàng tiêu đề
+        ...state.tableData.map(row => [row.period, row.total_in, row.pct_change].join(','))];
+
         // Tạo chuỗi CSV hoàn chỉnh với ký tự xuống dòng
         const csvString = csvRows.join('\n');
+
         // Thêm BOM để Excel đọc tiếng Việt có dấu đúng
         const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        const today = new Date().toISOString().split('T')[0];
 
-        link.setAttribute("href", url);
-        link.setAttribute("download", `bao_cao_tong_hop_${today}.csv`);
-        link.style.visibility = 'hidden';
+        link.setAttribute('href', URL.createObjectURL(blob));
+        link.setAttribute('download', `bao_cao_tong_hop_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -274,25 +222,22 @@ document.addEventListener('DOMContentLoaded', async function () {
     // --- DATA FETCHING & UI UPDATING ---
     async function loadStores() {
         try {
-            const response = await fetch('/api/v1/stores');
+            const response = await fetch(`${API_BASE_URL}/stores`);
             if (!response.ok) throw new Error('Failed to load stores');
             const stores = await response.json();
             stores.forEach(store => {
                 const option = document.createElement('option');
-                option.value = store; option.textContent = store;
+                option.value = store;
+                option.textContent = store;
                 elements.storeSelector.appendChild(option);
             });
         } catch (error) {
-            console.error("Error loading stores:", error);
+            console.error('Error loading stores:', error);
         }
     }
 
     async function fetchDashboardData() {
-        if (elements.dashboardContent.classList.contains('invisible')) {
-            elements.loadingOverlay.classList.remove('hidden');
-        } else {
-            showLoading(true);
-        }
+        showLoading(true);
 
         const params = new URLSearchParams({
             period: state.filters.period,
@@ -300,7 +245,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             end_date: state.filters.endDate,
             store: state.filters.store,
         });
-        const url = `/api/v1/dashboard?${params.toString()}`;
+        const url = `${API_BASE_URL}/dashboard?${params.toString()}`;
 
         try {
             const response = await fetch(url);
@@ -309,18 +254,21 @@ document.addEventListener('DOMContentLoaded', async function () {
             updateUI(data);
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
+            if (isInitialLoad) {
+                elements.skeletonLoader.classList.add('hidden');
+                elements.dashboardContent.classList.remove('invisible');
+            }
             elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-400">Tải dữ liệu thất bại. Vui lòng thử lại.</td></tr>`;
         } finally {
-            if (!elements.dashboardContent.classList.contains('invisible')) {
-                showLoading(false);
-            }
+            showLoading(false);
         }
     }
 
     function updateUI(data) {
-        if (elements.dashboardContent.classList.contains('invisible')) {
+        if (isInitialLoad) {
+            elements.skeletonLoader.classList.add('hidden');
             elements.dashboardContent.classList.remove('invisible');
-            elements.loadingOverlay.classList.add('hidden');
+            isInitialLoad = false;
         }
 
         updateMetrics(data.metrics);
@@ -332,14 +280,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         updateLatestTimestamp(data.latest_record_time);
     }
 
-    // Thêm hàm updateLatestTimestamp mới vào khu vực các hàm cập nhật UI
     function updateLatestTimestamp(timestamp) {
         const timestampEl = document.getElementById('latest-data-timestamp');
 
         if (timestampEl && timestamp) {
-            const date = new Date(timestamp);
             // Định dạng lại ngày giờ theo kiểu Việt Nam
-            const formattedDate = date.toLocaleString('vi-VN', {
+            const formattedDate = new Date(timestamp).toLocaleString('vi-VN', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
@@ -355,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     function updateMetrics(metrics) {
         elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);
-        elements.metrics.averageIn.textContent = formatNumber(metrics.average_in.toFixed(1));
+        elements.metrics.averageIn.textContent = formatNumber(metrics.average_in);
         elements.metrics.peakTime.textContent = metrics.peak_time || '--:--';
         elements.metrics.busiestStore.textContent = metrics.busiest_store || 'N/A';
 
@@ -364,29 +310,26 @@ document.addEventListener('DOMContentLoaded', async function () {
         const growthCard = elements.metrics.growthCard;
         const growthIconDiv = growthCard.querySelector('[data-container="icon"]');
 
-        if (!growthIconDiv) return;
-
-        const growthIcon = growthIconDiv.querySelector('[data-lucide]');
-        if (!growthIcon) return; // Bảo vệ thêm một lớp nữa
-
+        const growthIcon = growthIconDiv ? growthIconDiv.querySelector('[data-lucide]') : null;
+        if (!growthIcon) return;
         growthEl.textContent = `${growthValue.toFixed(1)}%`;
-
         ['text-green-400', 'text-red-400', 'text-white'].forEach(c => growthEl.classList.remove(c));
         ['hover:shadow-green-500/20', 'hover:border-green-500/50', 'hover:shadow-red-500/20', 'hover:border-red-500/50'].forEach(c => growthCard.classList.remove(c));
         ['bg-green-500/20', 'bg-red-500/20', 'bg-gray-500/20'].forEach(c => growthIconDiv.classList.remove(c));
 
-        let iconName = 'arrow-right';
-        let iconColor = 'text-gray-400';
+        let iconName = 'arrow-right', iconColor = 'text-gray-400';
         if (growthValue > 0) {
             growthEl.classList.add('text-green-400');
             growthCard.classList.add('hover:shadow-green-500/20', 'hover:border-green-500/50');
             growthIconDiv.classList.add('bg-green-500/20');
-            iconName = 'arrow-up-right'; iconColor = 'text-green-400';
+            iconName = 'arrow-up-right';
+            iconColor = 'text-green-400';
         } else if (growthValue < 0) {
             growthEl.classList.add('text-red-400');
             growthCard.classList.add('hover:shadow-red-500/20', 'hover:border-red-500/50');
             growthIconDiv.classList.add('bg-red-500/20');
-            iconName = 'arrow-down-right'; iconColor = 'text-red-400';
+            iconName = 'arrow-down-right';
+            iconColor = 'text-red-400';
         } else {
             growthEl.classList.add('text-white');
             growthIconDiv.classList.add('bg-gray-500/20');
@@ -416,10 +359,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         elements.tableBody.innerHTML = tableData.data.map(row => {
             const pct_change = row.pct_change;
-            let changeClass = 'text-gray-300';
-            let changeIcon = '<i data-lucide="minus" class="h-4 w-4 mr-1"></i>';
-            let sign = pct_change > 0 ? '+' : '';
-
+            let changeClass = 'text-gray-300', changeIcon = '<i data-lucide="minus" class="h-4 w-4 mr-1"></i>', sign = pct_change > 0 ? '+' : '';
             if (pct_change > 0) {
                 changeClass = 'text-green-400';
                 changeIcon = '<i data-lucide="trending-up" class="h-4 w-4 mr-1"></i>';
@@ -428,20 +368,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                 changeIcon = '<i data-lucide="trending-down" class="h-4 w-4 mr-1"></i>';
             }
 
-            return `
-                <tr class="hover:bg-gray-800 transition-colors duration-200">
+            return `<tr class="hover:bg-gray-800 transition-colors duration-200">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${row.period}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-white font-semibold">${formatNumber(row.total_in)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold">
-                        <div class="flex items-center ${changeClass}">
-                            ${changeIcon}
-                            <span>${sign}${pct_change.toFixed(1)}%</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold"><div class="flex items-center ${changeClass}">${changeIcon}<span>${sign}${pct_change.toFixed(1)}%</span></div></td>
+                </tr>`;
         }).join('');
-
         lucide.createIcons();
     }
 
@@ -451,7 +383,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (summary && summaryTotalEl && summaryAverageEl) {
             summaryTotalEl.textContent = formatNumber(summary.total_sum || 0);
-            summaryAverageEl.textContent = `TB: ${formatNumber((summary.average_in || 0).toFixed(1))}`;
+            summaryAverageEl.textContent = `TB: ${formatNumber(parseFloat(summary.average_in || 0).toFixed(1))}`;
         }
     }
 
@@ -471,8 +403,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     </div>
                     <p class="text-xs text-gray-500 whitespace-nowrap pl-4">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
                 </div>
-            </li>
-        `).join('');
+            </li>`).join('');
     }
 
     // --- SEQUENTIAL INITIALIZATION ---
@@ -485,7 +416,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         await loadStores();
         await fetchDashboardData();
     } catch (error) {
-        console.error("An error occurred during initial page load:", error);
+        console.error('An error occurred during initial page load:', error);
     }
 });
 </script>
