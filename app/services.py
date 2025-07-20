@@ -73,30 +73,38 @@ class DashboardService:
         [REFACTOR] Tính toán tổng lượt vào của kỳ trước, được viết lại gọn gàng hơn.
         """
         time_delta = self.end_date - self.start_date
-        prev_start_date, prev_end_date = None, None
+        
+        # [UPDATE] Sử dụng dictionary để quản lý logic tính toán cho từng kỳ
+        period_logic = {
+            'day': {
+                'start': self.start_date - (time_delta + timedelta(days=1)),
+                'end': self.end_date - (time_delta + timedelta(days=1))
+            },
+            'week': {
+                'start': self.start_date - timedelta(weeks=1),
+                'end': self.end_date - timedelta(weeks=1)
+            },
+            'month': {
+                # Logic cho tháng trước: từ ngày đầu của tháng trước đến cuối tháng trước
+                'start': self.start_date - relativedelta(months=1),
+                'end': self.start_date - timedelta(days=1)
+            },
+            'year': {
+                'start': self.start_date - relativedelta(years=1),
+                'end': self.end_date - relativedelta(years=1)
+            }
+        }
 
-        if self.period == 'day':
-            prev_start_date = self.start_date - (time_delta + timedelta(days=1))
-            prev_end_date = self.end_date - (time_delta + timedelta(days=1))
-        elif self.period == 'week':
-            prev_start_date = self.start_date - timedelta(weeks=1)
-            prev_end_date = self.end_date - timedelta(weeks=1)
-        elif self.period == 'month':
-            prev_start_date = self.start_date - relativedelta(months=1)
-            prev_end_date = self.start_date - timedelta(days=1)
-        elif self.period == 'year':
-            prev_start_date = self.start_date - relativedelta(years=1)
-            prev_end_date = self.end_date - relativedelta(years=1)
+        dates = period_logic.get(self.period)
 
-        if not prev_start_date or not prev_end_date:
+        if not dates:
             return 0
 
-        start_str, end_str = self._get_date_range_params(prev_start_date, prev_end_date)
+        start_str, end_str = self._get_date_range_params(dates['start'], dates['end'])
         base_cte, params = self._build_base_query(start_str, end_str)
 
         query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
-
-        # Chạy query trong một thread riêng để không block event loop
+        
         df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
 
         if df.empty or df['total'].iloc[0] is None:
@@ -154,7 +162,7 @@ class DashboardService:
 
         data['growth'] = growth
         if data.get('busiest_store'):
-            data['busiest_store'] = data['busiest_store'].replace('Floor ', 'F_').split(' (')[0]
+            data['busiest_store'] = data['busiest_store'].split(' (')[0]
 
         return data
 
