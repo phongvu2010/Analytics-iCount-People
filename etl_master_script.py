@@ -16,21 +16,28 @@ from app.core.database import engine
 from app.utils.logger import setup_logging
 
 def extract_from_mssql(table_name: str, full_load: bool):
-    """
-    Kết nối tới MSSQL và trích xuất dữ liệu.
+    """Trích xuất dữ liệu từ một bảng trong MSSQL.
+
+    Hỗ trợ hai chế độ:
+    - Tải toàn bộ (full_load=True): Tải tất cả dữ liệu từ bảng.
+    - Tải tăng trưởng (full_load=False): Chỉ tải dữ liệu của năm hiện tại
+      để đảm bảo tính idempotent và cập nhật. Đây là chiến lược đơn giản
+      nhưng hiệu quả cho các tập dữ liệu không quá lớn.
+      Một giải pháp nâng cao hơn có thể dùng "high-water mark" để chỉ tải
+      dữ liệu mới thực sự.
+
+    Args:
+        table_name: Tên bảng trong MSSQL.
+        full_load: Cờ xác định chế độ tải dữ liệu.
+
+    Returns:
+        DataFrame chứa dữ liệu hoặc None nếu có lỗi.
     """
     logging.info(f'    -> Bắt đầu trích xuất dữ liệu từ bảng: `dbo.{table_name}`')
 
-    # Các bảng lớn và cột ngày tháng tương ứng để lọc
     incremental_tables = {'num_crowd': 'recordtime', 'ErrLog': 'LogTime'}
     query = f'SELECT * FROM dbo.{table_name}'
 
-    # [Note] Chiến lược Tăng trưởng (Incremental Strategy):
-    # Để đơn giản, chế độ tăng trưởng sẽ tải lại toàn bộ dữ liệu của năm hiện tại.
-    # Điều này đảm bảo dữ liệu trong năm luôn được cập nhật và giúp script có tính
-    # idempotent (chạy lại nhiều lần không gây ra lỗi dữ liệu).
-    # Một giải pháp nâng cao hơn có thể dùng "high-water mark" (lưu lại timestamp
-    # cuối cùng) để chỉ tải những dòng thực sự mới.
     if table_name in incremental_tables and not full_load:
         date_column = incremental_tables[table_name]
         current_year = date.today().year
@@ -51,55 +58,60 @@ def extract_from_mssql(table_name: str, full_load: bool):
         return None
 
 def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_type: str, output_format: str):
+    """Biến đổi, làm sạch và hợp nhất dữ liệu.
+
+    Thực hiện các bước chuẩn hóa chính:
+    - Đổi tên cột cho nhất quán.
+    - Chuyển đổi kiểu dữ liệu (ngày tháng, chuỗi).
+    - Làm sạch dữ liệu (loại bỏ khoảng trắng, chuẩn hóa tên cửa hàng).
+    - Hợp nhất bảng fact với bảng store để lấy tên cửa hàng.
+    - Thêm cột 'year' để hỗ trợ phân vùng (partitioning) khi lưu trữ.
     """
-    Thực hiện biến đổi, hợp nhất dữ liệu và thêm cột 'year' nếu cần.
-    """
-    if fact_df is None or stores_df is None:
-        return None
+    if fact_df is None or stores_df is None: return None
 
     logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
+
     try:
-        # 1. Chuẩn hóa tên cột trong bảng stores
+        # Chuẩn hóa bảng 'stores'
         stores_df.rename(columns={'tid': 'store_id', 'name': 'store_name'}, inplace=True)
         stores_df = stores_df[['store_id', 'store_name']].copy()
         stores_df['store_name'] = stores_df['store_name'].str.strip().astype('string')
 
-        # 2. Biến đổi bảng dữ liệu chính (fact table)
+        # Biến đổi bảng fact dựa trên loại dữ liệu
         date_column_name = ''
         if table_type == 'error_logs':
-            fact_df = fact_df.rename(columns={
+            fact_df.rename(columns={
                 'ID': 'id',
                 'storeid': 'store_id',
                 'LogTime': 'log_time',
                 'Errorcode': 'error_code',
                 'ErrorMessage': 'error_message'
-            })
+            }, inplace=True)
             fact_df['error_message'] = fact_df['error_message'].str.strip().astype('string')
             date_column_name = 'log_time'
         elif table_type == 'crowd_counts':
-            fact_df = fact_df.rename(columns={
+            fact_df.rename(columns={
                 'recordtime': 'record_time',
                 'in_num': 'in_count',
                 'out_num': 'out_count',
                 'storeid': 'store_id'
-            })
+            }, inplace=True)
             date_column_name = 'record_time'
 
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
-        fact_df.dropna(subset=[date_column_name], inplace=True) # Loại bỏ các dòng có ngày tháng không hợp lệ
+        fact_df.dropna(subset=[date_column_name], inplace=True)
 
-        # 3. Hợp nhất (join) để thêm store_name, loại bỏ các dòng có store_name rỗng
+        # Hợp nhất và loại bỏ các dòng không có tên cửa hàng
         merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
         merged_df.dropna(subset=['store_name'], inplace=True)
 
-        # 4. Sắp xếp và chọn các cột cuối cùng
+        # Chọn và sắp xếp các cột cuối cùng
         final_cols = []
         if table_type == 'error_logs':
             final_cols = ['id', 'store_name', 'log_time', 'error_code', 'error_message']
         elif table_type == 'crowd_counts':
             final_cols = ['record_time', 'store_name', 'in_count', 'out_count']
 
-        # Chỉ thêm cột 'year' nếu định dạng đầu ra là parquet để phân vùng
         if output_format == 'parquet':
             merged_df['year'] = merged_df[date_column_name].dt.year
             final_cols.append('year')
@@ -121,8 +133,10 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
         return None
 
 def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first_run: bool):
-    """
-    Nạp dữ liệu vào DuckDB. Dùng chế độ phù hợp: tạo mới hoặc xóa/chèn.
+    """Nạp dữ liệu vào tệp DuckDB.
+
+    - Nếu là lần chạy đầu hoặc full_load, tạo mới hoặc thay thế hoàn toàn bảng.
+    - Nếu là tải tăng trưởng, xóa dữ liệu của năm hiện tại và chèn dữ liệu mới.
     """
     if df is None or df.empty:
         logging.warning(f' -> Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
@@ -132,14 +146,9 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
     try:
         with duckdb.connect(database=duckdb_path, read_only=False) as con:
             if is_first_run:
-                # Lần đầu chạy hoặc khi full_load, tạo mới hoặc thay thế hoàn toàn bảng
                 logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
                 con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
             else:
-                # [Note] Chế độ tăng trưởng cho DuckDB:
-                # 1. Xóa dữ liệu của năm hiện tại trong bảng đích.
-                # 2. Chèn dữ liệu mới của năm hiện tại vừa được trích xuất.
-                # Cách này đảm bảo dữ liệu cho năm hiện tại luôn được làm mới.
                 logging.info(f'    -> Chế độ [DELETE/INSERT] cho bảng: `{table_name}`...')
                 date_column = date_columns[table_name]
                 current_year = date.today().year
@@ -151,34 +160,31 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
         logging.error(f'   -> Lỗi khi nạp dữ liệu vào DuckDB cho bảng `{table_name}`: {e}\n')
 
 def load_to_partitioned_parquet(df: pd.DataFrame, table_name: str, base_path: str, full_load: bool):
-    """
-    Lưu DataFrame vào các file Parquet được phân vùng theo năm.
+    """Lưu DataFrame thành các tệp Parquet, phân vùng theo năm.
+
+    Sử dụng `existing_data_behavior='delete_matching'` để tự động ghi đè các
+    phân vùng (năm) đang được cập nhật, phù hợp với chiến lược tải tăng trưởng
+    theo năm.
     """
     if df is None or df.empty:
         logging.warning(f' -> Bỏ qua bước nạp dữ liệu cho bảng `{table_name}` do không có dữ liệu.')
         return
 
     full_path = os.path.join(base_path, table_name)
-    logging.info(f'    -> Bắt đầu nạp dữ liệu vào thư mục Parquet phân vùng: `{full_path}`...')
+    logging.info(f'    -> Bắt đầu nạp dữ liệu Parquet phân vùng vào: `{full_path}`...')
 
     if full_load and os.path.exists(full_path):
-        logging.warning(f' -> Chế độ Full Load: Xóa thư mục cũ `{full_path}` để làm mới.')
+        logging.warning(f' -> Chế độ Full Load: Xóa thư mục cũ `{full_path}`.')
         shutil.rmtree(full_path)
 
     try:
-        # [Note] Ghi dữ liệu, phân vùng theo cột 'year'.
-        # existing_data_behavior='delete_matching' sẽ tự động xóa các phân vùng (năm)
-        # đang được ghi đè. Điều này phù hợp hoàn hảo với chiến lược tải lại
-        # toàn bộ dữ liệu của năm hiện tại trong chế độ tăng trưởng.
         df.to_parquet(full_path, engine='pyarrow', partition_cols=['year'], existing_data_behavior='delete_matching')
         logging.info(f'    -> Nạp thành công dữ liệu Parquet cho bảng `{table_name}`.\n')
     except Exception as e:
         logging.error(f'   -> Lỗi khi nạp dữ liệu Parquet cho bảng `{table_name}`: {e}\n')
 
 def main():
-    """
-    Hàm điều phối chính, chạy toàn bộ quy trình ETL.
-    """
+    """Hàm điều phối chính, thực thi toàn bộ quy trình ETL."""
     setup_logging('etl_master')
     parser = argparse.ArgumentParser(description='Chạy ETL từ MSSQL và lưu ra định dạng được chỉ định.')
     parser.add_argument('--output_format', required=True, choices=['duckdb', 'parquet'], help='Định dạng đầu ra: duckdb hoặc parquet.')

@@ -10,9 +10,10 @@ from .core.config import settings
 from .core.data_handler import query_parquet_as_dataframe
 
 class DashboardService:
-    """
-    Lớp chứa tất cả logic nghiệp vụ để lấy dữ liệu cho dashboard.
-    Đã được refactor để giảm lặp code và sử dụng async/await cho hiệu năng tốt hơn.
+    """Lớp chứa logic nghiệp vụ để xử lý và truy vấn dữ liệu cho dashboard.
+
+    Mỗi instance của lớp này tương ứng với một bộ lọc (thời gian, cửa hàng)
+    cụ thể từ người dùng, đóng vai trò là context cho các truy vấn dữ liệu.
     """
     def __init__(self, period: str, start_date: date, end_date: date, store: str = 'all'):
         self.period = period
@@ -21,17 +22,23 @@ class DashboardService:
         self.store = store
 
     def _get_date_range_params(self, start_date: date, end_date: date) -> Tuple[str, str]:
-        """
-        Helper để tạo chuỗi thời gian query dựa trên "ngày làm việc".
+        """Tạo chuỗi thời gian query dựa trên "ngày làm việc" đã định nghĩa.
+
+        Giờ làm việc có thể kéo dài qua nửa đêm (ví dụ: 9h sáng đến 2h sáng hôm sau).
+        Hàm này điều chỉnh ngày bắt đầu và kết thúc để bao trọn khung giờ này.
         """
         start_dt = datetime.combine(start_date, datetime.min.time()) + timedelta(hours=settings.WORKING_HOUR_START)
         end_dt = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1, hours=settings.WORKING_HOUR_END)
         return start_dt.strftime('%Y-%m-%d %H:%M:%S'), end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     def _build_base_query(self, start_date_str: str, end_date_str: str) -> Tuple[str, list]:
-        """
-        [REFACTOR] Xây dựng câu query CTE gốc và các tham số.
-        Hàm này được tái sử dụng trong tất cả các phương thức lấy dữ liệu.
+        """Xây dựng câu truy vấn CTE (Common Table Expression) cơ sở và tham số.
+
+        Hàm này tạo ra một CTE chuẩn hóa dữ liệu nguồn, bao gồm:
+        - Lọc dữ liệu theo khoảng thời gian và cửa hàng.
+        - Xử lý các giá trị ngoại lệ (outliers) theo cấu hình.
+        - Điều chỉnh timestamp để phân tích theo "ngày làm việc".
+        CTE này được tái sử dụng trong nhiều phương thức khác để tránh lặp code.
         """
         params = [start_date_str, end_date_str]
 
@@ -40,10 +47,12 @@ class DashboardService:
             store_filter_clause = 'AND store_name = ?'
             params.append(self.store)
 
-        if settings.OUTLIER_SCALE_RATIO != 0:
+        # Xử lý outlier: thay thế các giá trị quá lớn bằng một tỷ lệ nhỏ hoặc giá trị cố định.
+        if settings.OUTLIER_SCALE_RATIO > 0:
             then_logic_in = f'CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
             then_logic_out = f'CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
         else:
+            # Nếu không muốn scale, có thể thay bằng một giá trị mặc định, ví dụ là 1.
             then_logic_in, then_logic_out = '1', '1'
 
         base_cte = f"""
@@ -51,12 +60,8 @@ class DashboardService:
             SELECT
                 CAST(record_time AS TIMESTAMP) as record_time,
                 store_name,
-                CASE
-                    WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in} ELSE in_count
-                    END as in_count,
-                CASE
-                    WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out} ELSE out_count
-                    END as out_count
+                CASE WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in} ELSE in_count END as in_count,
+                CASE WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out} ELSE out_count END as out_count
             FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
             WHERE record_time >= ? AND record_time < ?
             {store_filter_clause}
@@ -68,58 +73,17 @@ class DashboardService:
         """
         return base_cte, params
 
-    async def _get_previous_period_total_in(self) -> int:
-        """
-        [REFACTOR] Tính toán tổng lượt vào của kỳ trước, được viết lại gọn gàng hơn.
-        """
-        time_delta = self.end_date - self.start_date
-        
-        # [UPDATE] Sử dụng dictionary để quản lý logic tính toán cho từng kỳ
-        period_logic = {
-            'day': {
-                'start': self.start_date - (time_delta + timedelta(days=1)),
-                'end': self.end_date - (time_delta + timedelta(days=1))
-            },
-            'week': {
-                'start': self.start_date - timedelta(weeks=1),
-                'end': self.end_date - timedelta(weeks=1)
-            },
-            'month': {
-                # Logic cho tháng trước: từ ngày đầu của tháng trước đến cuối tháng trước
-                'start': self.start_date - relativedelta(months=1),
-                'end': self.start_date - timedelta(days=1)
-            },
-            'year': {
-                'start': self.start_date - relativedelta(years=1),
-                'end': self.end_date - relativedelta(years=1)
-            }
-        }
-
-        dates = period_logic.get(self.period)
-
-        if not dates:
-            return 0
-
-        start_str, end_str = self._get_date_range_params(dates['start'], dates['end'])
-        base_cte, params = self._build_base_query(start_str, end_str)
-
-        query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
-        
-        df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
-
-        if df.empty or df['total'].iloc[0] is None:
-            return 0
-        return int(df['total'].iloc[0])
-
     @async_cache
     async def get_metrics(self) -> Dict[str, Any]:
-        """
-        [ASYNC] Lấy các chỉ số chính (total, average, peak time...).
-        ĐÃ SỬA LỖI NaN KHI KHÔNG CÓ DỮ LƯỢU.
+        """Lấy các chỉ số chính (KPIs) cho dashboard.
+
+        Bao gồm tổng lượt vào, trung bình, giờ cao điểm, lượng khách hiện tại,
+        cửa hàng đông nhất và tỷ lệ tăng trưởng so với kỳ trước.
+        Xử lý các trường hợp không có dữ liệu để tránh lỗi.
         """
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
-        
+
         peak_time_format = {'day': '%H:%M', 'week': '%d/%m', 'month': '%d/%m', 'year': 'Tháng %m'}.get(self.period, '%d/%m')
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
 
@@ -142,9 +106,15 @@ class DashboardService:
             self._get_previous_period_total_in()
         )
 
-        # 1. Trả về giá trị mặc định ngay nếu DataFrame rỗng
         if df.empty or pd.isna(df['total_in'].iloc[0]):
-            return {'total_in': 0, 'average_in': 0, 'peak_time': '--:--', 'current_occupancy': 0, 'busiest_store': 'N/A', 'growth': 0.0}
+            return {
+                'total_in': 0,
+                'average_in': 0,
+                'peak_time': '--:--',
+                'current_occupancy': 0,
+                'busiest_store': 'N/A',
+                'growth': 0.0
+            }
 
         data = df.iloc[0].to_dict()
         total_in_current = data.get('total_in', 0) or 0
@@ -155,22 +125,54 @@ class DashboardService:
         elif total_in_current > 0:
             growth = 100.0
 
-        # 2. Xử lý giá trị average_in một cách an toàn
         avg_val = data.get('average_in')
-        # pd.isna() kiểm tra được cả None và NaN
         data['average_in'] = 0 if pd.isna(avg_val) else int(round(avg_val))
-
         data['growth'] = growth
         if data.get('busiest_store'):
             data['busiest_store'] = data['busiest_store'].split(' (')[0]
 
         return data
 
+    async def _get_previous_period_total_in(self) -> int:
+        """Tính tổng lượt khách của kỳ liền trước để so sánh tăng trưởng."""
+        time_delta = self.end_date - self.start_date
+
+        period_logic = {
+            'day': {
+                'start': self.start_date - (time_delta + timedelta(days=1)),
+                'end': self.end_date - (time_delta + timedelta(days=1))
+            },
+            'week': {
+                'start': self.start_date - timedelta(weeks=1),
+                'end': self.end_date - timedelta(weeks=1)
+            },
+            'month': {
+                'start': self.start_date - relativedelta(months=1),
+                'end': self.start_date - timedelta(days=1)
+            },
+            'year': {
+                'start': self.start_date - relativedelta(years=1),
+                'end': self.end_date - relativedelta(years=1)
+            }
+        }
+        dates = period_logic.get(self.period)
+
+        if not dates:
+            return 0
+
+        start_str, end_str = self._get_date_range_params(dates['start'], dates['end'])
+        base_cte, params = self._build_base_query(start_str, end_str)
+
+        query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
+        df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
+
+        if df.empty or df['total'].iloc[0] is None:
+            return 0
+        return int(df['total'].iloc[0])
+
     @async_cache
     async def get_trend_chart_data(self) -> List[Dict[str, Any]]:
-        """
-        [ASYNC] Lấy dữ liệu cho biểu đồ đường.
-        """
+        """Lấy dữ liệu chuỗi thời gian cho biểu đồ cột (column chart)."""
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
@@ -194,9 +196,7 @@ class DashboardService:
 
     @async_cache
     async def get_store_comparison_chart_data(self) -> List[Dict[str, Any]]:
-        """
-        [ASYNC] Lấy dữ liệu cho biểu đồ donut (tỷ trọng theo cửa).
-        """
+        """Lấy dữ liệu phân bổ lượt khách theo từng cửa hàng cho biểu đồ tròn (donut chart)."""
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
 
@@ -212,9 +212,7 @@ class DashboardService:
 
     @async_cache
     async def get_paginated_details(self, page: int, page_size: int) -> Dict[str, Any]:
-        """
-        [ASYNC] Lấy dữ liệu chi tiết cho bảng, có phân trang.
-        """
+        """Lấy dữ liệu chi tiết, đã được phân trang cho bảng."""
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
 
@@ -239,17 +237,14 @@ class DashboardService:
         """
 
         final_query_cte = f"WITH query_result AS ({aggregation_query})"
-
         data_query = f"{final_query_cte} SELECT * FROM query_result ORDER BY period DESC LIMIT ? OFFSET ?"
         summary_query = f"{final_query_cte} SELECT SUM(total_in) as total_sum, AVG(total_in) as average_in FROM query_result"
-
         paginated_params = params + [page_size, (page - 1) * page_size]
 
         df, summary_df = await asyncio.gather(
             asyncio.to_thread(query_parquet_as_dataframe, data_query, params=paginated_params),
             asyncio.to_thread(query_parquet_as_dataframe, summary_query, params=params)
         )
-
         summary_data = summary_df.iloc[0].to_dict() if not summary_df.empty else {'total_sum': 0, 'average_in': 0}
 
         return {
@@ -262,13 +257,8 @@ class DashboardService:
 
     @staticmethod
     def get_latest_record_time() -> Optional[datetime]:
-        """
-        Lấy ra timestamp của bản ghi gần nhất.
-        """
-        query = f"""
-        SELECT MAX(record_time) as latest_time
-        FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
-        """
+        """Lấy thời gian của bản ghi gần nhất trong toàn bộ dữ liệu."""
+        query = f"SELECT MAX(record_time) as latest_time FROM read_parquet('{settings.CROWD_COUNTS_PATH}')"
         df = query_parquet_as_dataframe(query)
         if not df.empty and pd.notna(df['latest_time'].iloc[0]):
             return df['latest_time'].iloc[0]
@@ -276,22 +266,14 @@ class DashboardService:
 
     @staticmethod
     def get_all_stores() -> List[str]:
-        """
-        Lấy danh sách tất cả các cửa hàng.
-        """
-        query = f"""
-        SELECT DISTINCT store_name
-        FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
-        ORDER BY store_name
-        """
+        """Lấy danh sách duy nhất tất cả các cửa hàng có trong dữ liệu."""
+        query = f"SELECT DISTINCT store_name FROM read_parquet('{settings.CROWD_COUNTS_PATH}') ORDER BY store_name"
         df = query_parquet_as_dataframe(query)
         return df['store_name'].tolist()
 
     @staticmethod
     def get_error_logs(limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Lấy các log lỗi gần nhất.
-        """
+        """Lấy các log lỗi gần nhất từ dữ liệu."""
         query = f"""
         SELECT id, store_name, log_time, error_code, error_message
         FROM read_parquet('{settings.ERROR_LOGS_PATH}')

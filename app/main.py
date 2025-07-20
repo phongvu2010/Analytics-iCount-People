@@ -1,5 +1,12 @@
 # Windows: .venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8000 --reload
 # Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+"""
+Điểm khởi đầu (entry point) của ứng dụng FastAPI.
+
+Tệp này chịu trách nhiệm khởi tạo ứng dụng, cấu hình middleware (CORS),
+đăng ký các router, và định nghĩa các endpoint cấp cao nhất như health check
+và trang chủ.
+"""
 import logging
 
 from fastapi import FastAPI, Request
@@ -12,14 +19,15 @@ from .core.config import settings
 from .routers import router as api_router
 from .utils.logger import setup_logging
 
-# Khởi tạo ứng dụng FastAPI với các thông tin từ file config
+# Khởi tạo ứng dụng FastAPI.
 app = FastAPI(
     title = settings.PROJECT_NAME,
-    description = settings.DESCRIPTION
+    description = settings.DESCRIPTION,
+    version = '1.0.0'
 )
 
-# Cấu hình CORS Middleware
-# Cho phép frontend (chạy trên domain khác) có thể gọi API của backend.
+# Cấu hình CORS (Cross-Origin Resource Sharing) Middleware.
+# Cho phép frontend từ các domain khác có thể gọi API này.
 if settings.BACKEND_CORS_ORIGINS:
     origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
     app.add_middleware(
@@ -30,49 +38,44 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers = ['*']       # Cho phép tất cả các header
     )
 
-# Mount thư mục `static` để phục vụ các file: CSS, JS, Images
-# FastAPI sẽ tìm file trong thư mục `static` khi có request tới `/static/...`
+# Mount thư mục `static` để phục vụ các tệp tĩnh (CSS, JS, Images).
 app.mount('/static', StaticFiles(directory='static'), name='static')
 
-# Cấu hình Jinja2 templates để phục vụ file HTML
-# FastAPI sẽ tìm kiếm các file HTML trong thư mục `templates`
+# Cấu hình Jinja2 để render các template HTML.
 templates = Jinja2Templates(directory='templates')
 
-# ======================================================================
-# Endpoints API
-# ======================================================================
+
+# --- API Routers ---
+# Bao gồm các router từ các module khác với một tiền tố chung.
 app.include_router(
     api_router,
-    prefix = '/api/v1',       # Tiền tố cho tất cả các route trong router này
-    tags = ['Dashboard']      # Gắn tag để nhóm các API trong giao diện Swagger
+    prefix = '/api/v1',     # Tiền tố cho tất cả các route trong router này
+    tags = ['Dashboard']    # Gắn tag để nhóm các API trong giao diện Swagger
 )
 
+
+# --- Application Events ---
 @app.on_event('startup')
 async def startup_event():
-    # Có thể thực hiện các tác vụ khi khởi động ở đây
-    # Ví dụ: khởi tạo kết nối, tải cache, v.v.
-    # Setup logging khi ứng dụng khởi động
+    """Thiết lập logging khi ứng dụng khởi động."""
     setup_logging('FastAPI')
-    logging.info('Application startup...')
+    logging.info('Application startup complete.')
 
 @app.on_event('shutdown')
 async def shutdown_event():
-    # Dọn dẹp khi ứng dụng tắt
+    """Ghi log khi ứng dụng tắt."""
     logging.info('Application shutdown.')
 
+
+# --- Top-level Endpoints ---
 @app.get('/health', tags=['Health Check'])
 def health_check():
-    """
-    Endpoint đơn giản để kiểm tra xem ứng dụng có đang chạy hay không.
-    """
+    """Endpoint để kiểm tra tình trạng hoạt động của ứng dụng."""
     return {'status': 'ok'}
 
-# Endpoint để phục vụ trang dashboard chính
 @app.get('/', response_class=HTMLResponse, include_in_schema=False)
 async def read_root(request: Request):
-    """
-    Endpoint chính, phục vụ trang dashboard.
-    """
+    """Phục vụ trang dashboard chính (dashboard.html)."""
     return templates.TemplateResponse(
         'dashboard.html',
         {

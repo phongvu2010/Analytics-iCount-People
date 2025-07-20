@@ -26,7 +26,7 @@ def get_db():
     finally:
         db.close()
 
-def execute_query_as_dataframe(query: str, db: Session, params: dict=None) -> pd.DataFrame:
+def execute_query_as_dataframe(query: str, db: Session, params: dict = None) -> pd.DataFrame:
     """
     Thực thi một câu lệnh SQL và trả về kết quả dưới dạng Pandas DataFrame.
     Đây là một hàm helper rất hữu ích cho việc phân tích dữ liệu.

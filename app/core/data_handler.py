@@ -2,38 +2,38 @@ import duckdb
 import logging
 import pandas as pd
 
-# from functools import lru_cache
-
 from ..utils.logger import setup_logging
 
-# Cache kết nối để không phải tạo lại liên tục
-# @lru_cache(maxsize=1)
 def get_duckdb_connection():
-    """
-    Tạo và trả về một kết nối DuckDB duy nhất cho ứng dụng.
-    # Sử dụng lru_cache để đảm bảo kết nối được tái sử dụng, tăng hiệu suất.
+    """Tạo và trả về một kết nối DuckDB in-memory.
+
+    Sử dụng kết nối ':memory:' để đạt hiệu năng cao nhất cho các tác vụ đọc.
+    Mỗi lời gọi sẽ tạo một kết nối mới để đảm bảo thread-safety khi
+    chạy các truy vấn song song.
     """
     return duckdb.connect(database=':memory:', read_only=False)
 
-def query_parquet_as_dataframe(query: str, params: list=None) -> pd.DataFrame:
-    """
-    Thực thi một câu lệnh SQL trên các file Parquet bằng DuckDB.
+def query_parquet_as_dataframe(query: str, params: list = None) -> pd.DataFrame:
+    """Thực thi một câu lệnh SQL trên các tệp Parquet bằng DuckDB.
+
+    Hàm này mở một kết nối DuckDB, thực thi truy vấn, và đóng kết nối
+    để giải phóng tài nguyên.
 
     Args:
-        query (str): Câu lệnh SQL để thực thi. DuckDB sẽ chạy câu lệnh này
-                     trực tiếp trên các file được chỉ định trong query.
+        query: Câu lệnh SQL để thực thi.
+        params: Danh sách các tham số để truyền vào câu lệnh SQL một cách an toàn.
 
     Returns:
-        pd.DataFrame: DataFrame chứa kết quả, hoặc DataFrame rỗng nếu có lỗi.
+        Một DataFrame chứa kết quả, hoặc DataFrame rỗng nếu có lỗi.
     """
     con = get_duckdb_connection()
     try:
         # Thực thi câu lệnh và trả về kết quả dưới dạng Pandas DataFrame
-        # Truyền tham số vào hàm execute nếu có
         return con.execute(query, parameters=params).df()
     except Exception as e:
         setup_logging('database_duckdb')
         logging.error(f'Lỗi khi thực thi query với DuckDB: {e}\nQuery: {query}\nParams: {params}')
         return pd.DataFrame()
     finally:
+        # Đảm bảo kết nối luôn được đóng sau khi sử dụng.
         con.close()

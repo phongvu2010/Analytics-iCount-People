@@ -3,7 +3,7 @@ import os
 
 from datetime import date
 
-def setup_logging(log_name: str, log_dir: str='logs'):
+def setup_logging(log_name: str, log_dir: str = 'logs'):
     """
     Thiết lập hệ thống logging để ghi ra cả console và file.
     Tên file log sẽ được tạo dựa trên tên được cung cấp.
