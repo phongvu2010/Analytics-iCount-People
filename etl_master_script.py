@@ -100,6 +100,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
         fact_df.dropna(subset=[date_column_name], inplace=True)
+        # Điều chỉnh thời gian lùi lại 100 phút
         fact_df[date_column_name] = fact_df[date_column_name] - pd.Timedelta(minutes=100)
 
         # Hợp nhất và loại bỏ các dòng không có tên cửa hàng
