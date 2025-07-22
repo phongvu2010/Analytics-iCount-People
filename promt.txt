@@ -19,6 +19,7 @@ Tôi có ý tưởng sơ đồ cấu trúc ứng dụng FastAPI như sau:
 iCount-People/
 ├── app/
 │   ├── core/
+│   │   ├── caching.py
 │   │   ├── config.py
 │   │   ├── data_handler.py         # Dành cho Parquet (DuckDB)
 │   │   └── database.py             # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
@@ -49,7 +50,7 @@ iCount-People/
 │   └── dashboard.html          # File nội dung chính, kế thừa từ base.html
 ├── .env
 ├── .gitignore
-├── etl_master_script.py        # ETL data từ MSSQL sang Parquet (DuckDB))
+├── etl_master_script.py        # ETL data từ MSSQL sang Parquet (DuckDB)
 ├── README.md
 └── requirements.txt
 Tôi đang triển khai dự án nhỏ về FastAPI có tích hợp trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày & show notication báo lỗi.
