@@ -10,10 +10,14 @@ import pandas as pd
 import shutil
 
 from datetime import date
-from sqlalchemy import exc
+from sqlalchemy import create_engine, exc
 
-from app.core.database import engine
+from app.core.config import settings
 from app.utils.logger import setup_logging
+
+# Tạo SQLAlchemy engine từ chuỗi kết nối trong config
+# echo = False để không in các câu lệnh SQL ra console trong môi trường production
+engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, echo=False)
 
 def extract_from_mssql(table_name: str, full_load: bool):
     """Trích xuất dữ liệu từ một bảng trong MSSQL.

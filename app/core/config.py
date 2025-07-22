@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     )
 
     # Cấu hình chung
-    PROJECT_NAME: str
-    DESCRIPTION: str
+    PROJECT_NAME: str = "Traffic Counting Analysis"
+    DESCRIPTION: str = 'Hệ thống thống kê và phân tích lưu lượng người ra / vào trung tâm thương mại.'
 
     BACKEND_CORS_ORIGINS: Annotated[
         List[AnyUrl], BeforeValidator(parse_cors)
@@ -54,12 +54,12 @@ class Settings(BaseSettings):
     WORKING_HOUR_END: int = 2     # 02:00 sáng hôm sau
 
     # Cấu hình kết nối Database MSSQL (dành cho ETL)
-    DB_HOST: str
-    DB_PORT: int = 1433
-    DB_DRIVER: str = 'ODBC Driver 17 for SQL Server'
-    DB_NAME: str
-    DB_USER: str
-    DB_PASS: str
+    MSSQL_DB_HOST: str
+    MSSQL_DB_PORT: int = 1433
+    MSSQL_DB_DRIVER: str = 'ODBC Driver 17 for SQL Server'
+    MSSQL_DB_NAME: str
+    MSSQL_DB_USER: str
+    MSSQL_DB_PASS: str
 
     @computed_field
     @property
@@ -70,12 +70,12 @@ class Settings(BaseSettings):
         """
         return str(MultiHostUrl.build(
             scheme = 'mssql+pyodbc',
-            username = self.DB_USER,
-            password = parse.quote_plus(self.DB_PASS),
-            host = self.DB_HOST,
-            port = self.DB_PORT,
-            path = self.DB_NAME,
-            query = f'driver={self.DB_DRIVER.replace(" ", "+")}'
+            username = self.MSSQL_DB_USER,
+            password = parse.quote_plus(self.MSSQL_DB_PASS),
+            host = self.MSSQL_DB_HOST,
+            port = self.MSSQL_DB_PORT,
+            path = self.MSSQL_DB_NAME,
+            query = f'driver={self.MSSQL_DB_DRIVER.replace(" ", "+")}'
         ))
 
 # Tạo một instance Settings duy nhất để sử dụng trong toàn bộ ứng dụng.

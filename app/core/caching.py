@@ -4,8 +4,8 @@ from typing import Callable, Any
 
 # Bộ nhớ cache chia sẻ trong ứng dụng, có thời gian sống (TTL).
 # - maxsize=128: Lưu trữ tối đa 128 kết quả gần nhất.
-# - ttl=300: Mỗi item trong cache sẽ hết hạn sau 300 giây (5 phút).
-service_cache = TTLCache(maxsize=128, ttl=300)
+# - ttl=300: Mỗi item trong cache sẽ hết hạn sau 1800 giây (30 phút).
+service_cache = TTLCache(maxsize=128, ttl=1800)
 
 def async_cache(func: Callable) -> Callable:
     """Decorator để cache kết quả của các hàm async trong service.
