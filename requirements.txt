@@ -33,6 +33,7 @@ SQLAlchemy          # For MSSQL connection
 
 
 # bcrypt==4.0.1
+# Flask
 # Jinja2
 # numpy
 # passlib[bcrypt] # Để hash mật khẩu
