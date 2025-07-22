@@ -1,7 +1,7 @@
 # Phân vùng kiểu Hive (Hive-style Partitioning)
 # .venv\Scripts\python.exe etl_master_script.py --output_format=parquet --destination=data --full_load
 # Data DuckDB
-# .venv\Scripts\python.exe etl_master_script.py --output_format=duckdb --destination=data.duckdb --full_load
+# .venv\Scripts\python.exe etl_master_script.py --output_format=duckdb --destination=statistic.duckdb --full_load
 import argparse
 import duckdb
 import logging
@@ -67,7 +67,8 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
     - Hợp nhất bảng fact với bảng store để lấy tên cửa hàng.
     - Thêm cột 'year' để hỗ trợ phân vùng (partitioning) khi lưu trữ.
     """
-    if fact_df is None or stores_df is None: return None
+    if fact_df is None or stores_df is None:
+        return None
 
     logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
 
@@ -100,8 +101,8 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
         fact_df.dropna(subset=[date_column_name], inplace=True)
-        # Điều chỉnh thời gian lùi lại 100 phút
-        fact_df[date_column_name] = fact_df[date_column_name] - pd.Timedelta(minutes=100)
+        # # Điều chỉnh thời gian lùi lại 100 phút
+        # fact_df[date_column_name] = fact_df[date_column_name] - pd.Timedelta(minutes=100)
 
         # Hợp nhất và loại bỏ các dòng không có tên cửa hàng
         merged_df = pd.merge(fact_df, stores_df, on='store_id', how='left')
@@ -211,6 +212,7 @@ def main():
     # --- 3. LOAD ---
     if args.output_format == 'duckdb':
         is_first_run = not os.path.exists(args.destination)
+        # Nếu là full load và file đã tồn tại, coi như lần chạy đầu để CREATE OR REPLACE
         if args.full_load and not is_first_run:
             logging.warning(f' -> Chế độ Full Load: Sẽ thay thế hoàn toàn file `{args.destination}`.')
             is_first_run = True # Coi như lần đầu để CREATE OR REPLACE
