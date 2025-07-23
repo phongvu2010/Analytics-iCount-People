@@ -1,0 +1,176 @@
+Xin chào, bạn là 1 Senior Python Dev. Tôi có sẵn database của ứng dụng đếm người ra vào Trung tâm thương mại. Hệ thống dùng database SQL Server với các table như sau:
+```
+dbo.store
+├── tid:            (int, not_null)
+└── name:           (char(80), not_null)
+
+dbo.ErrLog
+├── ID:             (bigint, not_null)
+├── storeid:        (int, not_null) - (mapping dbo.store.tid)
+├── DeviceCode:     (smallint, )
+├── LogTime:        (datetime, )
+├── Errorcode:      (int, )
+└── ErrorMessage:   (nchar(120), )
+
+dbo.num_crowd
+├── recordtime:     (datetime, )
+├── in_num:         (int, not_null)
+├── out_num:        (int, not_null)
+├── position:       (char(30), )
+└── storeid:        (int, not_null) - (mapping dbo.store.tid)
+```
+Hãy giúp tôi tạo file Python ETL chuyển đổi sang data DuckDB dùng để phân tích dữ liệu.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Xin chào, bạn là 1 Senior Python Dev, tôi có sẵn Data DuckDB Parquet liên quan đến hệ thống đếm người ra - vào 1 trung tâm thương mại.
+Cấu trúc data như sau:
+data/
+├── crowd_counts/ ('record_time', 'store_name', 'in_count', 'out_count')
+│   └── year=2018/
+│       └── *.parquet
+│   └── year=2019/
+│       └── *.parquet
+│   └── year=2020/
+│       └── *.parquet
+├── error_logs/ ('id', 'store_name', 'log_time', 'error_code', 'error_message')
+│   └── year=2018/
+│       └── *.parquet
+│   └── year=2019/
+│       └── *.parquet
+│   └── year=2020/
+└       └─── *.parquet
+### Cấu trúc DB MSSQL iCount People
+```
+dbo.store
+├── tid:            (int, not_null)
+├── country:        (char(20), )
+├── area:           (char(20), )
+├── province:       (char(20), )
+├── city:           (char(20), )
+├── name:           (char(80), not_null)
+├── address:        (char(80), not_null)
+├── isbranch:       (char(3), )
+├── code:           (char(32), not_null)
+├── cameranum:      (int, not_null)
+├── manager:        (char(20), )
+├── managertel:     (char(20), )
+├── lastEditDate:   (datetime, )
+└── formula:        (char(64), )
+
+dbo.ErrLog
+├── ID:             (bigint, not_null)
+├── storeid:        (int, not_null) - (mapping dbo.store.tid)
+├── DeviceCode:     (smallint, )
+├── LogTime:        (datetime, )
+├── Errorcode:      (int, )
+└── ErrorMessage:   (nchar(120), )
+
+dbo.num_crowd
+├── recordtime:     (datetime, )
+├── in_num:         (int, not_null)
+├── out_num:        (int, not_null)
+├── position:       (char(30), )
+└── storeid:        (int, not_null) - (mapping dbo.store.tid)
+
+dbo.Status
+├── ID:             (int, not_null)
+├── storeid:        (int, not_null) - (mapping dbo.store.tid)
+├── FlashNum:       (int, )
+├── RamNum:         (int, )
+├── RC1:            (bit, )
+├── RC2:            (bit, )
+├── RC3:            (bit, )
+├── RC4:            (bit, )
+├── RC5:            (bit, )
+├── RC6:            (bit, )
+├── RC7:            (bit, )
+├── RC8:            (bit, )
+├── DcID:           (smallint, )
+├── FV:             (nchar(20), )
+├── DcTime:         (datetime, )
+├── DeviceID:       (smallint, )
+├── IA:             (int, )
+├── OA:             (int, )
+├── S:              (smallint, )
+└── T:              (datetime, )
+```
+
+Tôi có ý tưởng sơ đồ cấu trúc ứng dụng FastAPI như sau:
+iCount-People/
+├── app/
+│   ├── core/
+│   │   ├── caching.py
+│   │   ├── config.py
+│   │   ├── data_handler.py         # Dành cho Parquet (DuckDB)
+│   │   └── database.py             # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
+│   ├── utils/
+│   │   └── logger.py
+│   ├── main.py
+│   ├── routers.py
+│   ├── schemas.py
+│   └── services.py
+├── data/
+├── logs/
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── logo.png
+│   └── favicon.ico
+├── templates/
+│   ├── partials/
+│   │   ├── _charts.html        # Phần chứa các biểu đồ
+│   │   ├── _error_modal.html   # Phần chứa các error modal
+│   │   ├── _filters.html       # Phần chứa các bộ lọc
+│   │   ├── _header.html        # Phần header của trang
+│   │   ├── _metrics.html       # Phần chứa các thẻ chỉ số
+│   │   ├── _scripts.html       # Toàn bộ code JavaScript
+│   │   ├── _sidebar.html       # Phần chứa các sidebar
+│   │   ├── _skeleton.html       # Phần chứa các sidebar
+│   │   └── _table.html         # Phần bảng dữ liệu chi tiết
+│   ├── base.html               # File layout chính, chứa cấu trúc chung
+│   └── dashboard.html          # File nội dung chính, kế thừa từ base.html
+├── .env
+├── .gitignore
+├── etl_master_script.py        # ETL data từ MSSQL sang Parquet (DuckDB)
+├── README.md
+└── requirements.txt
+Tôi đang triển khai dự án nhỏ về FastAPI có tích hợp trang Dashboard (Tailwind CSS) show dữ liệu vào (in_num), thống kê theo năm, tháng, tuần, ngày & show notication báo lỗi.
+Hãy giúp tôi xem cấu trúc dự án như vậy đã ổn chưa, có cần chỉnh sửa gì thêm hay không.
+Các file Python đính kèm tôi đã viết sẵn, hãy giúp tôi đánh giá chúng, có cần chỉnh sửa gì thêm hay không.
+Hãy làm sạch các DocString và ghi chú hiện có. Viết lại các DocString và ghi chú thể hiện đúng & phù hợp nhất.
+Các file Templates mẫu tôi đã viết sẵn, hãy giúp tôi đánh giá chúng, có cần chỉnh sửa gì thêm hay không.
+Các thư viện cần thiết cho dự án này là: FastAPI, SQLAlchemy, ...
+Data `crowd_counts` thể hiện dữ liêu ra - vào theo thời gian (data sẽ có nhiều rows bị lỗi tín hiệu nên sẽ bị tăng vọt bất thường, nên cần xử lý chia theo tỷ lệ tham số truyền vào).
+Các tính năng tôi muốn:
+- Mục cài đặt (hình bánh răng cưa) góc phải phía trên màn hình: Chọn giao diện 'Dark' | 'Light' | 'Auto', tham số xử lý tình trạng lỗi tín hiệu
+Tôi muốn điều chỉnh lại dữ liệu tổng hợp như sau:
+- 1 ngày làm việc sẽ lấy dữ liệu từ 09:00 hôm nay tới 02:00 hôm sau (Thời gian có thể điều chỉnh trong file config.py)
+- Thêm bộ lọc ngày, tuần, tháng, năm: Mặc định sẽ hiển thị dữ liệu theo option `năm` hiện tại & tất cả cửa ra - vào.
+    - Nếu chọn năm thì thêm bộ lọc chọn năm: mặc định năm hiện tại, dữ liệu hiển thị theo tháng trong năm
+    - Nếu chọn tháng thì thêm bộ lọc chọn năm và tháng: mặc định năm & tháng hiện tại, dữ liệu hiển thị theo ngày trong tháng
+    - Nếu chọn tuần thì thêm bộ lọc chọn năm & tuần (thể hiện từ ngày đến ngày): mặc định khi chọn sẽ hiển thị năm & tuần hiện tại, dữ liệu hiển thị theo ngày trong tuần
+    - Nếu chọn ngày thì thêm bộ lọc (Date Picker): mặc định chọn ngày hiện tại, dữ liệu hiển thị theo giờ (tổng hợp theo từng giờ)
+- Bộ lọc chọn cửa ra - vào chưa hoạt động chỉ hiển thị `Tất cả cửa hàng`.
+- Thêm line chart dữ liệu cửa ra vào.
+- Thêm donut chart so sánh các cửa ra vào.
+- Thêm notication hiện thị cảnh báo ErrLog ngay trên nút chuông góc phải phía trên màn hình. Mỗi khi nhấp vào log nào thì sẽ cache (tại trình duyệt) lại đã đọc & giảm số notication.
+- Thêm table dữ liệu tổng hợp: Có thêm cột chênh lệch (%) so với dòng trước.
+- Thêm nút tải dữ liệu chi tiết xuất ra file.
