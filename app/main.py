@@ -39,11 +39,10 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Mount thư mục `static` để phục vụ các tệp tĩnh (CSS, JS, Images).
-app.mount('/static', StaticFiles(directory='static'), name='static')
+app.mount('/static', StaticFiles(directory='app/static'), name='static')
 
 # Cấu hình Jinja2 để render các template HTML.
-templates = Jinja2Templates(directory='templates')
-
+templates = Jinja2Templates(directory='app/templates')
 
 # --- API Routers ---
 # Bao gồm các router từ các module khác với một tiền tố chung.
@@ -52,7 +51,6 @@ app.include_router(
     prefix = '/api/v1',     # Tiền tố cho tất cả các route trong router này
     tags = ['Dashboard']    # Gắn tag để nhóm các API trong giao diện Swagger
 )
-
 
 # --- Application Events ---
 @app.on_event('startup')
@@ -65,7 +63,6 @@ async def startup_event():
 async def shutdown_event():
     """Ghi log khi ứng dụng tắt."""
     logging.info('Application shutdown.')
-
 
 # --- Top-level Endpoints ---
 @app.get('/health', tags=['Health Check'])

@@ -1,7 +1,7 @@
 # Phân vùng kiểu Hive (Hive-style Partitioning)
 # .venv\Scripts\python.exe etl_master_script.py --output_format=parquet --destination=data --full_load
 # Data DuckDB
-# .venv\Scripts\python.exe etl_master_script.py --output_format=duckdb --destination=statistic.duckdb --full_load
+# .venv\Scripts\python.exe etl_master_script.py --output_format=duckdb --destination=data/statistic.duckdb --full_load
 import argparse
 import duckdb
 import logging
