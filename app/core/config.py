@@ -1,7 +1,7 @@
 from pydantic import AnyUrl, BeforeValidator, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Annotated, Any, List
+from typing import Annotated, Any, List, Optional
 from urllib import parse
 
 def parse_cors(v: Any) -> List[str] | str:
@@ -31,19 +31,29 @@ class Settings(BaseSettings):
         List[AnyUrl], BeforeValidator(parse_cors)
     ] = []
 
-    # Đường dẫn dữ liệu
+    # Cấu hình Database Source
+    DATABASE_TYPE: str = 'parquet_folder' # hoặc 'duckdb_file'
+    DUCKDB_FILE_PATH: Optional[str] = None # Chỉ cần thiết nếu DATABASE_TYPE là 'duckdb_file'
+
+    # Đường dẫn dữ liệu (vẫn dùng cho parquet_folder)
     DATA_PATH: str = 'data'
 
     @property
     def CROWD_COUNTS_PATH(self) -> str:
-        """Đường dẫn tới các tệp parquet chứa dữ liệu đếm người."""
-        # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
-        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+        if self.DATABASE_TYPE == 'parquet_folder':
+            # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
+            return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+        return ''   # Không dùng khi là duckdb_file
 
     @property
     def ERROR_LOGS_PATH(self) -> str:
-        """Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi."""
-        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
+        if self.DATABASE_TYPE == 'parquet_folder':
+            # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
+            return f'{self.DATA_PATH}/error_logs/*/*.parquet'
+        return ''   # Không dùng khi là duckdb_file
+
+    # Cấu hình Caching (# 1800 = 30 phút)
+    CACHE_TTL_SECONDS: int = 1800
 
     # Cấu hình xử lý dữ liệu ngoại lệ (outlier)
     OUTLIER_THRESHOLD: int = 100

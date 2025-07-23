@@ -1,4 +1,3 @@
-<script>
 document.addEventListener('DOMContentLoaded', async function () {
     // --- STATE MANAGEMENT & CONSTANTS ---
     let isInitialLoad = true; // Cờ để kiểm tra lần tải đầu tiên
@@ -419,4 +418,3 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.error('An error occurred during initial page load:', error);
     }
 });
-</script>

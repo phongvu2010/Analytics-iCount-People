@@ -72,6 +72,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
     - Thêm cột 'year' để hỗ trợ phân vùng (partitioning) khi lưu trữ.
     """
     if fact_df is None or stores_df is None:
+        logging.warning(f' -> Bỏ qua bước biến đổi và hợp nhất cho bảng `{table_type}` do thiếu dữ liệu đầu vào.')
         return None
 
     logging.info(f'    -> Bắt đầu biến đổi và hợp nhất cho bảng: `{table_type}`')
@@ -105,7 +106,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         fact_df[date_column_name] = pd.to_datetime(fact_df[date_column_name], errors='coerce')
         fact_df.dropna(subset=[date_column_name], inplace=True)
-        # # Điều chỉnh thời gian lùi lại 100 phút
+        # Điều chỉnh thời gian lùi lại 100 phút (nếu cần, bỏ comment và làm rõ mục đích)
         # fact_df[date_column_name] = fact_df[date_column_name] - pd.Timedelta(minutes=100)
 
         # Hợp nhất và loại bỏ các dòng không có tên cửa hàng
@@ -121,7 +122,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
 
         if output_format == 'parquet':
             merged_df['year'] = merged_df[date_column_name].dt.year
-            final_cols.append('year')
+            final_cols.append('year') # Đảm bảo 'year' được thêm vào trước khi chọn cột
             final_df = merged_df[final_cols].dropna(subset=['year'])
             final_df['year'] = final_df['year'].astype(int)
         else:
@@ -139,7 +140,7 @@ def transform_and_join(stores_df: pd.DataFrame, fact_df: pd.DataFrame, table_typ
         logging.error(f'   -> Lỗi không xác định trong quá trình biến đổi và hợp nhất cho bảng `{table_type}`: {e}\n')
         return None
 
-def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first_run: bool):
+def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, full_load: bool):
     """Nạp dữ liệu vào tệp DuckDB.
 
     - Nếu là lần chạy đầu hoặc full_load, tạo mới hoặc thay thế hoàn toàn bảng.
@@ -152,14 +153,18 @@ def load_to_duckdb(df: pd.DataFrame, table_name: str, duckdb_path: str, is_first
     date_columns = {'crowd_counts': 'record_time', 'error_logs': 'log_time'}
     try:
         with duckdb.connect(database=duckdb_path, read_only=False) as con:
-            if is_first_run:
-                logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}`...')
+            # Nếu là full load, luôn CREATE OR REPLACE bảng
+            if full_load:
+                logging.info(f'    -> Chế độ [CREATE OR REPLACE] cho bảng `{table_name}` (Full Load)...')
                 con.execute(f'CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM df')
+            # Chế độ incremental
             else:
                 logging.info(f'    -> Chế độ [DELETE/INSERT] cho bảng: `{table_name}`...')
                 date_column = date_columns[table_name]
                 current_year = date.today().year
 
+                # Đảm bảo bảng tồn tại trước khi DELETE/INSERT
+                con.execute(f'CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df WHERE 1=0') # Tạo bảng rỗng nếu chưa có
                 con.execute(f'DELETE FROM {table_name} WHERE YEAR({date_column}) = {current_year}')
                 con.execute(f'INSERT INTO {table_name} SELECT * FROM df')
         logging.info(f'    -> Nạp thành công dữ liệu vào DuckDB cho bảng `{table_name}`.\n')
@@ -206,6 +211,11 @@ def main():
 
     # --- 1. EXTRACT ---
     stores_df = extract_from_mssql('store', True)
+    # Kiểm tra nếu stores_df không lấy được thì dừng toàn bộ quá trình
+    if stores_df is None or stores_df.empty:
+        logging.error('   -> Không thể trích xuất dữ liệu `store`. Dừng quá trình ETL.')
+        return
+
     errlog_df = extract_from_mssql('ErrLog', False)
     num_crowd_df = extract_from_mssql('num_crowd', args.full_load)
 
@@ -215,13 +225,10 @@ def main():
 
     # --- 3. LOAD ---
     if args.output_format == 'duckdb':
-        is_first_run = not os.path.exists(args.destination)
-        # Nếu là full load và file đã tồn tại, coi như lần chạy đầu để CREATE OR REPLACE
-        if args.full_load and not is_first_run:
-            logging.warning(f' -> Chế độ Full Load: Sẽ thay thế hoàn toàn file `{args.destination}`.')
-            is_first_run = True # Coi như lần đầu để CREATE OR REPLACE
-        load_to_duckdb(final_error_logs, 'error_logs', args.destination, is_first_run)
-        load_to_duckdb(final_crowd_counts, 'crowd_counts', args.destination, is_first_run)
+        # Đối với DuckDB, truyền trực tiếp args.full_load vào hàm load
+        # Hàm load_to_duckdb sẽ tự quyết định CREATE OR REPLACE hay DELETE/INSERT
+        load_to_duckdb(final_error_logs, 'error_logs', args.destination, args.full_load)
+        load_to_duckdb(final_crowd_counts, 'crowd_counts', args.destination, args.full_load)
     elif args.output_format == 'parquet':
         os.makedirs(args.destination, exist_ok=True)
         load_to_partitioned_parquet(final_error_logs, 'error_logs', args.destination, args.full_load)

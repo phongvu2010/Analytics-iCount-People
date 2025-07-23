@@ -5,9 +5,9 @@ from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from typing import List, Dict, Any, Optional, Tuple
 
-from .core.caching import async_cache
+from .core.caching import async_cache # Sẽ cần cập nhật caching.py để sử dụng settings.CACHE_TTL_SECONDS
 from .core.config import settings
-from .core.data_handler import query_parquet_as_dataframe
+from .core.data_handler import query_dataframe # Đã đổi tên từ query_parquet_as_dataframe
 
 class DashboardService:
     """Lớp chứa logic nghiệp vụ để xử lý và truy vấn dữ liệu cho dashboard.
@@ -47,6 +47,13 @@ class DashboardService:
             store_filter_clause = 'AND store_name = ?'
             params.append(self.store)
 
+        # Quyết định nguồn dữ liệu dựa trên cấu hình
+        source_table_or_path = ''
+        if settings.DATABASE_TYPE == 'duckdb_file':
+            source_table_or_path = 'crowd_counts' # Tên bảng trong file DuckDB
+        else: # Mặc định hoặc 'parquet_folder'
+            source_table_or_path = f"read_parquet('{settings.CROWD_COUNTS_PATH}')" # Đường dẫn Parquet
+
         # Xử lý outlier: thay thế các giá trị quá lớn bằng một tỷ lệ nhỏ hoặc giá trị cố định.
         if settings.OUTLIER_SCALE_RATIO > 0:
             then_logic_in = f'CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
@@ -62,7 +69,7 @@ class DashboardService:
                 store_name,
                 CASE WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in} ELSE in_count END as in_count,
                 CASE WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out} ELSE out_count END as out_count
-            FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
+            FROM {source_table_or_path}
             WHERE record_time >= ? AND record_time < ?
             {store_filter_clause}
         ),
@@ -102,7 +109,7 @@ class DashboardService:
         """
 
         df, total_in_previous = await asyncio.gather(
-            asyncio.to_thread(query_parquet_as_dataframe, query, params=params),
+            asyncio.to_thread(query_dataframe, query, params=params),
             self._get_previous_period_total_in()
         )
 
@@ -164,7 +171,7 @@ class DashboardService:
         base_cte, params = self._build_base_query(start_str, end_str)
 
         query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
-        df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
+        df = await asyncio.to_thread(query_dataframe, query, params=params)
 
         if df.empty or df['total'].iloc[0] is None:
             return 0
@@ -186,7 +193,7 @@ class DashboardService:
         GROUP BY x ORDER BY x
         """
 
-        df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
+        df = await asyncio.to_thread(query_dataframe, query, params=params)
 
         if time_unit == 'month': df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m')
         elif time_unit == 'day': df['x'] = pd.to_datetime(df['x']).dt.strftime('%Y-%m-%d')
@@ -207,7 +214,7 @@ class DashboardService:
         GROUP BY x
         ORDER BY y DESC
         """
-        df = await asyncio.to_thread(query_parquet_as_dataframe, query, params=params)
+        df = await asyncio.to_thread(query_dataframe, query, params=params)
         return df.to_dict(orient='records')
 
     @async_cache
@@ -242,8 +249,8 @@ class DashboardService:
         paginated_params = params + [page_size, (page - 1) * page_size]
 
         df, summary_df = await asyncio.gather(
-            asyncio.to_thread(query_parquet_as_dataframe, data_query, params=paginated_params),
-            asyncio.to_thread(query_parquet_as_dataframe, summary_query, params=params)
+            asyncio.to_thread(query_dataframe, data_query, params=paginated_params),
+            asyncio.to_thread(query_dataframe, summary_query, params=params)
         )
         summary_data = summary_df.iloc[0].to_dict() if not summary_df.empty else {'total_sum': 0, 'average_in': 0}
 
@@ -258,8 +265,14 @@ class DashboardService:
     @staticmethod
     def get_latest_record_time() -> Optional[datetime]:
         """Lấy thời gian của bản ghi gần nhất trong toàn bộ dữ liệu."""
-        query = f"SELECT MAX(record_time) as latest_time FROM read_parquet('{settings.CROWD_COUNTS_PATH}')"
-        df = query_parquet_as_dataframe(query)
+        source_table_or_path = ''
+        if settings.DATABASE_TYPE == 'duckdb_file':
+            source_table_or_path = 'crowd_counts'
+        else:
+            source_table_or_path = f"read_parquet('{settings.CROWD_COUNTS_PATH}')"
+
+        query = f"SELECT MAX(record_time) as latest_time FROM {source_table_or_path}"
+        df = query_dataframe(query)
         if not df.empty and pd.notna(df['latest_time'].iloc[0]):
             return df['latest_time'].iloc[0]
         return None
@@ -267,18 +280,30 @@ class DashboardService:
     @staticmethod
     def get_all_stores() -> List[str]:
         """Lấy danh sách duy nhất tất cả các cửa hàng có trong dữ liệu."""
-        query = f"SELECT DISTINCT store_name FROM read_parquet('{settings.CROWD_COUNTS_PATH}') ORDER BY store_name"
-        df = query_parquet_as_dataframe(query)
+        source_table_or_path = ''
+        if settings.DATABASE_TYPE == 'duckdb_file':
+            source_table_or_path = 'crowd_counts'
+        else:
+            source_table_or_path = f"read_parquet('{settings.CROWD_COUNTS_PATH}')"
+
+        query = f"SELECT DISTINCT store_name FROM {source_table_or_path} ORDER BY store_name"
+        df = query_dataframe(query)
         return df['store_name'].tolist()
 
     @staticmethod
     def get_error_logs(limit: int = 100) -> List[Dict[str, Any]]:
         """Lấy các log lỗi gần nhất từ dữ liệu."""
+        source_table_or_path = ''
+        if settings.DATABASE_TYPE == 'duckdb_file':
+            source_table_or_path = 'error_logs'
+        else:
+            source_table_or_path = f"read_parquet('{settings.ERROR_LOGS_PATH}')"
+
         query = f"""
         SELECT id, store_name, log_time, error_code, error_message
-        FROM read_parquet('{settings.ERROR_LOGS_PATH}')
+        FROM {source_table_or_path}
         ORDER BY log_time DESC
         LIMIT ?
         """
-        df = query_parquet_as_dataframe(query, params=[limit])
+        df = query_dataframe(query, params=[limit])
         return df.to_dict(orient='records')

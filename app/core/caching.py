@@ -2,10 +2,13 @@ from cachetools import TTLCache
 from functools import wraps
 from typing import Callable, Any
 
+from app.core.config import settings
+
 # Bộ nhớ cache chia sẻ trong ứng dụng, có thời gian sống (TTL).
 # - maxsize=128: Lưu trữ tối đa 128 kết quả gần nhất.
 # - ttl=1800: Mỗi item trong cache sẽ hết hạn sau 1800 giây (30 phút).
-service_cache = TTLCache(maxsize=128, ttl=1800)
+# service_cache = TTLCache(maxsize=128, ttl=1800)
+service_cache = TTLCache(maxsize=128, ttl=settings.CACHE_TTL_SECONDS)
 
 def async_cache(func: Callable) -> Callable:
     """Decorator để cache kết quả của các hàm async trong service.

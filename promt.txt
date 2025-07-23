@@ -1,28 +1,34 @@
-Xin chào, bạn là 1 Senior Python Dev, tôi có sẵn Data DuckDB Parquet liên quan đến hệ thống đếm người ra - vào 1 trung tâm thương mại.
+Xin chào, bạn là 1 Senior Python Dev, tôi có sẵn data DuckDB liên quan đến hệ thống đếm người vào trung tâm thương mại.
 Cấu trúc data như sau:
-data/
-├── crowd_counts/ ('record_time', 'store_name', 'in_count', 'out_count')
-│   └── year=2018/
-│       └── *.parquet
-│   └── year=2019/
-│       └── *.parquet
-│   └── year=2020/
-│       └── *.parquet
-├── error_logs/ ('id', 'store_name', 'log_time', 'error_code', 'error_message')
-│   └── year=2018/
-│       └── *.parquet
-│   └── year=2019/
-│       └── *.parquet
-│   └── year=2020/
-└       └─── *.parquet
+statistic.duckdb
+├── crowd_counts: Columns('record_time', 'store_name', 'in_count', 'out_count')
+└── error_logs: Columns('id', 'store_name', 'log_time', 'error_code', 'error_message')
 Tôi có ý tưởng sơ đồ cấu trúc ứng dụng FastAPI như sau:
 iCount-People/
 ├── app/
 │   ├── core/
 │   │   ├── caching.py
 │   │   ├── config.py
-│   │   ├── data_handler.py         # Dành cho Parquet (DuckDB)
-│   │   └── database.py             # Dành cho MSSQL (SQLAlchemy) dành cho mini script khác
+│   │   └── data_handler.py         # Dành cho Parquet (DuckDB)
+│   ├── static/
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── js/
+│   │   │   └── dashboard.js        # Toàn bộ code JavaScript Dashboard
+│   │   ├── logo.png
+│   │   └── favicon.ico
+│   ├── templates/
+│   │   ├── partials/
+│   │   │   ├── _charts.html        # Phần chứa các biểu đồ
+│   │   │   ├── _error_modal.html   # Phần chứa các error modal
+│   │   │   ├── _filters.html       # Phần chứa các bộ lọc
+│   │   │   ├── _header.html        # Phần header của trang
+│   │   │   ├── _metrics.html       # Phần chứa các thẻ chỉ số
+│   │   │   ├── _sidebar.html       # Phần chứa các sidebar
+│   │   │   ├── _skeleton.html      # Phần chứa các sidebar
+│   │   │   └── _table.html         # Phần bảng dữ liệu chi tiết
+│   │   ├── base.html               # File layout chính, chứa cấu trúc chung
+│   │   └── dashboard.html          # File nội dung chính, kế thừa từ base.html
 │   ├── utils/
 │   │   └── logger.py
 │   ├── main.py
@@ -31,24 +37,6 @@ iCount-People/
 │   └── services.py
 ├── data/
 ├── logs/
-├── static/
-│   ├── css/
-│   │   └── style.css
-│   ├── logo.png
-│   └── favicon.ico
-├── templates/
-│   ├── partials/
-│   │   ├── _charts.html        # Phần chứa các biểu đồ
-│   │   ├── _error_modal.html   # Phần chứa các error modal
-│   │   ├── _filters.html       # Phần chứa các bộ lọc
-│   │   ├── _header.html        # Phần header của trang
-│   │   ├── _metrics.html       # Phần chứa các thẻ chỉ số
-│   │   ├── _scripts.html       # Toàn bộ code JavaScript
-│   │   ├── _sidebar.html       # Phần chứa các sidebar
-│   │   ├── _skeleton.html       # Phần chứa các sidebar
-│   │   └── _table.html         # Phần bảng dữ liệu chi tiết
-│   ├── base.html               # File layout chính, chứa cấu trúc chung
-│   └── dashboard.html          # File nội dung chính, kế thừa từ base.html
 ├── .env
 ├── .gitignore
 ├── etl_master_script.py        # ETL data từ MSSQL sang Parquet (DuckDB)

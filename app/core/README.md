@@ -1,4 +1,4 @@
-### Cấu trúc DB MSSQL iCount People
+### Cấu trúc DB MSSQL Traffic Counting Analysis
 ```
 dbo.store
 ├── tid:            (int, not_null)
