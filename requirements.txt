@@ -20,14 +20,19 @@
 # pip3 freeze > requirements.txt
 
 
-### Packages
-cachetools
+### Database Drivers & Client
 duckdb
-fastapi[all]
+pyodbc              # Driver for MSSQL
+
+### Data Handling
 pandas
 pyarrow
-pyodbc              # Driver for MSSQL, có thể thay đổi tùy hệ thống
-SQLAlchemy          # For MSSQL connection
+
+
+### Packages
+cachetools
+fastapi[all]              
+SQLAlchemy
 
 
 # bcrypt==4.0.1

@@ -3,7 +3,6 @@ Xin chào, bạn là 1 Senior Python Dev. Tôi có sẵn database của ứng d�
 dbo.store
 ├── tid:            (int, not_null)
 └── name:           (char(80), not_null)
-
 dbo.ErrLog
 ├── ID:             (bigint, not_null)
 ├── storeid:        (int, not_null) - (mapping dbo.store.tid)
@@ -11,7 +10,6 @@ dbo.ErrLog
 ├── LogTime:        (datetime, )
 ├── Errorcode:      (int, )
 └── ErrorMessage:   (nchar(120), )
-
 dbo.num_crowd
 ├── recordtime:     (datetime, )
 ├── in_num:         (int, not_null)
@@ -20,9 +18,10 @@ dbo.num_crowd
 └── storeid:        (int, not_null) - (mapping dbo.store.tid)
 ```
 Hãy giúp tôi tạo file Python ETL chuyển đổi sang data DuckDB dùng để phân tích dữ liệu.
-DuckDB hoạt động theo partitioned, incremental
-Thêm file logger_config để ghi log
-Thêm file config sử dụng pydantic_settings để đọc biến trong .env
+DuckDB hoạt động theo partitioned, incremental. Chuyển đổi các table_name, column_name phù hợp cho hệ thống phân tích dữ liệu.
+Thêm file config sử dụng pydantic_settings để đọc biến trong .env.
+Thêm file logger_config ghi log chuyên nghiệp.
+
 
 
 
