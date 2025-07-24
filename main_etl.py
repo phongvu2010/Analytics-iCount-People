@@ -1,139 +1,136 @@
-# import duckdb
+import duckdb
 import logging
-# import pandas as pd
+import pandas as pd
 
-# from pathlib import Path
-# from sqlalchemy import create_engine
+from duckdb import DuckDBPyConnection
+from pathlib import Path
+from sqlalchemy import create_engine
 
-# from config import settings
+from app.core.config import settings
 from app.utils.logger_config import setup_logging
 
-# # --- CONSTANTS ---
-# ETL_METADATA_TABLE = "etl_metadata"
+# --- CONSTANTS ---
+ETL_METADATA_TABLE = "etl_metadata"
 
-# def get_last_processed_timestamp(duckdb_con: duckdb.DuckDBPyConnection, table_name: str) -> pd.Timestamp:
-#     """
-#     Retrieves the last processed timestamp for a given table from the metadata table.
-#     Returns a very old date if the table has not been processed before.
-#     """
-#     try:
-#         result = duckdb_con.execute(
-#             f"SELECT last_timestamp FROM {ETL_METADATA_TABLE} WHERE table_name = ?", [table_name]
-#         ).fetchone()
-#         if result:
-#             logging.info(f"Found last processed timestamp for '{table_name}': {result[0]}")
-#             return pd.to_datetime(result[0])
-#     except duckdb.CatalogException:
-#         logging.warning(f"Metadata table '{ETL_METADATA_TABLE}' not found. Will create it.")
-#     except Exception as e:
-#         logging.error(f"Error getting last timestamp for {table_name}: {e}")
+def get_last_processed_timestamp(duckdb_con: DuckDBPyConnection, table_name: str) -> pd.Timestamp:
+    """
+    Retrieves the last processed timestamp for a given table from the metadata table.
+    Returns a very old date if the table has not been processed before.
+    """
+    try:
+        result = duckdb_con.execute(
+            f"SELECT last_timestamp FROM {ETL_METADATA_TABLE} WHERE table_name = ?", [table_name]
+        ).fetchone()
+        if result:
+            logging.info(f"Found last processed timestamp for '{table_name}': {result[0]}")
+            return pd.to_datetime(result[0])
+    except duckdb.CatalogException:
+        logging.warning(f"Metadata table '{ETL_METADATA_TABLE}' not found. Will create it.")
+    except Exception as e:
+        logging.error(f"Error getting last timestamp for {table_name}: {e}")
 
-#     # Default to a very old date for the first run
-#     return pd.to_datetime("1900-01-01")
+    # Default to a very old date for the first run
+    return pd.to_datetime("1900-01-01")
 
-# def update_last_processed_timestamp(duckdb_con: duckdb.DuckDBPyConnection, table_name: str, new_timestamp: pd.Timestamp):
-#     """
-#     Updates or inserts the last processed timestamp for a given table.
-#     """
-#     logging.info(f"Updating last processed timestamp for '{table_name}' to {new_timestamp}")
-#     duckdb_con.execute(f"""
-#         CREATE TABLE IF NOT EXISTS {ETL_METADATA_TABLE} (
-#             table_name VARCHAR,
-#             last_timestamp TIMESTAMP,
-#             PRIMARY KEY (table_name)
-#         );
-#     """)
-#     duckdb_con.execute(f"""
-#         INSERT INTO {ETL_METADATA_TABLE} (table_name, last_timestamp)
-#         VALUES (?, ?)
-#         ON CONFLICT (table_name) DO UPDATE
-#         SET last_timestamp = EXCLUDED.last_timestamp;
-#     """, [table_name, new_timestamp])
+def update_last_processed_timestamp(duckdb_con: DuckDBPyConnection, table_name: str, new_timestamp: pd.Timestamp):
+    """
+    Updates or inserts the last processed timestamp for a given table.
+    """
+    logging.info(f"Updating last processed timestamp for '{table_name}' to {new_timestamp}")
+    duckdb_con.execute(f"""
+        CREATE TABLE IF NOT EXISTS {ETL_METADATA_TABLE} (
+            table_name VARCHAR,
+            last_timestamp TIMESTAMP,
+            PRIMARY KEY (table_name)
+        );
+    """)
+    duckdb_con.execute(f"""
+        INSERT INTO {ETL_METADATA_TABLE} (table_name, last_timestamp)
+        VALUES (?, ?)
+        ON CONFLICT (table_name) DO UPDATE
+        SET last_timestamp = EXCLUDED.last_timestamp;
+    """, [table_name, new_timestamp])
 
-# def process_dimension_table(sql_engine, duckdb_con: duckdb.DuckDBPyConnection):
-#     """
-#     Full refresh for the 'store' dimension table.
-#     It's small, so a full reload is efficient and ensures data consistency.
-#     """
-#     logging.info("Processing dimension table: dbo.store")
-#     try:
-#         df_store = pd.read_sql("SELECT tid, name FROM dbo.store", sql_engine)
-#         # Create or replace the table in DuckDB
-#         duckdb_con.execute("CREATE OR REPLACE TABLE store AS SELECT * FROM df_store")
-#         logging.info(f"Successfully loaded {len(df_store)} records into 'store' table.")
-#     except Exception as e:
-#         logging.error(f"Failed to process 'store' table: {e}")
-#         raise
+def process_dimension_table(sql_engine, duckdb_con: DuckDBPyConnection):
+    """
+    Full refresh for the 'store' dimension table.
+    It's small, so a full reload is efficient and ensures data consistency.
+    """
+    logging.info("Processing dimension table: store")
+    try:
+        df_store = pd.read_sql("SELECT tid, name FROM store", sql_engine)
+        # Create or replace the table in DuckDB
+        duckdb_con.execute("CREATE OR REPLACE TABLE store AS SELECT * FROM df_store")
+        logging.info(f"Successfully loaded {len(df_store)} records into 'store' table.")
+    except Exception as e:
+        logging.error(f"Failed to process 'store' table: {e}")
+        raise
 
-# def process_incremental_fact_table(
-#     sql_engine,
-#     duckdb_con: duckdb.DuckDBPyConnection,
-#     source_table_name: str,
-#     timestamp_column: str
-# ):
-#     """
-#     Processes a fact table incrementally, fetching only new data since the last run.
-#     Data is written to partitioned Parquet files for optimal analytical performance.
-#     """
-#     logging.info(f"Starting incremental processing for '{source_table_name}'...")
-    
-#     last_ts = get_last_processed_timestamp(duckdb_con, source_table_name)
-#     max_ts_in_batch = last_ts
-#     total_rows_processed = 0
+def process_incremental_fact_table(
+    sql_engine, duckdb_con: DuckDBPyConnection, source_table_name: str, timestamp_column: str
+):
+    """
+    Processes a fact table incrementally, fetching only new data since the last run.
+    Data is written to partitioned Parquet files for optimal analytical performance.
+    """
+    logging.info(f"Starting incremental processing for '{source_table_name}'...")
 
-#     # Base directory for this table's partitions
-#     partition_base_path = Path(settings.DUCKDB_PARTITION_PATH) / source_table_name
-#     partition_base_path.mkdir(parents=True, exist_ok=True)
-    
-#     sql_query = f"SELECT * FROM {source_table_name} WHERE {timestamp_column} > ? ORDER BY {timestamp_column}"
+    last_ts = get_last_processed_timestamp(duckdb_con, source_table_name)
+    max_ts_in_batch = last_ts
+    total_rows_processed = 0
 
-#     try:
-#         # Process data in chunks to manage memory usage
-#         for chunk_df in pd.read_sql_query(sql_query, sql_engine, params=(last_ts,), chunksize=settings.ETL_CHUNK_SIZE):
-#             if chunk_df.empty:
-#                 logging.info(f"No new data found for '{source_table_name}'.")
-#                 break
+    # Base directory for this table's partitions
+    partition_base_path = Path(settings.DUCKDB_PARTITION_PATH) / source_table_name
+    partition_base_path.mkdir(parents=True, exist_ok=True)
 
-#             logging.info(f"Processing a chunk of {len(chunk_df)} rows for '{source_table_name}'...")
-            
-#             # --- Transformations ---
-#             # Ensure timestamp column is in datetime format
-#             chunk_df[timestamp_column] = pd.to_datetime(chunk_df[timestamp_column])
-            
-#             # Add partition columns
-#             chunk_df['year'] = chunk_df[timestamp_column].dt.year
-#             chunk_df['month'] = chunk_df[timestamp_column].dt.month
-            
-#             # Write to partitioned Parquet files
-#             chunk_df.to_parquet(
-#                 path=partition_base_path,
-#                 engine='pyarrow',
-#                 partition_cols=['storeid', 'year', 'month']
-#             )
-            
-#             # Update max timestamp and row count
-#             batch_max = chunk_df[timestamp_column].max()
-#             if batch_max > max_ts_in_batch:
-#                 max_ts_in_batch = batch_max
-#             total_rows_processed += len(chunk_df)
+    sql_query = f"SELECT * FROM {source_table_name} WHERE {timestamp_column} > ? ORDER BY {timestamp_column}"
 
-#         if total_rows_processed > 0:
-#             logging.info(f"Finished processing {total_rows_processed} new rows for '{source_table_name}'.")
-#             # Register partitioned dataset as a view in DuckDB for easy querying
-#             duckdb_con.execute(f"""
-#                 CREATE OR REPLACE VIEW {source_table_name}_view AS 
-#                 SELECT * FROM read_parquet('{str(partition_base_path)}/**/*.parquet', hive_partitioning=1);
-#             """)
-#             logging.info(f"Created/updated view '{source_table_name}_view' in DuckDB.")
-            
-#             # Update metadata with the latest timestamp from this run
-#             update_last_processed_timestamp(duckdb_con, source_table_name, max_ts_in_batch)
-#         else:
-#             logging.info(f"No new records to process for '{source_table_name}'.")
+    try:
+        # Process data in chunks to manage memory usage
+        for chunk_df in pd.read_sql_query(sql_query, sql_engine, params=(last_ts,), chunksize=settings.ETL_CHUNK_SIZE):
+            if chunk_df.empty:
+                logging.info(f"No new data found for '{source_table_name}'.")
+                break
 
-#     except Exception as e:
-#         logging.error(f"An error occurred during incremental processing of '{source_table_name}': {e}")
-#         raise
+            logging.info(f"Processing a chunk of {len(chunk_df)} rows for '{source_table_name}'...")
+
+            # --- Transformations ---
+            # Ensure timestamp column is in datetime format
+            chunk_df[timestamp_column] = pd.to_datetime(chunk_df[timestamp_column])
+
+            # Add partition columns
+            chunk_df['year'] = chunk_df[timestamp_column].dt.year
+            chunk_df['month'] = chunk_df[timestamp_column].dt.month
+
+            # Write to partitioned Parquet files
+            chunk_df.to_parquet(
+                path=partition_base_path,
+                engine='pyarrow',
+                partition_cols=['storeid', 'year', 'month']
+            )
+
+            # Update max timestamp and row count
+            batch_max = chunk_df[timestamp_column].max()
+            if batch_max > max_ts_in_batch:
+                max_ts_in_batch = batch_max
+            total_rows_processed += len(chunk_df)
+
+        if total_rows_processed > 0:
+            logging.info(f"Finished processing {total_rows_processed} new rows for '{source_table_name}'.")
+            # Register partitioned dataset as a view in DuckDB for easy querying
+            duckdb_con.execute(f"""
+                CREATE OR REPLACE VIEW {source_table_name}_view AS 
+                SELECT * FROM read_parquet('{str(partition_base_path)}/**/*.parquet', hive_partitioning=1);
+            """)
+            logging.info(f"Created/updated view '{source_table_name}_view' in DuckDB.")
+
+            # Update metadata with the latest timestamp from this run
+            update_last_processed_timestamp(duckdb_con, source_table_name, max_ts_in_batch)
+        else:
+            logging.info(f"No new records to process for '{source_table_name}'.")
+    except Exception as e:
+        logging.error(f"An error occurred during incremental processing of '{source_table_name}': {e}")
+        raise
 
 def main():
     """Main ETL execution function."""
@@ -142,36 +139,35 @@ def main():
     logging.info("Starting ETL process...")
 
     duckdb_con = None
-    # try:
-    #     # Create parent directory for DuckDB if it doesn't exist
-    #     Path(settings.DUCKDB_PATH).parent.mkdir(parents=True, exist_ok=True)
-        
-    #     # --- Connections ---
-    #     logging.info(f"Connecting to SQL Server: {settings.DB_SERVER}/{settings.DB_DATABASE}")
-    #     sql_engine = create_engine(settings.sqlalchemy_db_uri)
-        
-    #     logging.info(f"Connecting to DuckDB at: {settings.DUCKDB_PATH}")
-    #     duckdb_con = duckdb.connect(database=settings.DUCKDB_PATH, read_only=False)
+    try:
+        # Create parent directory for DuckDB if it doesn't exist
+        Path(settings.DUCKDB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
-    #     # --- ETL Steps ---
-    #     # 1. Process dimension table (full refresh)
-    #     process_dimension_table(sql_engine, duckdb_con)
-        
-    #     # 2. Process fact table `num_crowd` (incremental)
-    #     process_incremental_fact_table(sql_engine, duckdb_con, "dbo.num_crowd", "recordtime")
-        
-    #     # 3. Process fact table `ErrLog` (incremental)
-    #     process_incremental_fact_table(sql_engine, duckdb_con, "dbo.ErrLog", "LogTime")
+        # --- Connections ---
+        logging.info(f"Connecting to SQL Server: {settings.DB_SERVER}/{settings.DB_DATABASE}")
+        sql_engine = create_engine(settings.sqlalchemy_db_uri)
 
-    #     logging.info("ETL process completed successfully.")
+        logging.info(f"Connecting to DuckDB at: {settings.DUCKDB_PATH}")
+        duckdb_con = duckdb.connect(database=settings.DUCKDB_PATH, read_only=False)
 
-    # except Exception as e:
-    #     logging.error(f"ETL process failed: {e}", exc_info=True)
-    # finally:
-    #     if duckdb_con:
-    #         duckdb_con.close()
-    #         logging.info("DuckDB connection closed.")
-    #     logging.info("=============================================\n")
+        # --- ETL Steps ---
+        # 1. Process dimension table (full refresh)
+        process_dimension_table(sql_engine, duckdb_con)
+
+        # 2. Process fact table `num_crowd` (incremental)
+        process_incremental_fact_table(sql_engine, duckdb_con, "num_crowd", "recordtime")
+
+        # 3. Process fact table `ErrLog` (incremental)
+        process_incremental_fact_table(sql_engine, duckdb_con, "ErrLog", "LogTime")
+
+        logging.info("ETL process completed successfully.")
+    except Exception as e:
+        logging.error(f"ETL process failed: {e}", exc_info=True)
+    finally:
+        if duckdb_con:
+            duckdb_con.close()
+            logging.info("DuckDB connection closed.")
+        logging.info("=============================================\n")
 
 if __name__ == "__main__":
     main()
@@ -185,7 +181,6 @@ if __name__ == "__main__":
 
 # import pyodbc
 
-# from config import settings
 
 # # 1. ================== LOGGER SETUP ==================
 # def setup_logger():
@@ -344,9 +339,6 @@ if __name__ == "__main__":
 
 # from sqlalchemy.exc import SQLAlchemyError
 # from typing import Optional
-
-# from app.core.config import settings
-# from app.utils.logger_config import setup_logging
 
 # # --- Cấu hình Logger ---
 # logger = setup_logging(

@@ -1,4 +1,7 @@
+from pydantic import computed_field
+from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from urllib import parse
 
 class Settings(BaseSettings):
     """
@@ -25,14 +28,20 @@ class Settings(BaseSettings):
     # ETL settings
     ETL_CHUNK_SIZE: int = 50000
 
+    @computed_field
     @property
     def sqlalchemy_db_uri(self) -> str:
-        """Generates the SQLAlchemy connection string for SQL Server."""
-        return (
-            f"mssql+pyodbc://{self.DB_USERNAME}:{self.DB_PASSWORD}@"
-            f"{self.DB_SERVER}/{self.DB_DATABASE}?"
-            f"driver={self.DB_DRIVER.replace(' ', '+')}"
-        )
+        """
+        Generates the SQLAlchemy connection string for SQL Server.
+        """
+        return str(MultiHostUrl.build(
+            scheme = 'mssql+pyodbc',
+            username = self.DB_USERNAME,
+            password = parse.quote_plus(self.DB_PASSWORD),
+            host = self.DB_SERVER,
+            path = self.DB_DATABASE,
+            query = f"driver={self.DB_DRIVER.replace(' ', '+')}"
+        ))
 
 # Create a single instance to be imported by other modules
 settings = Settings()
@@ -64,7 +73,6 @@ settings = Settings()
 # # from pydantic_core import MultiHostUrl
 
 # from typing import Dict # Any, Optional
-# # from urllib import parse
 
 # # Định nghĩa một lớp cấu hình cơ bản cho SQL Server
 # class SqlServerSettings(BaseSettings):
