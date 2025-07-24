@@ -151,14 +151,14 @@ def main():
         duckdb_con = duckdb.connect(database=settings.DUCKDB_PATH, read_only=False)
 
         # --- ETL Steps ---
-        # 1. Process dimension table (full refresh)
-        process_dimension_table(sql_engine, duckdb_con)
-
-        # 2. Process fact table `num_crowd` (incremental)
-        process_incremental_fact_table(sql_engine, duckdb_con, "num_crowd", "recordtime")
-
-        # 3. Process fact table `ErrLog` (incremental)
-        process_incremental_fact_table(sql_engine, duckdb_con, "ErrLog", "LogTime")
+        for table_config in settings.ETL_TABLES_CONFIG:
+            table_name = table_config["name"]
+            logging.info(f"--- Processing table: {table_name} ---")
+            if table_config["type"] == "dimension":
+                # 1. Process dimension table (full refresh)
+                process_dimension_table(sql_engine, duckdb_con, table_config)
+            elif table_config["type"] == "fact":
+                process_incremental_fact_table(sql_engine, duckdb_con, table_config)
 
         logging.info("ETL process completed successfully.")
     except Exception as e:

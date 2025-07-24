@@ -2,12 +2,43 @@ import logging
 import os
 import sys
 
-def setup_logging(log_file: str, log_dir: str='logs'):
+def setup_logging(log_file: str, log_dir: str='logs', level=logging.INFO):
     """
     Configures logging to output to both console and a file.
     """
+    logger = logging.getLogger("ETL_Pipeline") # Sử dụng logger có tên
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    logger.setLevel(level)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
+
     log_file_path = os.path.join(log_dir, log_file)
     os.makedirs(log_dir, exist_ok=True) # Đảm bảo thư mục log tồn tại
+
+    # File Handler
+    fh = logging.FileHandler(log_file_path)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    # Console Handler
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    return logger
+
+# Trong main_etl.py, thay vì gọi logging.info, bạn sẽ gọi logger.info
+# from app.utils.logger_config import setup_logging
+# logger = setup_logging('etl_process.log')
+# logger.info("Starting ETL process...")
+
+
+
+
+
+    
+
 
     logging.basicConfig(
         level=logging.INFO,

@@ -1,6 +1,7 @@
 from pydantic import computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Dict, Any
 from urllib import parse
 
 class Settings(BaseSettings):
@@ -42,6 +43,24 @@ class Settings(BaseSettings):
             path = self.DB_DATABASE,
             query = f"driver={self.DB_DRIVER.replace(' ', '+')}"
         ))
+
+    ETL_TABLES_CONFIG: List[Dict[str, Any]] = [
+        {
+            "name": "store",
+            "type": "dimension",
+            "source_query": "SELECT tid, name FROM store"
+        }, {
+            "name": "num_crowd",
+            "type": "fact",
+            "timestamp_column": "recordtime",
+            "partition_cols": ["storeid", "year", "month"]
+        }, {
+            "name": "ErrLog",
+            "type": "fact",
+            "timestamp_column": "LogTime",
+            "partition_cols": ["storeid", "year", "month"]
+        }
+    ]
 
 # Create a single instance to be imported by other modules
 settings = Settings()
