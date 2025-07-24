@@ -1,0 +1,50 @@
+# python -m venv .venv
+# or
+# python3 -m venv .venv
+
+
+### On Windows (cmd)
+### Run project in venv
+# .venv\Scripts\activate.bat
+# .venv\Scripts\python.exe -m pip install --upgrade pip
+# .venv\Scripts\python.exe -m pip install --upgrade -r requirements.txt
+
+# pip freeze > requirements.txt
+
+### On MacOS
+### Run project in venv
+# source .venv/bin/activate
+# pip3 install --upgrade pip
+# pip3 install --upgrade -r requirements.txt
+
+# pip3 freeze > requirements.txt
+
+
+### Packages
+cachetools
+duckdb
+fastapi[all]
+pandas
+pyarrow
+pyodbc              # Driver for MSSQL, có thể thay đổi tùy hệ thống
+SQLAlchemy          # For MSSQL connection
+
+
+# bcrypt==4.0.1
+# Flask
+# Jinja2
+# numpy
+# passlib[bcrypt] # Để hash mật khẩu
+# plotly
+# pydantic
+# pydantic-settings
+# python-decouple
+# python-dotenv
+# python-jose[cryptography] # Để tạo JWT
+# python-multipart
+# st-pages
+# streamlit
+# streamlit-authenticator
+# streamlit-option-menu
+# uvicorn[standard]
+# watchdog

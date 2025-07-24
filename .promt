@@ -20,7 +20,9 @@ dbo.num_crowd
 └── storeid:        (int, not_null) - (mapping dbo.store.tid)
 ```
 Hãy giúp tôi tạo file Python ETL chuyển đổi sang data DuckDB dùng để phân tích dữ liệu.
-
+DuckDB hoạt động theo partitioned, incremental
+Thêm file logger_config để ghi log
+Thêm file config sử dụng pydantic_settings để đọc biến trong .env
 
 
 
