@@ -19,6 +19,11 @@ dbo.num_crowd
 ```
 Hãy giúp tôi tạo file Python ETL chuyển đổi sang data DuckDB dùng để phân tích dữ liệu.
 DuckDB hoạt động theo partitioned, incremental. Chuyển đổi các table_name, column_name phù hợp cho hệ thống phân tích dữ liệu.
+
+
+
+
+
 Thêm file config sử dụng pydantic_settings để đọc biến trong .env.
 Thêm file logger_config ghi log chuyên nghiệp.
 

@@ -22,12 +22,11 @@
 
 ### Database Drivers & Client
 duckdb
-pyodbc              # Driver for MSSQL
+pyodbc                  # Driver for MSSQL
 
 ### Data Handling
 pandas
 pyarrow
-
 
 ### Packages
 cachetools
