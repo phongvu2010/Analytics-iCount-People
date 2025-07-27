@@ -8,15 +8,20 @@ class EtlSettings(BaseSettings):
     Class để đọc và validate các biến môi trường cho kết nối database.
     Tự động đọc từ file .env.
     """
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    # Load settings from a .env file
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        extra='ignore'  # Bỏ qua các biến môi trường không được định nghĩa trong lớp.
+    )
 
-    SQLSERVER_DRIVER: str = '{ODBC Driver 17 for SQL Server}'
+    # Cấu hình SQL Server
+    SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'
     SQLSERVER_SERVER: str
     SQLSERVER_DATABASE: str
     SQLSERVER_UID: str
     SQLSERVER_PWD: str
 
-    # Thêm computed_field để tạo chuỗi kết nối SQLAlchemy
     @computed_field
     @property
     def sqlalchemy_db_uri(self) -> str:
@@ -33,7 +38,7 @@ class EtlSettings(BaseSettings):
             query=f"driver={self.SQLSERVER_DRIVER.replace(' ', '+')}"
         ))
 
-    # Định nghĩa các hằng số
+    # Cấu hình DuckDB
     DUCKDB_PATH: str = 'data/analytics.duckdb'
     STATE_FILE: str = 'data/etl_state.json'
 

@@ -4,9 +4,8 @@ import os
 from logging.handlers import TimedRotatingFileHandler
 
 LOG_DIR = 'logs'
-LOG_FILE = os.path.join(LOG_DIR, 'etl_app.log')
 
-def setup_logger(logger_name='ETL_App'):
+def setup_logger(logger_file: str, logger_name: str='ETL App'):
     """
     Thiết lập một logger chuyên nghiệp.
 
@@ -45,7 +44,7 @@ def setup_logger(logger_name='ETL_App'):
     #    when='midnight': Xoay vòng vào mỗi nửa đêm
     #    backupCount=7: Giữ lại 7 file log cũ nhất (etl_app.log.2025-07-26, ...)
     file_handler = TimedRotatingFileHandler(
-        LOG_FILE, 
+        os.path.join(LOG_DIR, logger_file + '.log'),
         when='midnight', 
         interval=1, 
         backupCount=7,
@@ -58,6 +57,3 @@ def setup_logger(logger_name='ETL_App'):
     logger.addHandler(file_handler)
 
     return logger
-
-# Tạo một instance logger duy nhất để import vào các module khác
-logger = setup_logger()
