@@ -13,7 +13,7 @@ from app.core.config import etl_settings
 from app.utils.logger import setup_logger
 
 # Tạo một instance logger duy nhất
-logger = setup_logger('etl_app', 'ETL App')
+logger = setup_logger('etl_app', 'ETL')
 
 
 def load_etl_state() -> Dict[str, str]:
@@ -33,6 +33,7 @@ def load_etl_state() -> Dict[str, str]:
 def save_etl_state(state: Dict[str, str]):
     """Lưu trạng thái ETL hiện tại vào file JSON."""
     state_file = Path(etl_settings.STATE_FILE)
+
     # Đảm bảo thư mục tồn tại trước khi ghi file
     state_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -98,7 +99,9 @@ def create_table_from_parquet(conn: DuckDBPyConnection, config: Dict[str, Any]):
         # hive_partitioning=1 vẫn an toàn khi không có partition thực sự
         read_statement = f"read_parquet('{parquet_glob_path}', hive_partitioning=1)"
     else:
-        parquet_file_path = str(data_path / f"{dest_table}.parquet").replace('\\', '/')
+        # Đường dẫn đọc file Parquet cho bảng không partition.
+        # Ví dụ: 'data/dim_stores/dim_stores.parquet'
+        parquet_file_path = str(data_path / dest_table / f"{dest_table}.parquet").replace('\\', '/')
         read_statement = f"read_parquet('{parquet_file_path}')"
 
     create_sql = f"CREATE OR REPLACE TABLE {dest_table} AS SELECT * FROM {read_statement};"
@@ -107,15 +110,7 @@ def create_table_from_parquet(conn: DuckDBPyConnection, config: Dict[str, Any]):
 
 
 def process_table(sql_engine: Engine, duckdb_conn: DuckDBPyConnection, config: Dict[str, Any], etl_state: Dict[str, str]):
-    """
-    REFACTOR: Hàm xử lý chính được cấu trúc lại hoàn toàn cho rõ ràng và an toàn hơn.
-    Quy trình:
-    1. Xác định các tham số và đường dẫn.
-    2. Dọn dẹp dữ liệu cũ nếu là full load.
-    3. Extract & Transform theo từng chunk và thu thập vào một list.
-    4. Nếu có dữ liệu, gộp các chunk lại và ghi ra Parquet (một lần duy nhất).
-    5. Cập nhật bảng trong DuckDB và lưu lại trạng thái.
-    """
+    """Xử lý ETL cho một bảng, với logic lưu trữ nhất quán."""
     dest_table = config['dest_table']
     source_table = config['source_table']
     is_incremental = config.get('incremental', True)
@@ -124,21 +119,16 @@ def process_table(sql_engine: Engine, duckdb_conn: DuckDBPyConnection, config: D
     logger.info(f"Bắt đầu xử lý bảng: {source_table} -> {dest_table} (Incremental: {is_incremental}, Partitioned: {has_partitions})")
 
     data_path = Path(etl_settings.DUCKDB_PATH).parent
+    # Thư mục đích luôn là 'data/{dest_table}' cho mọi trường hợp.
+    target_dir = data_path / dest_table
 
-    # REFACTOR: Logic dọn dẹp được gom lại một chỗ, rõ ràng hơn.
-    if not is_incremental: # Full load
-        target_path = data_path / dest_table if has_partitions else data_path / f"{dest_table}.parquet"
-        if target_path.is_dir() and has_partitions:
-            shutil.rmtree(target_path)
-            logger.info(f"Đã xóa thư mục Parquet cũ: {target_path}")
+    # Logic dọn dẹp giờ đơn giản hơn: nếu là full load, luôn xóa toàn bộ thư mục đích.
+    if not is_incremental and target_dir.exists():
+        shutil.rmtree(target_dir)
+        logger.info(f"Đã xóa thư mục đích cũ: {target_dir}")
 
-        elif target_path.is_file() and not has_partitions:
-            target_path.unlink()
-            logger.info(f"Đã xóa file Parquet cũ: {target_path}")
-
-    # Đảm bảo thư mục tồn tại cho các bảng có partition
-    if has_partitions:
-        (data_path / dest_table).mkdir(parents=True, exist_ok=True)
+    # Luôn tạo thư mục đích để đảm bảo nó tồn tại.
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     last_timestamp = etl_state.get(dest_table, etl_settings.ETL_DEFAULT_TIMESTAMP)
     df_chunks_iterator = extract_data(sql_engine, config, last_timestamp)
@@ -146,7 +136,6 @@ def process_table(sql_engine: Engine, duckdb_conn: DuckDBPyConnection, config: D
     transformed_chunks: List[pd.DataFrame] = []
     max_timestamp: Optional[pd.Timestamp] = None
 
-    # REFACTOR: Gom tất cả các chunk đã transform vào list thay vì ghi file từng chunk.
     for chunk_df in df_chunks_iterator:
         if chunk_df.empty: continue
 
@@ -164,22 +153,23 @@ def process_table(sql_engine: Engine, duckdb_conn: DuckDBPyConnection, config: D
         logger.info(f"Không có dữ liệu mới cho bảng '{dest_table}'.")
         return
 
-    # REFACTOR: Gộp các chunk và ghi ra file Parquet một lần duy nhất.
-    # Điều này an toàn hơn và đơn giản hơn logic append/overwrite.
     final_df = pd.concat(transformed_chunks, ignore_index=True)
     total_rows = len(final_df)
 
     logger.info(f"Tổng hợp được {total_rows} dòng. Bắt đầu ghi ra file Parquet...")
 
     if has_partitions:
+        # Ghi dữ liệu vào thư mục đích, to_parquet tự tạo các thư mục con cho partition
         final_df.to_parquet(
-            path=data_path / dest_table,
+            path=target_dir,
             engine='pyarrow',
             compression='snappy',
             partition_cols=config.get('partition_cols')
         )
-    else: # Bảng full load, ghi ra một file duy nhất
-        single_parquet_file = data_path / f"{dest_table}.parquet"
+    else:
+        # Ghi file Parquet đơn lẻ vào bên trong thư mục đích.
+        # Ví dụ: 'data/dim_stores/dim_stores.parquet'
+        single_parquet_file = target_dir / f"{dest_table}.parquet"
         final_df.to_parquet(single_parquet_file, engine='pyarrow', compression='snappy', index=False)
 
     # Cập nhật bảng trong DuckDB và trạng thái ETL
@@ -207,9 +197,11 @@ def run_etl():
         for table_key, config in etl_settings.TABLE_CONFIG.items():
             try:
                 process_table(sql_engine, duckdb_conn, config, etl_state)
-                # REFACTOR: Chỉ lưu trạng thái sau khi một bảng được xử lý thành công.
+
+                # Chỉ lưu trạng thái sau khi một bảng được xử lý thành công.
                 # Đây là một cách tiếp cận tốt để đảm bảo khả năng resume.
                 save_etl_state(etl_state)
+
                 logger.info(f"Xử lý thành công cho bảng '{config['source_table']}'. Trạng thái đã được cập nhật.")
             except Exception:
                 logger.error(f"Lỗi khi xử lý bảng '{config['source_table']}'.", exc_info=True)
