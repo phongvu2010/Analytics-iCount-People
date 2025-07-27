@@ -51,11 +51,12 @@ class EtlSettings(BaseSettings):
             'source_table': 'dbo.store',
             'dest_table': 'dim_stores',
             'incremental': False,  # Bảng dimension nhỏ, chạy full load mỗi lần
+            'partition_cols': [], 
             'rename_map': {
                 'tid': 'store_id',
                 'name': 'store_name'
             }
-        }
+        },
         'num_crowd': {
             'source_table': 'dbo.num_crowd',
             'dest_table': 'fact_traffic',
@@ -86,3 +87,6 @@ class EtlSettings(BaseSettings):
             }
         }
     }
+
+# Tạo một instance của settings để import và sử dụng trong các file khác
+etl_settings = EtlSettings()
