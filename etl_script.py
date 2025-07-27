@@ -6,24 +6,20 @@ import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine
 
-from app.core.config import settings, TABLE_CONFIG
+from app.core import etl_settings
 from app.utils.logger import logger
-
-# --- Định nghĩa các hằng số ---
-DUCKDB_PATH = 'data/analytics.duckdb'
-STATE_FILE = 'data/etl_state.json'
 
 def load_etl_state():
     """Tải trạng thái ETL lần cuối từ file JSON."""
-    if not os.path.exists(STATE_FILE):
+    if not os.path.exists(etl_settings.STATE_FILE):
         return {}
 
-    with open(STATE_FILE, 'r') as f:
+    with open(etl_settings.STATE_FILE, 'r') as f:
         return json.load(f)
 
 def save_etl_state(state):
     """Lưu trạng thái ETL mới vào file JSON."""
-    with open(STATE_FILE, 'w') as f:
+    with open(etl_settings.STATE_FILE, 'w') as f:
         json.dump(state, f, indent=4)
 
 def run_etl():
@@ -42,70 +38,66 @@ def run_etl():
 
     logger.info("Bắt đầu quy trình ETL...")
     try:
-        sql_engine = create_engine(settings.sqlalchemy_db_uri)
-    #     duckdb_conn = duckdb.connect(DUCKDB_PATH)
-    #     logger.info(f"Đã kết nối thành công tới SQL Server (qua SQLAlchemy) và DuckDB ('{DUCKDB_PATH}').")
+        sql_engine = create_engine(etl_settings.sqlalchemy_db_uri)
+        duckdb_conn = duckdb.connect(etl_settings.DUCKDB_PATH)
+        logger.info(f"Đã kết nối thành công tới SQL Server và DuckDB ('{etl_settings.DUCKDB_PATH}').")
 
-    #     # Bật tính năng hive partitioning
-    #     duckdb_conn.execute("SET enable_hive_partitioning = 1;")
+        for key, config in etl_settings.TABLE_CONFIG.items():
+            source_table = config['source_table']
+            dest_table = config['dest_table']
+            logger.info(f"Bắt đầu xử lý bảng: {source_table} -> {dest_table}")
 
-    #     for key, config in TABLE_CONFIG.items():
-    #         source_table = config['source_table']
-    #         dest_table = config['dest_table']
-    #         logger.info(f"Bắt đầu xử lý bảng: {source_table} -> {dest_table}")
+            # --- EXTRACT ---
+            query = f"SELECT * FROM {source_table}"
+            is_incremental = config.get('incremental', True)
 
-    #         # --- EXTRACT ---
-    #         query = f"SELECT * FROM {source_table}"
-    #         is_incremental = config.get('incremental', True)
+            if is_incremental:
+                timestamp_col = config['timestamp_col']
+                last_timestamp = etl_state.get(dest_table, '1900-01-01 00:00:00')
+                query += f" WHERE {timestamp_col} > '{last_timestamp}' ORDER BY {timestamp_col};"
+            else: # Full load
+                query += ";"
 
-    #         if is_incremental:
-    #             timestamp_col = config['timestamp_col']
-    #             last_timestamp = etl_state.get(dest_table, '1900-01-01 00:00:00')
-    #             query += f" WHERE {timestamp_col} > '{last_timestamp}' ORDER BY {timestamp_col};"
-    #         else: # Full load
-    #             query += ";"
+            df = pd.read_sql(query, sql_engine)
 
-    #         df = pd.read_sql(query, sql_engine)
+            if df.empty:
+                logger.info(f"Không có dữ liệu mới cho bảng {dest_table}.")
+                continue
 
-    #         if df.empty:
-    #             logger.info(f"Không có dữ liệu mới cho bảng {dest_table}.")
-    #             continue
+            logger.info(f"Trích xuất được {len(df)} dòng mới từ {source_table}.")
 
-    #         logger.info(f"Trích xuất được {len(df)} dòng mới từ {source_table}.")
+            # --- TRANSFORM ---
+            df.rename(columns=config['rename_map'], inplace=True)
 
-    #         # --- TRANSFORM ---
-    #         df.rename(columns=config['rename_map'], inplace=True)
+            if 'partition_cols' in config:
+                ts_col = config['dest_timestamp_col']
+                df[ts_col] = pd.to_datetime(df[ts_col])
+                df['year'] = df[ts_col].dt.year
+                df['month'] = df[ts_col].dt.month
 
-    #         if 'partition_cols' in config:
-    #             ts_col = config['dest_timestamp_col']
-    #             df[ts_col] = pd.to_datetime(df[ts_col])
-    #             df['year'] = df[ts_col].dt.year
-    #             df['month'] = df[ts_col].dt.month
+            # --- LOAD ---
+            # Sử dụng cú pháp của DuckDB để ghi dữ liệu đã được partition
+            # DuckDB sẽ tự tạo cấu trúc thư mục dạng hive (vd: year=2025/month=07/)
+            if is_incremental:
+                # Ghi vào một bảng tạm rồi MERGE hoặc INSERT
+                duckdb_conn.register('new_data_df', df)
 
-    #         # --- LOAD ---
-    #         # Sử dụng cú pháp của DuckDB để ghi dữ liệu đã được partition
-    #         # DuckDB sẽ tự tạo cấu trúc thư mục dạng hive (vd: year=2025/month=07/)
+                # Tạo bảng nếu chưa tồn tại
+                duckdb_conn.execute(f"CREATE TABLE IF NOT EXISTS {dest_table} AS SELECT * FROM new_data_df LIMIT 0;")
 
-    #         if is_incremental:
-    #             # Ghi vào một bảng tạm rồi MERGE hoặc INSERT
-    #             duckdb_conn.register('new_data_df', df)
+                # Chèn dữ liệu mới
+                duckdb_conn.execute(f"INSERT INTO {dest_table} SELECT * FROM new_data_df;")
+                duckdb_conn.unregister('new_data_df')
 
-    #             # Tạo bảng nếu chưa tồn tại
-    #             duckdb_conn.execute(f"CREATE TABLE IF NOT EXISTS {dest_table} AS SELECT * FROM new_data_df LIMIT 0;")
-
-    #             # Chèn dữ liệu mới
-    #             duckdb_conn.execute(f"INSERT INTO {dest_table} SELECT * FROM new_data_df;")
-    #             duckdb_conn.unregister('new_data_df')
-
-    #             # Cập nhật high-water mark
-    #             new_max_timestamp = df[config['dest_timestamp_col']].max().strftime('%Y-%m-%d %H:%M:%S')
-    #             new_etl_state[dest_table] = new_max_timestamp
-    #             logger.info(f"Cập nhật high-water mark cho {dest_table} là: {new_max_timestamp}")
-    #         else: # Full load (cho bảng dim_stores)
-    #             # Ghi đè toàn bộ bảng
-    #             duckdb_conn.execute(f"CREATE OR REPLACE TABLE {dest_table} AS SELECT * FROM df;")
+                # Cập nhật high-water mark
+                new_max_timestamp = df[config['dest_timestamp_col']].max().strftime('%Y-%m-%d %H:%M:%S')
+                new_etl_state[dest_table] = new_max_timestamp
+                logger.info(f"Cập nhật high-water mark cho {dest_table} là: {new_max_timestamp}")
+            else: # Full load (cho bảng dim_stores)
+                # Ghi đè toàn bộ bảng
+                duckdb_conn.execute(f"CREATE OR REPLACE TABLE {dest_table} AS SELECT * FROM df;")
             
-    #         logger.info(f"Load thành công {len(df)} dòng vào bảng {dest_table} trong DuckDB.")
+            logger.info(f"Load thành công {len(df)} dòng vào bảng {dest_table} trong DuckDB.")
 
     except Exception as e:
         # THAY ĐỔI: Sử dụng logger để ghi lỗi
