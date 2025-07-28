@@ -1,14 +1,31 @@
-from pydantic import computed_field, Field
+from pydantic import BaseModel, computed_field, Field
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import List, Optional, Dict
 from urllib import parse
+
+# --- Định nghĩa cấu trúc cho mỗi table config ---
+class TableConfig(BaseModel):
+    """
+    Cấu trúc cho cấu hình xử lý của một bảng.
+    Cung cấp validation và gợi ý code tốt hơn.
+    """
+    # Các trường này luôn bắt buộc
+    source_table: str
+    dest_table: str
+    incremental: bool = True
+    rename_map: Dict[str, str] = {}
+    partition_cols: List[str] = []
+    
+    # Dùng Optional vì các bảng full-load không cần các cột này
+    timestamp_col: Optional[str] = None
+    dest_timestamp_col: Optional[str] = None
 
 class EtlSettings(BaseSettings):
     """
     Class để đọc và validate các biến môi trường cho kết nối database.
     Tự động đọc từ file .env.
     """
-    # Load settings from a .env file
     model_config = SettingsConfigDict(
         env_file='.env',
         env_file_encoding='utf-8',
@@ -42,16 +59,31 @@ class EtlSettings(BaseSettings):
     DUCKDB_PATH: str = 'data/analytics.duckdb'
     STATE_FILE: str = 'data/etl_state.json'
 
-    ETL_CHUNK_SIZE: int = Field(default=10000, description="Số dòng xử lý mỗi chunk để tối ưu bộ nhớ")
-    ETL_DEFAULT_TIMESTAMP: str = Field(default='1900-01-01 00:00:00', description="Timestamp bắt đầu nếu chưa có trạng thái")
+    # # REFAC: Định nghĩa một thư mục dữ liệu gốc để các đường dẫn khác linh hoạt hơn.
+    # DATA_DIR: Path = Field(default=Path('data'))
 
-    # Cấu hình chi tiết cho từng bảng ETL
-    TABLE_CONFIG: dict = {
+    # # REFAC: Các đường dẫn này giờ được xây dựng dựa trên DATA_DIR
+    # @property
+    # def DUCKDB_PATH(self) -> Path:
+    #     return self.DATA_DIR / 'analytics.duckdb'
+
+    # @property
+    # def STATE_FILE(self) -> Path:
+    #     return self.DATA_DIR / 'etl_state.json'
+
+    # Cấu hình chung cho ETL
+    # ETL_CHUNK_SIZE: int = Field(default=10000, description="Số dòng xử lý mỗi chunk để tối ưu bộ nhớ")
+    ETL_CHUNK_SIZE: int = 100000
+    # ETL_DEFAULT_TIMESTAMP: str = Field(default='1900-01-01 00:00:00', description="Timestamp bắt đầu nếu chưa có trạng thái")
+    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
+
+    # --- Sử dụng TableConfig để Pydantic tự động parse và validate ---
+    TABLE_CONFIG: Dict[str, TableConfig] = {
         'store': {
             'source_table': 'dbo.store',
             'dest_table': 'dim_stores',
             'incremental': False,  # Bảng dimension nhỏ, chạy full load mỗi lần
-            'partition_cols': [], 
+            # 'partition_cols': [], 
             'rename_map': {
                 'tid': 'store_id',
                 'name': 'store_name'
@@ -60,6 +92,7 @@ class EtlSettings(BaseSettings):
         'num_crowd': {
             'source_table': 'dbo.num_crowd',
             'dest_table': 'fact_traffic',
+            # 'incremental': True,
             'timestamp_col': 'recordtime',
             'dest_timestamp_col': 'recorded_at',
             'partition_cols': ['year', 'month'],
@@ -74,6 +107,7 @@ class EtlSettings(BaseSettings):
         'ErrLog': {
             'source_table': 'dbo.ErrLog',
             'dest_table': 'fact_errors',
+            # 'incremental': True,
             'timestamp_col': 'LogTime',
             'dest_timestamp_col': 'logged_at',
             'partition_cols': ['year', 'month'],

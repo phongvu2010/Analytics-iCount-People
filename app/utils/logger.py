@@ -5,14 +5,17 @@ from logging.handlers import TimedRotatingFileHandler
 
 LOG_DIR = 'logs'
 
-def setup_logger(logger_file: str, logger_name: str='ETL App'):
+def get_logger(logger_name: str, log_file: str):
     """
-    Thiết lập một logger chuyên nghiệp.
+    Thiết lập và trả về một logger chuyên nghiệp.
 
     - Ghi log ra cả console và file.
-    - Tự động xoay vòng file log vào mỗi nửa đêm.
-    - Giữ lại 7 file log cũ.
-    - Ngăn chặn việc thêm handler trùng lặp.
+    - Tự động xoay vòng file log vào mỗi nửa đêm (giữ lại 7 file cũ).
+    - Ngăn chặn việc thêm handler trùng lặp để tránh log bị lặp lại.
+
+    Args:
+        logger_name (str): Tên của logger (vd: 'ETL').
+        log_file (str): Tên file log (không có extension, vd: 'etl_app').
 
     Returns:
         logging.Logger: Một instance của logger đã được cấu hình.
@@ -25,7 +28,7 @@ def setup_logger(logger_file: str, logger_name: str='ETL App'):
     logger.setLevel(logging.INFO)
 
     # 2. Ngăn chặn việc thêm handler nếu logger đã được cấu hình
-    #    Điều này rất quan trọng để tránh log bị lặp lại.
+    # Điều này rất quan trọng để tránh log bị lặp lại.
     if logger.hasHandlers():
         return logger
 
@@ -40,13 +43,13 @@ def setup_logger(logger_file: str, logger_name: str='ETL App'):
     console_handler.setFormatter(log_format)
 
     # 5. Cấu hình File Handler (để ghi log vào file)
-    #    Sử dụng TimedRotatingFileHandler để tự động xoay vòng file log
+    # Sử dụng TimedRotatingFileHandler để tự động xoay vòng file log
     #    when='midnight': Xoay vòng vào mỗi nửa đêm
     #    backupCount=7: Giữ lại 7 file log cũ nhất (etl_app.log.2025-07-26, ...)
     file_handler = TimedRotatingFileHandler(
-        os.path.join(LOG_DIR, logger_file + '.log'),
-        when='midnight', 
-        interval=1, 
+        os.path.join(LOG_DIR, log_file + '.log'),
+        when='midnight',
+        interval=1,
         backupCount=7,
         encoding='utf-8'
     )
