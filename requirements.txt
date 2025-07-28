@@ -30,7 +30,7 @@ pyarrow
 
 ### Packages
 cachetools
-fastapi[all]              
+fastapi[all]
 SQLAlchemy
 
 
