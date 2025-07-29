@@ -1,83 +1,156 @@
 import logging
-import os
-import sys
+import logging.config
+import yaml
 
-from logging.handlers import TimedRotatingFileHandler
-from typing import Optional
+from pathlib import Path
+from typing import Union
 
-def get_logger(
-    logger_name: str,
-    level: int = logging.INFO,
-    console_enabled: bool = True,
-    log_file: Optional[str] = 'app.log',
-    log_dir: str = 'logs',
-    when: str = 'midnight',
-    interval: int = 1,
-    backup_count: int = 14,
-    log_format_str: Optional[str] = None
-) -> logging.Logger:
+class LevelFilter(logging.Filter):
     """
-    Thiết lập và trả về một logger chuyên nghiệp, linh hoạt và an toàn.
+    Lọc các bản ghi log có level THẤP HƠN level được chỉ định.
+
+    Ví dụ, nếu level được set là WARNING, filter này sẽ chỉ cho phép
+    các bản ghi DEBUG và INFO đi qua.
+
+    Attributes:
+        level (int): Giá trị số của logging level để so sánh.
+    """
+    def __init__(self, level: Union[str, int], **kwargs):
+        """
+        Khởi tạo LevelFilter.
+
+        Args:
+            level (Union[str, int]): Tên level (ví dụ: 'WARNING') hoặc
+                                     giá trị số của level (ví dụ: 30).
+        """
+        super().__init__(**kwargs)
+        if isinstance(level, str):
+            # Chuyển đổi tên level dạng chuỗi (không phân biệt hoa thường)
+            # thành giá trị số tương ứng.
+            self.level = logging.getLevelNamesMapping()[level.upper()]
+        else:
+            self.level = level
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Thực hiện lọc bản ghi log.
+
+        Args:
+            record (logging.LogRecord): Đối tượng bản ghi log cần kiểm tra.
+
+        Returns:
+            bool: True nếu level của bản ghi thấp hơn level của filter,
+                  ngược lại là False.
+        """
+        return record.levelno < self.level
+
+def setup_logging(
+    config_path: Union[str, Path] = 'logging.yaml',
+    default_level: int = logging.INFO
+) -> None:
+    """
+    Cấu hình hệ thống logging từ file YAML.
+
+    Hàm này sẽ đọc file cấu hình YAML, thiết lập các thư mục cần thiết,
+    và áp dụng cấu hình cho module logging của Python. Nếu file cấu hình
+    không tồn tại hoặc có lỗi, nó sẽ chuyển sang sử dụng cấu hình logging
+    cơ bản (basicConfig) để đảm bảo ứng dụng vẫn có thể ghi log.
 
     Args:
-        logger_name (str): Tên của logger.
-        level (int, optional): Cấp độ log tối thiểu. Mặc định là logging.INFO.
-        console_enabled (bool, optional): Bật/tắt ghi log ra console. Mặc định là True.
-        log_dir (str, optional): Thư mục để lưu file log. Mặc định là 'logs'.
-        log_file (str | None, optional): Tên file log. Nếu là None, sẽ không ghi log ra file.
-        backup_count (int, optional): Số lượng file backup để giữ lại. Mặc định là 14.
-        log_format_str (str | None, optional): Chuỗi định dạng log. Nếu None, dùng định dạng mặc định.
-
-    Returns:
-        logging.Logger: Một instance của logger đã được cấu hình.
+        config_path (Union[str, Path]): Đường dẫn đến file logging.yaml.
+        default_level (int): Log level mặc định sẽ được sử dụng nếu
+                             cấu hình từ file thất bại.
     """
-    # Lấy logger và đặt level
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(level)
+    # Đảm bảo đường dẫn là đối tượng Path để xử lý nhất quán.
+    config_path = Path(config_path)
 
-    # Set propagate to False để tránh log bị truyền lên logger gốc (root logger)
-    # Điều này giúp kiểm soát output tốt hơn trong các ứng dụng phức tạp.
-    logger.propagate = False
+    # Tạo thư mục 'logs' để chứa file log nếu chưa tồn tại.
+    # Đây là một thực hành tốt để tránh lỗi khi handler cố gắng ghi file.
+    log_dir = Path('logs')
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Ngăn chặn việc thêm handler nếu logger đã được cấu hình
-    if logger.hasHandlers():
-        return logger
+    if not config_path.is_file():
+        logging.basicConfig(level=default_level)
+        logging.error(f"Không tìm thấy file cấu hình '{config_path}'. Sử dụng cấu hình cơ bản.")
+        return
 
-    # Tạo Formatter chung, cho phép override từ bên ngoài
-    if log_format_str is None:
-        log_format_str = '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_dict = yaml.safe_load(f)
 
-    log_format = logging.Formatter(log_format_str, datefmt='%Y-%m-%d %H:%M:%S')
+        if config_dict:
+            # Dùng dictConfig để áp dụng toàn bộ cấu hình từ file YAML.
+            # Đây là trái tim của phương pháp này.
+            logging.config.dictConfig(config_dict)
+            logging.info("Hệ thống logging đã được cấu hình thành công từ file YAML.")
+        else:
+            # Xử lý trường hợp file YAML tồn tại nhưng trống hoặc không hợp lệ.
+            raise ValueError("File YAML rỗng hoặc không hợp lệ.")
 
-    # Cấu hình Console Handler (nếu được bật hiển thị log ra màn hình)
-    if console_enabled:
-        # Ghi các log từ INFO trở xuống ra sys.stdout (luồng ra chuẩn)
-        console_out_handler = logging.StreamHandler(sys.stdout)
-        console_out_handler.setFormatter(log_format)
+    except Exception as e:
+        # Nếu có bất kỳ lỗi nào xảy ra trong quá trình đọc và áp dụng file YAML
+        # (ví dụ: cú pháp YAML sai, giá trị không hợp lệ),
+        # hệ thống sẽ chuyển về cấu hình cơ bản để không bị sập.
+        logging.basicConfig(level=default_level)
+        logging.exception(f"Lỗi khi cấu hình logging từ file YAML: {e}")
 
-        # Chỉ xử lý log có level thấp hơn WARNING
-        console_out_handler.addFilter(lambda record: record.levelno < logging.WARNING)
-        logger.addHandler(console_out_handler)
+# def run_exam():
+#     """Hàm chính của ứng dụng để minh họa việc sử dụng logger."""
+#     logger = logging.getLogger(__name__)
 
-        # Ghi các log từ WARNING trở lên ra sys.stderr (luồng lỗi chuẩn)
-        console_err_handler = logging.StreamHandler(sys.stderr)
-        console_err_handler.setFormatter(log_format)
+#     logger.debug("Đây là một thông điệp debug.")
+#     logger.info("Ứng dụng đang khởi chạy...")
+#     logger.warning("Cảnh báo: Một API sắp hết hạn trong 3 ngày.")
+#     logger.error("Đã xảy ra lỗi khi xử lý request X.")
+#     logger.critical("Hệ thống gặp lỗi nghiêm trọng! Không thể kết nối tới database.")
 
-        # Chỉ xử lý log có level từ WARNING trở lên
-        console_err_handler.setLevel(logging.WARNING)
-        logger.addHandler(console_err_handler)
+# if __name__ == "__main__":
+#     setup_logging()
+#     run_exam()
 
-    # Cấu hình File Handler (nếu được bật và có tên file)
-    if log_file:
-        os.makedirs(log_dir, exist_ok=True)
-        file_handler = TimedRotatingFileHandler(
-            os.path.join(log_dir, log_file),
-            when=when,          # Sử dụng tham số
-            interval=interval,  # Sử dụng tham số
-            backupCount=backup_count,
-            encoding='utf-8'
-        )
-        file_handler.setFormatter(log_format)
-        logger.addHandler(file_handler)
 
-    return logger
+# Template logging.yaml
+# ```
+# version: 1
+# disable_existing_loggers: false
+
+# filters:
+#   below_warning:
+#     # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
+#     (): logger.LevelFilter # Giả sử file tên là logger.py
+#     level: WARNING
+
+# formatters:
+#   default:
+#     format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+#     datefmt: "%Y-%m-%d %H:%M:%S"
+
+# handlers:
+#   stdout:
+#     class: logging.StreamHandler
+#     level: DEBUG
+#     formatter: default
+#     stream: ext://sys.stdout
+#     filters: [below_warning] # Áp dụng filter để chỉ log INFO, DEBUG
+
+#   stderr:
+#     class: logging.StreamHandler
+#     level: WARNING # Handler này chỉ xử lý từ WARNING trở lên
+#     formatter: default
+#     stream: ext://sys.stderr
+
+#   file:
+#     class: logging.handlers.TimedRotatingFileHandler
+#     level: INFO
+#     formatter: default
+#     filename: logs/app.log
+#     when: midnight
+#     interval: 1
+#     backupCount: 14
+#     encoding: utf-8
+
+# # Cấu hình cho root logger, áp dụng cho toàn bộ ứng dụng
+# root:
+#   level: INFO # Mặc dù handler có level riêng, level ở root là ngưỡng cuối cùng
+#   handlers: [stdout, stderr, file]
+# ```

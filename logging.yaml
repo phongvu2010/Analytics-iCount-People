@@ -1,0 +1,42 @@
+version: 1
+disable_existing_loggers: false
+
+filters:
+  below_warning:
+    # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
+    (): logger.LevelFilter # Giả sử file tên là logger.py
+    level: WARNING
+
+formatters:
+  default:
+    format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+handlers:
+  stdout:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: default
+    stream: ext://sys.stdout
+    filters: [below_warning] # Áp dụng filter để chỉ log INFO, DEBUG
+
+  stderr:
+    class: logging.StreamHandler
+    level: WARNING # Handler này chỉ xử lý từ WARNING trở lên
+    formatter: default
+    stream: ext://sys.stderr
+
+  file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: default
+    filename: logs/app.log
+    when: midnight
+    interval: 1
+    backupCount: 14
+    encoding: utf-8
+
+# Cấu hình cho root logger, áp dụng cho toàn bộ ứng dụng
+root:
+  level: INFO # Mặc dù handler có level riêng, level ở root là ngưỡng cuối cùng
+  handlers: [stdout, stderr, file]
