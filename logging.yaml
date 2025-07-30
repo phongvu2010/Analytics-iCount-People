@@ -4,12 +4,12 @@ disable_existing_loggers: false
 filters:
   below_warning:
     # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
-    (): logger.LevelFilter # Giả sử file tên là logger.py
+    (): app.utils.logger.LevelFilter # Giả sử file tên là logger.py
     level: WARNING
 
 formatters:
   default:
-    format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+    format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s] - %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
 
   json:

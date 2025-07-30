@@ -45,8 +45,13 @@ class LevelFilter(logging.Filter):
         """
         return record.levelno < self.level
 
+# Lấy đường dẫn của thư mục chứa file logger.py này
+CURRENT_DIR = Path(__file__).parent
+# Tạo đường dẫn mặc định đến file logging.yaml trong cùng thư mục
+DEFAULT_CONFIG_PATH = CURRENT_DIR / 'logging.yaml'
+
 def setup_logging(
-    config_path: Union[str, Path] = 'logging.yaml',
+    config_path: Union[str, Path] = DEFAULT_CONFIG_PATH,
     default_level: int = logging.INFO
 ) -> None:
     """
@@ -72,7 +77,7 @@ def setup_logging(
 
     if not config_path.is_file():
         logging.basicConfig(level=default_level)
-        logging.error(f"Không tìm thấy file cấu hình '{config_path}'. Sử dụng cấu hình cơ bản.")
+        logging.error(f"Không tìm thấy file cấu hình tại '{config_path}'. Sử dụng cấu hình cơ bản.")
         return
 
     try:
@@ -90,7 +95,7 @@ def setup_logging(
             # Dùng dictConfig để áp dụng toàn bộ cấu hình từ file YAML.
             # Đây là trái tim của phương pháp này.
             logging.config.dictConfig(config_dict)
-            logging.info("Hệ thống logging đã được cấu hình thành công từ file YAML.")
+            logging.info(f"Hệ thống logging đã được cấu hình thành công từ file: {config_path}")
         else:
             # Xử lý trường hợp file YAML tồn tại nhưng trống hoặc không hợp lệ.
             raise ValueError("File YAML rỗng hoặc không hợp lệ.")
@@ -100,6 +105,7 @@ def setup_logging(
         # hệ thống sẽ chuyển về cấu hình cơ bản để không bị sập.
         logging.basicConfig(level=default_level)
         logging.exception(f"Lỗi khi cấu hình logging từ file YAML: {e}")
+
 
 
 # def run_exam():
