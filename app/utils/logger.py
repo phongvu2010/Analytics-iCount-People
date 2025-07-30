@@ -1,6 +1,7 @@
 import logging
 import logging.config
 import yaml
+import os
 
 from pathlib import Path
 from typing import Union
@@ -79,6 +80,13 @@ def setup_logging(
             config_dict = yaml.safe_load(f)
 
         if config_dict:
+            # Lấy log level từ biến môi trường để ghi đè.
+            # Điều này rất hữu ích trong môi trường production/staging/dev.
+            log_level_from_env = os.environ.get('LOG_LEVEL')
+            if log_level_from_env and 'root' in config_dict:
+                print(f"Phát hiện biến môi trường LOG_LEVEL='{log_level_from_env}'. Ghi đè cấu hình.")
+                config_dict['root']['level'] = log_level_from_env.upper()
+
             # Dùng dictConfig để áp dụng toàn bộ cấu hình từ file YAML.
             # Đây là trái tim của phương pháp này.
             logging.config.dictConfig(config_dict)
@@ -86,13 +94,13 @@ def setup_logging(
         else:
             # Xử lý trường hợp file YAML tồn tại nhưng trống hoặc không hợp lệ.
             raise ValueError("File YAML rỗng hoặc không hợp lệ.")
-
     except Exception as e:
         # Nếu có bất kỳ lỗi nào xảy ra trong quá trình đọc và áp dụng file YAML
         # (ví dụ: cú pháp YAML sai, giá trị không hợp lệ),
         # hệ thống sẽ chuyển về cấu hình cơ bản để không bị sập.
         logging.basicConfig(level=default_level)
         logging.exception(f"Lỗi khi cấu hình logging từ file YAML: {e}")
+
 
 # def run_exam():
 #     """Hàm chính của ứng dụng để minh họa việc sử dụng logger."""
@@ -125,6 +133,11 @@ def setup_logging(
 #     format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
 #     datefmt: "%Y-%m-%d %H:%M:%S"
 
+#   json:
+#     # Cần cài đặt thư viện: pip install python-json-logger
+#     class: pythonjsonlogger.jsonlogger.JsonFormatter
+#     format: "%(asctime)s %(name)s %(levelname)s %(filename)s %(lineno)d %(message)s"
+
 # handlers:
 #   stdout:
 #     class: logging.StreamHandler
@@ -149,8 +162,18 @@ def setup_logging(
 #     backupCount: 14
 #     encoding: utf-8
 
+#   file_json:
+#     class: logging.handlers.TimedRotatingFileHandler
+#     level: INFO
+#     formatter: json # Sử dụng formatter JSON
+#     filename: logs/app.json.log # Ghi ra file log JSON riêng biệt
+#     when: midnight
+#     interval: 1
+#     backupCount: 14
+#     encoding: utf-8
+
 # # Cấu hình cho root logger, áp dụng cho toàn bộ ứng dụng
 # root:
 #   level: INFO # Mặc dù handler có level riêng, level ở root là ngưỡng cuối cùng
-#   handlers: [stdout, stderr, file]
+#   handlers: [stdout, stderr, file, file_json]
 # ```
