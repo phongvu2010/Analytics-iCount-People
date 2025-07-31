@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Union
 
-class FilterBelowLevel(logging.Filter):
+class MaxLevelFilter(logging.Filter):
     """
     Lọc các bản ghi log có level THẤP HƠN level được chỉ định.
 
@@ -41,7 +41,7 @@ class FilterBelowLevel(logging.Filter):
         Returns:
             bool: True nếu level của bản ghi thấp hơn level của filter, ngược lại là False.
         """
-        return record.levelno < self.level
+        return record.levelno <= self.level
 
 # Lấy đường dẫn của thư mục chứa file logger.py này
 CURRENT_DIR = Path(__file__).parent

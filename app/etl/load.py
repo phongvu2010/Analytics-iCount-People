@@ -15,6 +15,16 @@ from app.core.config import etl_settings, TableConfig
 logger = logging.getLogger(__name__)
 BASE_DATA_PATH = Path(etl_settings.DATA_DIR)
 
+# --- TỐI ƯU: Thêm hàm kiểm tra tên bảng để tăng cường bảo mật ---
+def _validate_table_name(table_name: str):
+    """
+    Kiểm tra xem tên bảng có hợp lệ hay không để tránh SQL Injection.
+    Tên hợp lệ chỉ nên chứa ký tự chữ, số và dấu gạch dưới.
+    """
+    if not all(c.isalnum() or c == '_' for c in table_name):
+        raise ValueError(f"Tên bảng không hợp lệ: '{table_name}'. "
+                         f"Chỉ cho phép ký tự chữ, số và dấu gạch dưới.")
+
 class ParquetLoader:
     """
     Một context manager để xử lý việc ghi dữ liệu vào Parquet.
@@ -42,9 +52,7 @@ class ParquetLoader:
         """Ghi một DataFrame chunk vào file/dataset Parquet."""
         if df.empty:
             return
-
         arrow_table = pa.Table.from_pandas(df, preserve_index=False)
-
         if self.config.partition_cols:
             # Ghi trực tiếp vào dataset cho bảng có phân vùng
             pq.write_to_dataset(
@@ -74,27 +82,61 @@ def prepare_destination(config: TableConfig):
         else:
             dest_path.unlink()
             logger.info(f"Full-load: Đã xóa file staging cũ: {dest_path}")
-
     dest_path.mkdir(parents=True, exist_ok=True)
 
+# --- THAY ĐỔI CHÍNH NẰM Ở HÀM NÀY ---
 def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig):
-    """Tạo hoặc thay thế bảng trong DuckDB từ nguồn Parquet."""
-    staging_dir = BASE_DATA_PATH / config.dest_table
+    """
+    Tải dữ liệu vào bảng staging, sau đó hoán đổi (swap) nó với bảng chính
+    để đảm bảo không có thời gian chết (zero-downtime).
+    """
+    dest_table = config.dest_table
+    staging_table = f"{dest_table}_staging"
+
+    _validate_table_name(dest_table)
+    _validate_table_name(staging_table)
+
+    staging_dir = BASE_DATA_PATH / dest_table
     if not staging_dir.exists():
         logger.warning(f"Thư mục staging '{staging_dir}' không tồn tại. Bỏ qua việc refresh DuckDB.")
         return
 
-    # Sử dụng glob pattern để đọc tất cả các file parquet trong thư mục
+    # Bước 1: Tải dữ liệu từ Parquet vào bảng staging
+    logger.info(f"Bắt đầu tải dữ liệu vào bảng staging '{staging_table}'...")
     read_path = str(staging_dir / '**' / '*.parquet').replace('\\', '/')
-
-    is_partitioned = bool(config.partition_cols)
-    hive_param = ", hive_partitioning=1" if is_partitioned else ""
-
+    hive_param = ", hive_partitioning=1" if config.partition_cols else ""
     read_statement = f"read_parquet('{read_path}'{hive_param})"
-    create_sql = f"CREATE OR REPLACE TABLE {config.dest_table} AS SELECT * FROM {read_statement};"
 
-    logger.info(f"Đang refresh bảng '{config.dest_table}' trong DuckDB từ nguồn Parquet tại '{staging_dir}'.")
-    conn.execute(create_sql)
+    # Luôn tạo mới hoặc thay thế bảng staging
+    create_staging_sql = f"CREATE OR REPLACE TABLE {staging_table} AS SELECT * FROM {read_statement};"
+    conn.execute(create_staging_sql)
+    logger.info(f"Tải dữ liệu vào bảng staging '{staging_table}' thành công.")
+
+    # Bước 2: Thực hiện hoán đổi bảng chính và bảng staging một cách nguyên tử (atomic)
+    logger.info(f"Bắt đầu hoán đổi bảng chính '{dest_table}' với bảng staging.")
+    swap_sql = f"""
+    BEGIN TRANSACTION;
+
+    -- Xóa bảng backup cũ nếu nó còn tồn tại từ lần chạy trước
+    DROP TABLE IF EXISTS {dest_table}_old;
+
+    -- Đổi tên bảng chính hiện tại thành bảng backup.
+    -- Dùng IF EXISTS để xử lý trường hợp ETL chạy lần đầu tiên (bảng chính chưa tồn tại)
+    ALTER TABLE IF EXISTS {dest_table} RENAME TO {dest_table}_old;
+
+    -- Đổi tên bảng staging thành bảng chính mới
+    ALTER TABLE {staging_table} RENAME TO {dest_table};
+
+    COMMIT;
+    """
+    conn.execute(swap_sql)
+    logger.info(f"Hoán đổi bảng thành công. '{dest_table}' đã được cập nhật.")
+
+    # Bước 3 (Tùy chọn): Dọn dẹp bảng backup cũ
+    conn.execute(f"DROP TABLE IF EXISTS {dest_table}_old;")
+    logger.info(f"Đã dọn dẹp bảng backup '{dest_table}_old'.")
+
+
 
 
 

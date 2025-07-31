@@ -33,6 +33,7 @@ cachetools
 fastapi[all]
 python-json-logger
 SQLAlchemy
+typer[all]
 
 
 # bcrypt==4.0.1

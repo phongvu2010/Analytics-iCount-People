@@ -23,20 +23,23 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
     """
     Chuyển đổi kiểu dữ liệu cho cột timestamp và tạo các cột phân vùng (partition).
     """
-    # Lấy tên cột timestamp sau khi đã được đổi tên
-    ts_col_renamed = config.rename_map.get(config.timestamp_col)
+    # # Lấy tên cột timestamp sau khi đã được đổi tên
+    # ts_col_renamed = config.rename_map.get(config.timestamp_col)
 
-    if ts_col_renamed and ts_col_renamed in df.columns:
+    # <-- TỐI ƯU: Sử dụng thuộc tính đã được tạo sẵn từ config
+    ts_col = config.final_timestamp_col
+
+    if ts_col and ts_col in df.columns:
         # Chuyển đổi sang datetime, các giá trị lỗi sẽ trở thành NaT (Not a Time)
-        df[ts_col_renamed] = pd.to_datetime(df[ts_col_renamed], errors='coerce')
+        df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
 
         # Xóa các dòng có timestamp không hợp lệ
-        df.dropna(subset=[ts_col_renamed], inplace=True)
+        df.dropna(subset=[ts_col], inplace=True)
 
         # Tạo các cột phân vùng nếu cần và dataframe không rỗng
         if not df.empty and config.partition_cols:
-            df['year'] = df[ts_col_renamed].dt.year
-            df['month'] = df[ts_col_renamed].dt.month
+            df['year'] = df[ts_col].dt.year
+            df['month'] = df[ts_col].dt.month
 
     return df
 
@@ -56,13 +59,16 @@ def get_max_timestamp(df: pd.DataFrame, config: TableConfig) -> Optional[pd.Time
     if not config.incremental:
         return None
 
-    # Đơn giản hóa logic: .get() sẽ trả về None nếu key không tồn tại
-    ts_col_renamed = config.rename_map.get(config.timestamp_col)
+    # # Đơn giản hóa logic: .get() sẽ trả về None nếu key không tồn tại
+    # ts_col = config.rename_map.get(config.timestamp_col)
 
-    if ts_col_renamed and ts_col_renamed in df.columns:
+    # <-- TỐI ƯU: Sử dụng thuộc tính đã được tạo sẵn từ config, loại bỏ logic lặp lại
+    ts_col = config.final_timestamp_col
+
+    if ts_col and ts_col in df.columns:
         # Đảm bảo cột là kiểu datetime trước khi lấy max
-        if pd.api.types.is_datetime64_any_dtype(df[ts_col_renamed]):
-            return df[ts_col_renamed].max()
+        if pd.api.types.is_datetime64_any_dtype(df[ts_col]):
+            return df[ts_col].max()
 
     return None
 
