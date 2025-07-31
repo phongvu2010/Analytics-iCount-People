@@ -5,9 +5,9 @@ import logging
 import pandas as pd
 
 from pathlib import Path
-from typing import Dict #, Optional
+from typing import Dict
 
-from app.core.config import etl_settings #, TableConfig
+from app.core.config import etl_settings
 
 logger = logging.getLogger(__name__)
 STATE_FILE = Path(etl_settings.STATE_FILE)
@@ -26,6 +26,7 @@ def load_etl_state() -> Dict[str, str]:
 
 def save_etl_state(state: Dict[str, str]):
     """Lưu trạng thái ETL hiện tại vào file JSON."""
+    # Đảm bảo thư mục tồn tại trước khi ghi file
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with STATE_FILE.open('w', encoding='utf-8') as f:
         json.dump(state, f, indent=4)
