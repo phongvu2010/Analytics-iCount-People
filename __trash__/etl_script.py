@@ -71,6 +71,7 @@ def transform(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
         if not df.empty and config.partition_cols:
             df['year'] = df[ts_col].dt.year
             df['month'] = df[ts_col].dt.month
+
     return df
 
 def update_duckdb_table(conn: DuckDBPyConnection, config: TableConfig):
@@ -190,9 +191,11 @@ def run_etl():
         if sql_engine:
             sql_engine.dispose()
             logger.info("SQLAlchemy connection pool disposed.")
+
         if duckdb_conn:
             duckdb_conn.close()
             logger.info("DuckDB connection closed.")
+
         logger.info("ETL process finished.\n")
 
 if __name__ == '__main__':
