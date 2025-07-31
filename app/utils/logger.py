@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Union
 
-class LevelFilter(logging.Filter):
+class FilterBelowLevel(logging.Filter):
     """
     Lọc các bản ghi log có level THẤP HƠN level được chỉ định.
 
@@ -46,7 +46,7 @@ class LevelFilter(logging.Filter):
 # Lấy đường dẫn của thư mục chứa file logger.py này
 CURRENT_DIR = Path(__file__).parent
 # Tạo đường dẫn mặc định đến file logging.yaml trong cùng thư mục
-DEFAULT_CONFIG_PATH = CURRENT_DIR / 'logger.yaml'
+DEFAULT_CONFIG_PATH = CURRENT_DIR.parent / 'logger.yaml'
 
 def setup_logging(
     config_path: Union[str, Path] = DEFAULT_CONFIG_PATH,
@@ -102,81 +102,3 @@ def setup_logging(
         # hệ thống sẽ chuyển về cấu hình cơ bản để không bị sập.
         logging.basicConfig(level=default_level)
         logging.exception(f"Lỗi khi cấu hình logging từ file YAML: {e}")
-
-
-
-# def run_exam():
-#     """Hàm chính của ứng dụng để minh họa việc sử dụng logger."""
-#     logger = logging.getLogger(__name__)
-
-#     logger.debug("Đây là một thông điệp debug.")
-#     logger.info("Ứng dụng đang khởi chạy...")
-#     logger.warning("Cảnh báo: Một API sắp hết hạn trong 3 ngày.")
-#     logger.error("Đã xảy ra lỗi khi xử lý request X.")
-#     logger.critical("Hệ thống gặp lỗi nghiêm trọng! Không thể kết nối tới database.")
-
-# if __name__ == "__main__":
-#     setup_logging()
-#     run_exam()
-
-
-# Template logging.yaml
-# ```
-# version: 1
-# disable_existing_loggers: false
-
-# filters:
-#   below_warning:
-#     # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
-#     (): app.utils.logger.LevelFilter # Giả sử file tên là logger.py
-#     level: WARNING
-
-# formatters:
-#   default:
-#     format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s] - %(message)s"
-#     datefmt: "%Y-%m-%d %H:%M:%S"
-
-#   json:
-#     # Cần cài đặt thư viện: pip install python-json-logger
-#     class: pythonjsonlogger.jsonlogger.JsonFormatter
-#     format: "%(asctime)s %(name)s %(levelname)s %(filename)s %(lineno)d %(message)s"
-
-# handlers:
-#   stdout:
-#     class: logging.StreamHandler
-#     level: DEBUG
-#     formatter: default
-#     stream: ext://sys.stdout
-#     filters: [below_warning] # Áp dụng filter để chỉ log INFO, DEBUG
-
-#   stderr:
-#     class: logging.StreamHandler
-#     level: WARNING # Handler này chỉ xử lý từ WARNING trở lên
-#     formatter: default
-#     stream: ext://sys.stderr
-
-#   file:
-#     class: logging.handlers.TimedRotatingFileHandler
-#     level: INFO
-#     formatter: default
-#     filename: logs/app.log
-#     when: midnight
-#     interval: 1
-#     backupCount: 14
-#     encoding: utf-8
-
-#   file_json:
-#     class: logging.handlers.TimedRotatingFileHandler
-#     level: INFO
-#     formatter: json # Sử dụng formatter JSON
-#     filename: logs/app.json.log # Ghi ra file log JSON riêng biệt
-#     when: midnight
-#     interval: 1
-#     backupCount: 14
-#     encoding: utf-8
-
-# # Cấu hình cho root logger, áp dụng cho toàn bộ ứng dụng
-# root:
-#   level: INFO # Mặc dù handler có level riêng, level ở root là ngưỡng cuối cùng
-#   handlers: [stdout, stderr, file, file_json]
-# ```

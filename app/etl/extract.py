@@ -5,6 +5,7 @@ import pandas as pd
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Iterator
 
 from app.core.config import etl_settings, TableConfig
@@ -24,6 +25,6 @@ def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str
 
     try:
         return pd.read_sql(text(query), sql_engine, params=params, chunksize=etl_settings.ETL_CHUNK_SIZE)
-    except Exception as e:
-        logger.error(f"Lỗi khi trích xuất từ bảng {config.source_table}: {e}")
+    except SQLAlchemyError as e:
+        logger.error(f"Lỗi SQL khi trích xuất từ bảng {config.source_table}: {e}")
         raise

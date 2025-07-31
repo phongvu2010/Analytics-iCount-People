@@ -4,7 +4,7 @@ disable_existing_loggers: false
 filters:
   below_warning:
     # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
-    (): app.utils.logger.LevelFilter # Giả sử file tên là logger.py
+    (): app.utils.logger.FilterBelowLevel # Giả sử file tên là logger.py
     level: WARNING
 
 formatters:

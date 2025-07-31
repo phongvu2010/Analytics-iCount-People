@@ -74,7 +74,7 @@ class EtlSettings(BaseSettings):
     ETL_CHUNK_SIZE: int = 100000
     ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
 
-    TABLE_CONFIG_PATH: Path = 'tables.yaml'
+    TABLE_CONFIG_PATH: Path = 'app/tables.yaml'
 
     # Sử dụng TableConfig để Pydantic tự động parse và validate
     @computed_field
