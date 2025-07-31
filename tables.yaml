@@ -1,0 +1,34 @@
+store:
+  source_table: dbo.store
+  dest_table: dim_stores
+  incremental: false
+  rename_map:
+    tid: store_id
+    name: store_name
+
+num_crowd:
+  source_table: dbo.num_crowd
+  dest_table: fact_traffic
+  incremental: true
+  timestamp_col: recordtime
+  partition_cols: [year, month]
+  rename_map:
+    recordtime: recorded_at
+    in_num: visitors_in
+    out_num: visitors_out
+    position: device_position
+    storeid: store_id
+
+ErrLog:
+  source_table: dbo.ErrLog
+  dest_table: fact_errors
+  incremental: true
+  timestamp_col: LogTime
+  partition_cols: [year, month]
+  rename_map:
+    ID: log_id
+    storeid: store_id
+    DeviceCode: device_code
+    LogTime: logged_at
+    Errorcode: error_code
+    ErrorMessage: error_message

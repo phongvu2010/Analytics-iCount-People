@@ -1,11 +1,13 @@
+import yaml
+
 from pathlib import Path
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel, computed_field, Field, TypeAdapter
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, List, Optional
 from urllib import parse
 
-# --- Định nghĩa cấu trúc cho mỗi table config ---
+# Định nghĩa cấu trúc cho mỗi table config
 class TableConfig(BaseModel):
     """
     Cấu trúc cho cấu hình xử lý của một bảng.
@@ -20,7 +22,6 @@ class TableConfig(BaseModel):
 
     # Dùng Optional vì các bảng full-load không cần các cột này
     timestamp_col: Optional[str] = None
-    dest_timestamp_col: Optional[str] = None
 
 class EtlSettings(BaseSettings):
     """
@@ -57,10 +58,7 @@ class EtlSettings(BaseSettings):
         ))
 
     # Cấu hình DuckDB
-    DATA_DIR: Path = Field(
-        default=Path('data'),
-        description='Thư mục gốc chứa dữ liệu.'
-    )
+    DATA_DIR: Path = 'data'
 
     @property
     def DUCKDB_PATH(self) -> Path:
@@ -73,54 +71,25 @@ class EtlSettings(BaseSettings):
         return self.DATA_DIR / 'etl_state.json'
 
     # Cấu hình chung cho ETL
-    ETL_CHUNK_SIZE: int = Field(
-        default=100000,
-        description='Số dòng xử lý mỗi chunk để tối ưu bộ nhớ.'
-    )
+    ETL_CHUNK_SIZE: int = 100000
+    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
 
-    ETL_DEFAULT_TIMESTAMP: str = Field(
-        default='1900-01-01 00:00:00',
-        description='Timestamp bắt đầu nếu chưa có trạng thái.'
-    )
+    TABLE_CONFIG_PATH: Path = 'tables.yaml'
 
     # Sử dụng TableConfig để Pydantic tự động parse và validate
-    TABLE_CONFIG: Dict[str, TableConfig] = {
-        'store': {
-            'source_table': 'dbo.store',
-            'dest_table': 'dim_stores',
-            'incremental': False,  # Bảng dimension nhỏ, chạy full load mỗi lần
-            'rename_map': { 'tid': 'store_id', 'name': 'store_name' }
-        },
-        'num_crowd': {
-            'source_table': 'dbo.num_crowd',
-            'dest_table': 'fact_traffic',
-            'timestamp_col': 'recordtime',
-            'dest_timestamp_col': 'recorded_at',
-            'partition_cols': ['year', 'month'],
-            'rename_map': {
-                'recordtime': 'recorded_at',
-                'in_num': 'visitors_in',
-                'out_num': 'visitors_out',
-                'position': 'device_position',
-                'storeid': 'store_id'
-            }
-        },
-        'ErrLog': {
-            'source_table': 'dbo.ErrLog',
-            'dest_table': 'fact_errors',
-            'timestamp_col': 'LogTime',
-            'dest_timestamp_col': 'logged_at',
-            'partition_cols': ['year', 'month'],
-            'rename_map': {
-                'ID': 'log_id',
-                'storeid': 'store_id',
-                'DeviceCode': 'device_code',
-                'LogTime': 'logged_at',
-                'Errorcode': 'error_code',
-                'ErrorMessage': 'error_message'
-            }
-        }
-    }
+    @computed_field
+    @property
+    def TABLE_CONFIG(self) -> Dict[str, TableConfig]:
+        try:
+            with self.TABLE_CONFIG_PATH.open('r', encoding='utf-8') as f:
+                raw_config = yaml.safe_load(f)
+
+            adapter = TypeAdapter(Dict[str, TableConfig])
+            return adapter.validate_python(raw_config)
+        except FileNotFoundError:
+            raise ValueError(f"Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}")
+        except Exception as e:
+            raise ValueError(f"Lỗi khi tải hoặc xác thực cấu hình bảng: {e}")
 
 # Tạo một instance của settings để import và sử dụng trong các file khác
 etl_settings = EtlSettings()

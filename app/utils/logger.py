@@ -21,8 +21,7 @@ class LevelFilter(logging.Filter):
         Khởi tạo LevelFilter.
 
         Args:
-            level (Union[str, int]): Tên level (ví dụ: 'WARNING') hoặc
-                                     giá trị số của level (ví dụ: 30).
+            level (Union[str, int]): Tên level (ví dụ: 'WARNING') hoặc giá trị số của level (ví dụ: 30).
         """
         super().__init__(**kwargs)
         if isinstance(level, str):
@@ -40,15 +39,14 @@ class LevelFilter(logging.Filter):
             record (logging.LogRecord): Đối tượng bản ghi log cần kiểm tra.
 
         Returns:
-            bool: True nếu level của bản ghi thấp hơn level của filter,
-                  ngược lại là False.
+            bool: True nếu level của bản ghi thấp hơn level của filter, ngược lại là False.
         """
         return record.levelno < self.level
 
 # Lấy đường dẫn của thư mục chứa file logger.py này
 CURRENT_DIR = Path(__file__).parent
 # Tạo đường dẫn mặc định đến file logging.yaml trong cùng thư mục
-DEFAULT_CONFIG_PATH = CURRENT_DIR / 'logging.yaml'
+DEFAULT_CONFIG_PATH = CURRENT_DIR / 'logger.yaml'
 
 def setup_logging(
     config_path: Union[str, Path] = DEFAULT_CONFIG_PATH,
@@ -64,8 +62,7 @@ def setup_logging(
 
     Args:
         config_path (Union[str, Path]): Đường dẫn đến file logging.yaml.
-        default_level (int): Log level mặc định sẽ được sử dụng nếu
-                             cấu hình từ file thất bại.
+        default_level (int): Log level mặc định sẽ được sử dụng nếu cấu hình từ file thất bại.
     """
     # Đảm bảo đường dẫn là đối tượng Path để xử lý nhất quán.
     config_path = Path(config_path)
@@ -131,12 +128,12 @@ def setup_logging(
 # filters:
 #   below_warning:
 #     # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
-#     (): logger.LevelFilter # Giả sử file tên là logger.py
+#     (): app.utils.logger.LevelFilter # Giả sử file tên là logger.py
 #     level: WARNING
 
 # formatters:
 #   default:
-#     format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
+#     format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s] - %(message)s"
 #     datefmt: "%Y-%m-%d %H:%M:%S"
 
 #   json:
