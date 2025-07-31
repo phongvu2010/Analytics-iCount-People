@@ -103,21 +103,6 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig):
 
 
 
-# # app/etl/load.py
-# # Chịu trách nhiệm ghi dữ liệu vào Parquet và cập nhật bảng trong DuckDB.
-# import logging
-# import pandas as pd
-# import shutil
-# import pyarrow as pa
-# import pyarrow.parquet as pq
-
-# from pathlib import Path
-# from duckdb import DuckDBPyConnection
-
-# from app.core.config import etl_settings, TableConfig
-
-# logger = logging.getLogger(__name__)
-# BASE_DATA_PATH = Path(etl_settings.DATA_DIR)
 
 # def prepare_destination(config: TableConfig):
 #     """Xóa dữ liệu cũ nếu là full-load."""

@@ -7,11 +7,9 @@ import sys
 
 from pathlib import Path
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine # <<< THÊM DÒNG NÀY
+from sqlalchemy.engine import Engine
 from typing import Optional
 
-# Thêm thư mục gốc của dự án vào Python Path để có thể import `app`
-# Giả định script này được chạy từ thư mục gốc của dự án
 sys.path.append(str(Path.cwd()))
 
 from app.core.config import etl_settings, TableConfig
@@ -105,30 +103,6 @@ if __name__ == '__main__':
 
 
 
-# # scripts/run_etl.py
-# # Script chính, đóng vai trò điều phối viên (orchestrator).
-# import duckdb
-# import logging
-# import pandas as pd
-# import sys
-
-# from pathlib import Path
-# from sqlalchemy import create_engine
-# from typing import Optional
-
-# # Thêm thư mục gốc của dự án vào Python Path để có thể import `app`
-# # Giả định script này được chạy từ thư mục gốc của dự án
-# sys.path.append(str(Path.cwd()))
-
-# from app.core.config import etl_settings, TableConfig
-# from app.utils.logger import setup_logging
-# from app.etl import state, extract, transform
-# # --- Thay đổi 1: Import các thành phần đã refactor từ load.py ---
-# from app.etl.load import ParquetLoader, prepare_destination, refresh_duckdb_table
-
-# # --- Setup ---
-# setup_logging('app/logger.yaml') # Đường dẫn mới tới file logger
-# logger = logging.getLogger(__name__)
 
 # def process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, config: TableConfig, etl_state: dict):
 #     """Điều phối toàn bộ quy trình ETL cho một bảng."""
@@ -212,109 +186,91 @@ if __name__ == '__main__':
 #         if duckdb_conn: duckdb_conn.close()
 #         logger.info("Quy trình ETL kết thúc.\n")
 
-# if __name__ == '__main__':
-#     main()
 
-# # # # Trong file run_etl.py
 
-# # # from app.etl.load import ParquetLoader, prepare_destination, refresh_duckdb_table
 
-# # # def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
-# # #     # ...
-# # #     load.prepare_destination(config)
-# # #     last_timestamp = state.get_last_timestamp(etl_state, config.dest_table)
-# # #     data_iterator = extract.from_sql_server(sql_engine, config, last_timestamp)
+# def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
+#     # ...
+#     load.prepare_destination(config)
+#     last_timestamp = state.get_last_timestamp(etl_state, config.dest_table)
+#     data_iterator = extract.from_sql_server(sql_engine, config, last_timestamp)
     
-# # #     total_rows = 0
-# # #     max_ts_in_run: Optional[pd.Timestamp] = None
+#     total_rows = 0
+#     max_ts_in_run: Optional[pd.Timestamp] = None
     
-# # #     # --- Logic mới, gọn gàng hơn rất nhiều ---
-# # #     logger.info("Bắt đầu ghi dữ liệu ra Parquet...")
-# # #     with ParquetLoader(config) as loader:
-# # #         for chunk in data_iterator:
-# # #             transformed_chunk = transform.run_transformations(chunk, config)
-# # #             if transformed_chunk.empty:
-# # #                 continue
+#     # --- Logic mới, gọn gàng hơn rất nhiều ---
+#     logger.info("Bắt đầu ghi dữ liệu ra Parquet...")
+#     with ParquetLoader(config) as loader:
+#         for chunk in data_iterator:
+#             transformed_chunk = transform.run_transformations(chunk, config)
+#             if transformed_chunk.empty:
+#                 continue
 
-# # #             loader.write_chunk(transformed_chunk) # <-- Chỉ cần gọi một hàm duy nhất
+#             loader.write_chunk(transformed_chunk) # <-- Chỉ cần gọi một hàm duy nhất
 
-# # #             total_rows += len(transformed_chunk)
-# # #             current_max_ts = transform.get_max_timestamp(transformed_chunk, config)
-# # #             if current_max_ts and (max_ts_in_run is None or current_max_ts > max_ts_in_run):
-# # #                 max_ts_in_run = current_max_ts
+#             total_rows += len(transformed_chunk)
+#             current_max_ts = transform.get_max_timestamp(transformed_chunk, config)
+#             if current_max_ts and (max_ts_in_run is None or current_max_ts > max_ts_in_run):
+#                 max_ts_in_run = current_max_ts
 
-# # #     if total_rows == 0:
-# # #         logger.info(f"Không tìm thấy dữ liệu mới cho bảng '{config.dest_table}'.")
-# # #         return
+#     if total_rows == 0:
+#         logger.info(f"Không tìm thấy dữ liệu mới cho bảng '{config.dest_table}'.")
+#         return
 
-# # #     logger.info(f"Đã xử lý {total_rows} dòng. Hoàn tất ghi ra Parquet.")
-# # #     # ... (gọi refresh_duckdb_table và các hàm khác như cũ)
+#     logger.info(f"Đã xử lý {total_rows} dòng. Hoàn tất ghi ra Parquet.")
+#     # ... (gọi refresh_duckdb_table và các hàm khác như cũ)
 
-# # # tools/run_etl.py
+# tools/run_etl.py
 
-# # # def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
-# # #     # ... (giữ nguyên phần trên) ...
+# def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
+#     # ... (giữ nguyên phần trên) ...
 
-# # #     total_rows = 0
-# # #     max_ts_in_run: Optional[pd.Timestamp] = None
-# # #     writer: Optional[pq.ParquetWriter] = None
+#     total_rows = 0
+#     max_ts_in_run: Optional[pd.Timestamp] = None
+#     writer: Optional[pq.ParquetWriter] = None
 
-# # #     # --- BẮT ĐẦU PHẦN SỬA LỖI ---
-# # #     # 1. Tạo iterator một lần duy nhất
-# # #     data_iterator = extract.from_sql_server(sql_engine, config, last_timestamp)
+#     # --- BẮT ĐẦU PHẦN SỬA LỖI ---
+#     # 1. Tạo iterator một lần duy nhất
+#     data_iterator = extract.from_sql_server(sql_engine, config, last_timestamp)
 
-# # #     try:
-# # #         # Vòng lặp duy nhất xử lý tất cả các chunk
-# # #         for chunk in data_iterator:
-# # #             if chunk.empty: continue
+#     try:
+#         # Vòng lặp duy nhất xử lý tất cả các chunk
+#         for chunk in data_iterator:
+#             if chunk.empty: continue
 
-# # #             transformed_chunk = transform.run_transformations(chunk, config)
-# # #             if transformed_chunk.empty: continue
+#             transformed_chunk = transform.run_transformations(chunk, config)
+#             if transformed_chunk.empty: continue
 
-# # #             # Đối với bảng không phân vùng, khởi tạo writer một cách "lười biếng" (lazily) ở chunk đầu tiên
-# # #             if not config.partition_cols and writer is None:
-# # #                 output_file = Path(etl_settings.DATA_DIR) / config.dest_table / 'data.parquet'
-# # #                 arrow_table = pa.Table.from_pandas(transformed_chunk, preserve_index=False)
-# # #                 writer = pq.ParquetWriter(str(output_file), arrow_table.schema)
+#             # Đối với bảng không phân vùng, khởi tạo writer một cách "lười biếng" (lazily) ở chunk đầu tiên
+#             if not config.partition_cols and writer is None:
+#                 output_file = Path(etl_settings.DATA_DIR) / config.dest_table / 'data.parquet'
+#                 arrow_table = pa.Table.from_pandas(transformed_chunk, preserve_index=False)
+#                 writer = pq.ParquetWriter(str(output_file), arrow_table.schema)
 
-# # #             # Ghi chunk vào parquet
-# # #             load.to_parquet(transformed_chunk, config, writer)
+#             # Ghi chunk vào parquet
+#             load.to_parquet(transformed_chunk, config, writer)
 
-# # #             total_rows += len(transformed_chunk)
-# # #             current_max_ts = transform.get_max_timestamp(transformed_chunk, config)
-# # #             if current_max_ts and (max_ts_in_run is None or current_max_ts > max_ts_in_run):
-# # #                 max_ts_in_run = current_max_ts
-# # #     finally:
-# # #         if writer:
-# # #             writer.close()
-# # #     # --- KẾT THÚC PHẦN SỬA LỖI ---
+#             total_rows += len(transformed_chunk)
+#             current_max_ts = transform.get_max_timestamp(transformed_chunk, config)
+#             if current_max_ts and (max_ts_in_run is None or current_max_ts > max_ts_in_run):
+#                 max_ts_in_run = current_max_ts
+#     finally:
+#         if writer:
+#             writer.close()
+#     # --- KẾT THÚC PHẦN SỬA LỖI ---
 
-# # #     # ... (giữ nguyên phần còn lại) ...
+#     # ... (giữ nguyên phần còn lại) ...
 
 
-# # # tools/run_etl.py
+# import pyarrow as pa
+# import pyarrow.parquet as pq
+
+# # Thêm thư mục gốc của dự án vào Python Path để có thể import `app`
+# sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# from app.etl import state, extract, transform, load # <-- Import các module đã tách
+
 # # # Đây là script chính, đóng vai trò điều phối viên (orchestrator). Nó sẽ import và gọi các hàm từ app.etl
-# # import duckdb
-# # import logging
-# # import pandas as pd
-# # import pyarrow as pa
-# # import pyarrow.parquet as pq
-# # import sys
-
-# # from pathlib import Path
-# # from sqlalchemy import create_engine
-# # from typing import Optional
-
-# # # Thêm thư mục gốc của dự án vào Python Path để có thể import `app`
-# # sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-# # from app.core.config import etl_settings, TableConfig
-# # from app.utils.logger import setup_logging
-# # from app.etl import state, extract, transform, load # <-- Import các module đã tách
-
-# # # --- Setup ---
-# # setup_logging('logger.yaml')
-# # logger = logging.getLogger(__name__)
 
 # # def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
 # #     """Điều phối toàn bộ quy trình ETL cho một bảng."""
@@ -405,8 +361,6 @@ if __name__ == '__main__':
 # #         if duckdb_conn: duckdb_conn.close()
 # #         logger.info("Quy trình ETL kết thúc.\n")
 
-# # if __name__ == '__main__':
-# #     main()
 
 
 
@@ -421,29 +375,16 @@ if __name__ == '__main__':
 
 
 
-# # tools/run_etl.py
-# # Đây là script chính, đóng vai trò điều phối viên (orchestrator). Nó sẽ import và gọi các hàm từ app.etl
-# import duckdb
-# import logging
-# import pandas as pd
+
 # import pyarrow as pa
 # import pyarrow.parquet as pq
-# import sys
-
-# from pathlib import Path
-# from sqlalchemy import create_engine
-# from typing import Optional
 
 # # Thêm thư mục gốc của dự án vào Python Path để có thể import `app`
 # sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-# from app.core.config import etl_settings, TableConfig
-# from app.utils.logger import setup_logging
 # from app.etl import state, extract, transform, load # <-- Import các module đã tách
 
-# # --- Setup ---
-# setup_logging('logger.yaml')
-# logger = logging.getLogger(__name__)
+
 
 # def process_table(sql_engine, duckdb_conn, config: TableConfig, etl_state):
 #     """Điều phối toàn bộ quy trình ETL cho một bảng."""
@@ -533,6 +474,3 @@ if __name__ == '__main__':
 #         if sql_engine: sql_engine.dispose()
 #         if duckdb_conn: duckdb_conn.close()
 #         logger.info("Quy trình ETL kết thúc.\n")
-
-# if __name__ == '__main__':
-#     main()

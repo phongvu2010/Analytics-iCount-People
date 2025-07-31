@@ -1,7 +1,9 @@
 # app/etl/transform.py
 # Tập trung vào việc làm sạch và biến đổi dữ liệu.
 import pandas as pd
+
 from typing import Optional
+
 from app.core.config import TableConfig
 
 def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
@@ -69,14 +71,6 @@ def get_max_timestamp(df: pd.DataFrame, config: TableConfig) -> Optional[pd.Time
 
 
 
-
-# # app/etl/transform.py
-# # Tập trung vào việc làm sạch và biến đổi dữ liệu.
-# import pandas as pd
-
-# from typing import Optional
-
-# from app.core.config import TableConfig
 
 # def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
 #     """Áp dụng các bước transform cơ bản cho DataFrame."""

@@ -1,7 +1,7 @@
 import yaml
 
 from pathlib import Path
-from pydantic import BaseModel, computed_field, Field, TypeAdapter
+from pydantic import BaseModel, computed_field, TypeAdapter
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, List, Optional
