@@ -50,8 +50,7 @@ class ParquetLoader:
 
     def write_chunk(self, df: pd.DataFrame):
         """Ghi một DataFrame chunk vào file/dataset Parquet."""
-        if df.empty:
-            return
+        if df.empty: return
         arrow_table = pa.Table.from_pandas(df, preserve_index=False)
         if self.config.partition_cols:
             # Ghi trực tiếp vào dataset cho bảng có phân vùng
@@ -65,6 +64,7 @@ class ParquetLoader:
             # Đối với bảng không phân vùng:
             # 1. Khởi tạo writer nếu nó chưa tồn tại (chỉ ở chunk đầu tiên)
             if self.writer is None:
+                self.dest_path.mkdir(parents=True, exist_ok=True) # Đảm bảo thư mục tồn tại
                 output_file = self.dest_path / 'data.parquet'
                 self.writer = pq.ParquetWriter(str(output_file), arrow_table.schema)
                 logger.info(f"ParquetWriter cho '{output_file}' đã được tạo.")
@@ -82,7 +82,8 @@ def prepare_destination(config: TableConfig):
         else:
             dest_path.unlink()
             logger.info(f"Full-load: Đã xóa file staging cũ: {dest_path}")
-    dest_path.mkdir(parents=True, exist_ok=True)
+    # Xóa mkdir ở đây vì ParquetLoader đã xử lý
+    # dest_path.mkdir(parents=True, exist_ok=True)
 
 # --- THAY ĐỔI CHÍNH NẰM Ở HÀM NÀY ---
 def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig):
@@ -97,15 +98,37 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig):
     _validate_table_name(staging_table)
 
     staging_dir = BASE_DATA_PATH / dest_table
-    if not staging_dir.exists():
+    if not staging_dir.exists() or not any(staging_dir.iterdir()):
         logger.warning(f"Thư mục staging '{staging_dir}' không tồn tại. Bỏ qua việc refresh DuckDB.")
         return
 
     # Bước 1: Tải dữ liệu từ Parquet vào bảng staging
     logger.info(f"Bắt đầu tải dữ liệu vào bảng staging '{staging_table}'...")
-    read_path = str(staging_dir / '**' / '*.parquet').replace('\\', '/')
-    hive_param = ", hive_partitioning=1" if config.partition_cols else ""
-    read_statement = f"read_parquet('{read_path}'{hive_param})"
+
+    # --- PHẦN REFACTOR ---
+    # Xây dựng câu lệnh đọc dựa trên việc có partition hay không
+    read_path: str
+    read_options = ""
+
+    # read_path = str(staging_dir / '**' / '*.parquet').replace('\\', '/')
+    # hive_param = ", hive_partitioning=1" if config.partition_cols else ""
+    # read_statement = f"read_parquet('{read_path}'{hive_param})"
+
+    if config.partition_cols:
+        # Trường hợp 1: Dữ liệu có partition -> Dùng glob pattern và hive_partitioning
+        read_path = str(staging_dir / '**' / '*.parquet').replace('\\', '/')
+        read_options = ", hive_partitioning=1"
+        logger.info(f"Phát hiện bảng có partition. Đang đọc từ đường dẫn: {read_path}")
+    else:
+        # Trường hợp 2: Dữ liệu không có partition -> Trỏ thẳng đến file data.parquet
+        single_file = staging_dir / 'data.parquet'
+        if not single_file.exists():
+            logger.warning(f"File parquet '{single_file}' không tìm thấy. Bỏ qua.")
+            return
+        read_path = str(single_file).replace('\\', '/')
+        logger.info(f"Phát hiện bảng không có partition. Đang đọc từ file: {read_path}")
+
+    read_statement = f"read_parquet('{read_path}'{read_options})"
 
     # Luôn tạo mới hoặc thay thế bảng staging
     create_staging_sql = f"CREATE OR REPLACE TABLE {staging_table} AS SELECT * FROM {read_statement};"

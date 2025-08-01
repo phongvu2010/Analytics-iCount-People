@@ -86,13 +86,16 @@ def setup_logging(
             # Điều này rất hữu ích trong môi trường production/staging/dev.
             log_level_from_env = os.environ.get('LOG_LEVEL')
             if log_level_from_env and 'root' in config_dict:
-                print(f"Phát hiện biến môi trường LOG_LEVEL='{log_level_from_env}'. Ghi đè cấu hình.")
                 config_dict['root']['level'] = log_level_from_env.upper()
 
             # Dùng dictConfig để áp dụng toàn bộ cấu hình từ file YAML.
             # Đây là trái tim của phương pháp này.
             logging.config.dictConfig(config_dict)
             logging.info(f"Hệ thống logging đã được cấu hình thành công từ file: {config_path}")
+
+            # Ghi log về việc ghi đè (nếu có)
+            if log_level_from_env and 'root' in config_dict:
+                logging.info(f"Log level được ghi đè thành '{log_level_from_env.upper()}' bởi biến môi trường LOG_LEVEL.")
         else:
             # Xử lý trường hợp file YAML tồn tại nhưng trống hoặc không hợp lệ.
             raise ValueError("File YAML rỗng hoặc không hợp lệ.")

@@ -1,11 +1,16 @@
 import yaml
 
 from pathlib import Path
-from pydantic import BaseModel, TypeAdapter, model_validator
+from pydantic import BaseModel, Field, model_validator, TypeAdapter
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from urllib import parse
+
+class CleaningRule(BaseModel):
+    column: str
+    # Sử dụng Literal để giới hạn các hành động được phép, dễ dàng mở rộng sau này
+    action: Literal['rstrip'] 
 
 # --- TỐI ƯU 2: Thêm thuộc tính tiện ích vào TableConfig ---
 # Định nghĩa cấu trúc cho mỗi table config
@@ -20,6 +25,7 @@ class TableConfig(BaseModel):
     incremental: bool = True
     rename_map: Dict[str, str] = {}
     partition_cols: List[str] = []
+    cleaning_rules: List[CleaningRule] = Field(default_factory=list)
 
     # Dùng Optional vì các bảng full-load không cần các cột này
     timestamp_col: Optional[str] = None
@@ -87,7 +93,7 @@ class EtlSettings(BaseSettings):
     # Cấu hình chung cho ETL
     ETL_CHUNK_SIZE: int = 100000
     ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
-    TABLE_CONFIG_PATH: Path = 'app/tables.yaml'
+    TABLE_CONFIG_PATH: Path = 'configs/tables.yaml'
 
     # # Sử dụng TableConfig để Pydantic tự động parse và validate
     # @computed_field

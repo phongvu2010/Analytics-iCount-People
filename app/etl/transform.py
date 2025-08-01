@@ -1,10 +1,13 @@
 # app/etl/transform.py
 # Tập trung vào việc làm sạch và biến đổi dữ liệu.
+import logging
 import pandas as pd
 
 from typing import Optional
 
 from app.core.config import TableConfig
+
+logger = logging.getLogger(__name__)
 
 def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     """Đổi tên các cột dựa trên rename_map trong config."""
@@ -12,11 +15,30 @@ def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
         df = df.rename(columns=config.rename_map)
     return df
 
-def _clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Áp dụng các bước làm sạch dữ liệu cụ thể."""
-    # Các quy tắc làm sạch có thể được thêm vào đây trong tương lai
-    if 'store_name' in df.columns:
-        df['store_name'] = df['store_name'].astype(str).str.rstrip()
+def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
+    """
+    Applies cleaning rules defined in the configuration to the DataFrame.
+    """
+    if not config.cleaning_rules:
+        return df
+
+    for rule in config.cleaning_rules:
+        if rule.column not in df.columns:
+            logger.warning(f"Cột '{rule.column}' trong cleaning_rules không tồn tại. Bỏ qua.")
+            continue
+
+        try:
+            if rule.action == 'rstrip':
+                # Đảm bảo cột là kiểu string trước khi áp dụng hàm rstrip
+                df[rule.column] = df[rule.column].astype(str).str.rstrip()
+            # Bạn có thể dễ dàng thêm các hành động khác ở đây trong tương lai
+            # elif rule.action == 'lowercase':
+            #     df[rule.column] = df[rule.column].astype(str).str.lower()
+            else:
+                logger.warning(f"Hành động làm sạch '{rule.action}' chưa được hỗ trợ. Bỏ qua.")
+        except Exception as e:
+            logger.error(f"Lỗi khi áp dụng quy tắc làm sạch cho cột '{rule.column}': {e}")
+
     return df
 
 def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
@@ -49,7 +71,7 @@ def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     Đây là một pipeline biến đổi dữ liệu.
     """
     df_transformed = (df.pipe(_rename_columns, config)
-                        .pipe(_clean_data)
+                        .pipe(_clean_data, config)  # Truyền config vào hàm _clean_data
                         .pipe(_handle_timestamps_and_partitions, config))
 
     return df_transformed
