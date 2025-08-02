@@ -1,5 +1,3 @@
-# app/etl/extract.py
-# File này chỉ có một nhiệm vụ: trích xuất dữ liệu từ nguồn.
 import logging
 import pandas as pd
 
@@ -13,7 +11,6 @@ from app.core.config import etl_settings, TableConfig
 logger = logging.getLogger(__name__)
 
 def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str) -> Iterator[pd.DataFrame]:
-    """Trích xuất dữ liệu từ SQL Server theo từng chunk."""
     query = f"SELECT * FROM {config.source_table}"
     params = {}
 

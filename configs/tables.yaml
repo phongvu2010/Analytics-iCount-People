@@ -6,8 +6,8 @@ store:
     tid: store_id
     name: store_name
   cleaning_rules:
-    - column: store_name  # Áp dụng trên cột SAU KHI đã rename
-      action: rstrip      # Hành động là loại bỏ khoảng trắng cuối chuỗi
+    - column: store_name
+      action: strip
 
 num_crowd:
   source_table: dbo.num_crowd
@@ -23,7 +23,7 @@ num_crowd:
     storeid: store_id
   cleaning_rules:
     - column: device_position
-      action: rstrip
+      action: strip
 
 ErrLog:
   source_table: dbo.ErrLog
@@ -40,4 +40,4 @@ ErrLog:
     ErrorMessage: error_message
   cleaning_rules:
     - column: error_message
-      action: rstrip
+      action: strip

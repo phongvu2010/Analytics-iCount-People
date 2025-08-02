@@ -1,133 +1,143 @@
-# app/etl/transform.py
-# Tập trung vào việc làm sạch và biến đổi dữ liệu.
 import logging
 import pandas as pd
 
 from typing import Optional
 
-from app.core.config import TableConfig
+from app.core.config import TableConfig, CleaningRule
 
 logger = logging.getLogger(__name__)
 
 def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """Đổi tên các cột dựa trên rename_map trong config."""
     if config.rename_map:
         df = df.rename(columns=config.rename_map)
     return df
 
+def _apply_strip(series: pd.Series) -> pd.Series:
+    return series.astype(str).str.strip()
+
+# def _apply_lowercase(series: pd.Series) -> pd.Series:
+#     return series.astype(str).str.lower()
+
+CLEANING_ACTIONS = {
+    'strip': _apply_strip,
+    # 'lowercase': _apply_lowercase,
+}
+
 def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Applies cleaning rules defined in the configuration to the DataFrame.
-    """
-    if not config.cleaning_rules:
-        return df
+    if not config.cleaning_rules: return df
 
     for rule in config.cleaning_rules:
-        if rule.column not in df.columns:
-            logger.warning(f"Cột '{rule.column}' trong cleaning_rules không tồn tại. Bỏ qua.")
+        col_to_clean = config.rename_map.get(rule.column, rule.column)
+
+        if col_to_clean not in df.columns:
+            logger.warning(f"Cột '{col_to_clean}' trong cleaning_rules không tồn tại trong DataFrame sau khi rename. Bỏ qua quy tắc này.")
             continue
 
-        try:
-            if rule.action == 'rstrip':
-                # Đảm bảo cột là kiểu string trước khi áp dụng hàm rstrip
-                df[rule.column] = df[rule.column].astype(str).str.rstrip()
-            # Bạn có thể dễ dàng thêm các hành động khác ở đây trong tương lai
-            # elif rule.action == 'lowercase':
-            #     df[rule.column] = df[rule.column].astype(str).str.lower()
-            else:
-                logger.warning(f"Hành động làm sạch '{rule.action}' chưa được hỗ trợ. Bỏ qua.")
-        except Exception as e:
-            logger.error(f"Lỗi khi áp dụng quy tắc làm sạch cho cột '{rule.column}': {e}")
+        action_func = CLEANING_ACTIONS.get(rule.action)
+        if action_func:
+            try:
+                if pd.api.types.is_object_dtype(df[col_to_clean]):
+                    df[col_to_clean] = action_func(df[col_to_clean])
+                else:
+                    logger.warning(f"Bỏ qua quy tắc '{rule.action}' cho cột '{col_to_clean}' vì nó không phải kiểu chuỗi.")
+            except Exception as e:
+                logger.error(f"Lỗi khi áp dụng quy tắc '{rule.action}' cho cột '{col_to_clean}': {e}")
+        else:
+            logger.warning(f"Hành động làm sạch '{rule.action}' chưa được hỗ trợ. Bỏ qua.")
 
     return df
 
+def _handle_numeric_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
+    in_num_col = config.rename_map.get('in_num', 'in_num')
+    out_num_col = config.rename_map.get('out_num', 'out_num')
+
+    if in_num_col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[in_num_col]):
+            original_neg_count = (df[in_num_col] < 0).sum()
+            if original_neg_count > 0:
+                df[in_num_col] = df[in_num_col].apply(lambda x: max(0, x))
+                logger.info(f"Đã chuyển đổi {original_neg_count} giá trị âm thành 0 cho cột '{in_num_col}'.")
+            df[in_num_col] = pd.to_numeric(df[in_num_col], errors='coerce').fillna(0).astype(int)
+        else:
+            logger.warning(f"Cột '{in_num_col}' không phải kiểu số. Bỏ qua xử lý số âm và chuyển đổi kiểu.")
+            df[in_num_col] = pd.to_numeric(df[in_num_col], errors='coerce').fillna(0).astype(int)
+
+    if out_num_col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[out_num_col]):
+            original_neg_count = (df[out_num_col] < 0).sum()
+            if original_neg_count > 0:
+                df[out_num_col] = df[out_num_col].apply(lambda x: max(0, x))
+                logger.info(f"Đã chuyển đổi {original_neg_count} giá trị âm thành 0 cho cột '{out_num_col}'.")
+            df[out_num_col] = pd.to_numeric(df[out_num_col], errors='coerce').fillna(0).astype(int)
+        else:
+            logger.warning(f"Cột '{out_num_col}' không phải kiểu số. Bỏ qua xử lý số âm và chuyển đổi kiểu.")
+            df[out_num_col] = pd.to_numeric(df[out_num_col], errors='coerce').fillna(0).astype(int)
+    return df
+
 def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Chuyển đổi kiểu dữ liệu cho cột timestamp và tạo các cột phân vùng (partition).
-    """
-    # # Lấy tên cột timestamp sau khi đã được đổi tên
-    # ts_col_renamed = config.rename_map.get(config.timestamp_col)
-
-    # <-- TỐI ƯU: Sử dụng thuộc tính đã được tạo sẵn từ config
     ts_col = config.final_timestamp_col
-
     if ts_col and ts_col in df.columns:
-        # Chuyển đổi sang datetime, các giá trị lỗi sẽ trở thành NaT (Not a Time)
         df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
 
-        # Xóa các dòng có timestamp không hợp lệ
-        df.dropna(subset=[ts_col], inplace=True)
+        num_nat = df[ts_col].isna().sum()
+        if num_nat > 0:
+            logger.warning(f"Đã chuyển đổi {num_nat} giá trị không hợp lệ thành NaT trong cột '{ts_col}'.")
 
-        # Tạo các cột phân vùng nếu cần và dataframe không rỗng
+        original_rows = len(df)
+        df.dropna(subset=[ts_col], inplace=True)
+        if len(df) < original_rows:
+            logger.info(f"Đã loại bỏ {original_rows - len(df)} hàng do giá trị NaT trong cột '{ts_col}'.")
+
         if not df.empty and config.partition_cols:
-            df['year'] = df[ts_col].dt.year
-            df['month'] = df[ts_col].dt.month
+            if 'year' in config.partition_cols and 'year' not in df.columns:
+                df['year'] = df[ts_col].dt.year
+            if 'month' in config.partition_cols and 'month' not in df.columns:
+                df['month'] = df[ts_col].dt.month
+
+            if 'year' in df.columns:
+                df['year'] = pd.to_numeric(df['year'], errors='coerce').fillna(-1).astype(int)
+            if 'month' in df.columns:
+                df['month'] = pd.to_numeric(df['month'], errors='coerce').fillna(-1).astype(int)
+    return df
+
+def _ensure_data_types(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
+    store_id_col = config.rename_map.get('storeid', 'storeid')
+    if store_id_col in df.columns:
+        df[store_id_col] = pd.to_numeric(df[store_id_col], errors='coerce').fillna(-1).astype(int)
+
+    log_id_col = config.rename_map.get('ID', 'ID')
+    if log_id_col in df.columns:
+        df[log_id_col] = pd.to_numeric(df[log_id_col], errors='coerce').fillna(-1).astype('int64')
+
+    device_code_col = config.rename_map.get('DeviceCode', 'DeviceCode')
+    if device_code_col in df.columns:
+        df[device_code_col] = pd.to_numeric(df[device_code_col], errors='coerce').fillna(-1).astype(int)
+
+    error_code_col = config.rename_map.get('Errorcode', 'Errorcode')
+    if error_code_col in df.columns:
+        df[error_code_col] = pd.to_numeric(df[error_code_col], errors='coerce').fillna(-1).astype(int)
+
+    for col in df.columns:
+        if pd.api.types.is_object_dtype(df[col]):
+            df[col] = df[col].astype(str).replace({'None': None, 'NaT': None, 'nan': None})
 
     return df
 
 def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Điều phối và áp dụng tuần tự các bước transform cho DataFrame.
-    Đây là một pipeline biến đổi dữ liệu.
-    """
     df_transformed = (df.pipe(_rename_columns, config)
-                        .pipe(_clean_data, config)  # Truyền config vào hàm _clean_data
-                        .pipe(_handle_timestamps_and_partitions, config))
+                        .pipe(_clean_data, config)
+                        .pipe(_handle_numeric_data, config)
+                        .pipe(_handle_timestamps_and_partitions, config)
+                        .pipe(_ensure_data_types, config))
 
     return df_transformed
 
 def get_max_timestamp(df: pd.DataFrame, config: TableConfig) -> Optional[pd.Timestamp]:
-    """Lấy timestamp lớn nhất từ một chunk dữ liệu."""
-    if not config.incremental:
-        return None
+    if not config.incremental: return None
 
-    # # Đơn giản hóa logic: .get() sẽ trả về None nếu key không tồn tại
-    # ts_col = config.rename_map.get(config.timestamp_col)
-
-    # <-- TỐI ƯU: Sử dụng thuộc tính đã được tạo sẵn từ config, loại bỏ logic lặp lại
     ts_col = config.final_timestamp_col
-
     if ts_col and ts_col in df.columns:
-        # Đảm bảo cột là kiểu datetime trước khi lấy max
         if pd.api.types.is_datetime64_any_dtype(df[ts_col]):
             return df[ts_col].max()
 
     return None
-
-
-
-
-
-
-
-# def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-#     """Áp dụng các bước transform cơ bản cho DataFrame."""
-#     df_transformed = df.rename(columns=config.rename_map)
-
-#     # Xử lý các trường hợp cụ thể
-#     if 'store_name' in df_transformed.columns:
-#         df_transformed['store_name'] = df_transformed['store_name'].astype(str).str.rstrip()
-
-#     # Xử lý cột timestamp và tạo cột partition
-#     ts_col_renamed = config.rename_map.get(config.timestamp_col) if config.timestamp_col else None
-
-#     if ts_col_renamed and ts_col_renamed in df_transformed.columns:
-#         df_transformed[ts_col_renamed] = pd.to_datetime(df_transformed[ts_col_renamed], errors='coerce')
-#         df_transformed.dropna(subset=[ts_col_renamed], inplace=True)
-
-#         if not df_transformed.empty and config.partition_cols:
-#             df_transformed['year'] = df_transformed[ts_col_renamed].dt.year
-#             df_transformed['month'] = df_transformed[ts_col_renamed].dt.month
-
-#     return df_transformed
-
-# def get_max_timestamp(df: pd.DataFrame, config: TableConfig) -> Optional[pd.Timestamp]:
-#     """Lấy timestamp lớn nhất từ một chunk dữ liệu."""
-#     if not config.incremental:
-#         return None
-
-#     ts_col_renamed = config.rename_map.get(config.timestamp_col)
-#     if ts_col_renamed and ts_col_renamed in df.columns:
-#         return df[ts_col_renamed].max()
-
-#     return None

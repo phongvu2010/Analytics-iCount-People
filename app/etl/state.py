@@ -1,5 +1,3 @@
-# app/etl/state.py
-# File này sẽ quản lý việc đọc/ghi trạng thái của pipeline (lần cuối chạy tới đâu).
 import json
 import logging
 import pandas as pd
@@ -13,9 +11,7 @@ logger = logging.getLogger(__name__)
 STATE_FILE = Path(etl_settings.STATE_FILE)
 
 def load_etl_state() -> Dict[str, str]:
-    """Tải trạng thái ETL cuối cùng từ file JSON."""
-    if not STATE_FILE.exists():
-        return {}
+    if not STATE_FILE.exists(): return {}
 
     try:
         with STATE_FILE.open('r', encoding='utf-8') as f:
@@ -25,8 +21,6 @@ def load_etl_state() -> Dict[str, str]:
         return {}
 
 def save_etl_state(state: Dict[str, str]):
-    """Lưu trạng thái ETL hiện tại vào file JSON."""
-    # Đảm bảo thư mục tồn tại trước khi ghi file
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with STATE_FILE.open('w', encoding='utf-8') as f:
         json.dump(state, f, indent=4)
@@ -34,10 +28,15 @@ def save_etl_state(state: Dict[str, str]):
     logger.debug(f"Trạng thái ETL đã được lưu vào {STATE_FILE}")
 
 def get_last_timestamp(state: Dict[str, str], table_name: str) -> str:
-    """Lấy high-water-mark (timestamp cuối) cho một bảng."""
     return state.get(table_name, etl_settings.ETL_DEFAULT_TIMESTAMP)
 
 def update_timestamp(state: Dict[str, str], table_name: str, new_timestamp: pd.Timestamp):
-    """Cập nhật high-water-mark cho một bảng."""
     if pd.notna(new_timestamp):
         state[table_name] = new_timestamp.isoformat(sep=' ')
+        logger.debug(f"Đã cập nhật timestamp cho '{table_name}': {state[table_name]}")
+    else:
+        logger.warning(
+            f"Không thể cập nhật timestamp cho bảng '{table_name}' vì 'new_timestamp' là NaT "
+            "(có thể do không có dữ liệu mới hoặc tất cả timestamp đều không hợp lệ). "
+            "Trạng thái high-water mark sẽ không thay đổi."
+        )

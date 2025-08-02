@@ -3,17 +3,14 @@ disable_existing_loggers: false
 
 filters:
   below_warning:
-    # Cú pháp '()' này chỉ định class sẽ được khởi tạo.
-    (): app.utils.logger.MaxLevelFilter # Giả sử file tên là logger.py
+    (): app.utils.logger.MaxLevelFilter
     level: WARNING
 
 formatters:
   default:
     format: "%(asctime)s - %(levelname)s - [%(filename)s] - %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
-
   json:
-    # Cần cài đặt thư viện: pip install python-json-logger
     class: pythonjsonlogger.jsonlogger.JsonFormatter
     format: "%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)d %(message)s"
 
@@ -23,14 +20,12 @@ handlers:
     level: DEBUG
     formatter: default
     stream: ext://sys.stdout
-    filters: [below_warning] # Áp dụng filter để chỉ log INFO, DEBUG
-
+    filters: [below_warning]
   stderr:
     class: logging.StreamHandler
-    level: WARNING # Handler này chỉ xử lý từ WARNING trở lên
+    level: WARNING
     formatter: default
     stream: ext://sys.stderr
-
   file:
     class: logging.handlers.TimedRotatingFileHandler
     level: INFO
@@ -40,18 +35,16 @@ handlers:
     interval: 1
     backupCount: 14
     encoding: utf-8
-
   file_json:
     class: logging.handlers.TimedRotatingFileHandler
     level: INFO
-    formatter: json # Sử dụng formatter JSON
-    filename: logs/app.json.log # Ghi ra file log JSON riêng biệt
+    formatter: json
+    filename: logs/app.json.log
     when: midnight
     interval: 1
     backupCount: 14
     encoding: utf-8
 
-# Cấu hình cho root logger, áp dụng cho toàn bộ ứng dụng
 root:
-  level: INFO # Mặc dù handler có level riêng, level ở root là ngưỡng cuối cùng
+  level: INFO
   handlers: [stdout, stderr, file, file_json]
