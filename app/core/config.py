@@ -73,6 +73,7 @@ class EtlSettings(BaseSettings):
 
     ETL_CHUNK_SIZE: int = 100000
     ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
+    ETL_CLEANUP_ON_FAILURE: bool = True
     TABLE_CONFIG_PATH: Path = 'configs/tables.yaml'
     TABLE_CONFIG: Dict[str, TableConfig] = {}
 

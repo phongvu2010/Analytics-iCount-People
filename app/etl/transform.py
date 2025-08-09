@@ -101,21 +101,17 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
     return df
 
 def _ensure_data_types(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    store_id_col = config.rename_map.get('storeid', 'storeid')
-    if store_id_col in df.columns:
-        df[store_id_col] = pd.to_numeric(df[store_id_col], errors='coerce').fillna(-1).astype(int)
+    id_cols = {
+        'storeid': 'store_id',
+        'ID': 'log_id',
+        'DeviceCode': 'device_code',
+        'Errorcode': 'error_code'
+    }
 
-    log_id_col = config.rename_map.get('ID', 'ID')
-    if log_id_col in df.columns:
-        df[log_id_col] = pd.to_numeric(df[log_id_col], errors='coerce').fillna(-1).astype('int64')
-
-    device_code_col = config.rename_map.get('DeviceCode', 'DeviceCode')
-    if device_code_col in df.columns:
-        df[device_code_col] = pd.to_numeric(df[device_code_col], errors='coerce').fillna(-1).astype(int)
-
-    error_code_col = config.rename_map.get('Errorcode', 'Errorcode')
-    if error_code_col in df.columns:
-        df[error_code_col] = pd.to_numeric(df[error_code_col], errors='coerce').fillna(-1).astype(int)
+    for source_col, dest_col in id_cols.items():
+        final_col_name = config.rename_map.get(source_col, dest_col)
+        if final_col_name in df.columns:
+            df[final_col_name] = pd.to_numeric(df[final_col_name], errors='coerce').astype('Int64')
 
     for col in df.columns:
         if pd.api.types.is_object_dtype(df[col]):

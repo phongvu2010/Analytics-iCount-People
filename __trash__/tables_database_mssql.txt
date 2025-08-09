@@ -1,0 +1,18 @@
+dbo.store: Bảng ghi vị trí thiết bị cửa ra vào
+├── tid:            (int, not_null)
+└── name:           (char(80), not_null)
+
+dbo.ErrLog: Bảng ghi lỗi hệ thống thiết bị
+├── ID:             (bigint, not_null)
+├── storeid:        (int, not_null) - (mapping dbo.store.tid)
+├── DeviceCode:     (smallint, )
+├── LogTime:        (datetime, )
+├── Errorcode:      (int, )
+└── ErrorMessage:   (nchar(120), )
+
+dbo.num_crowd: Bảng đếm dữ liệu ra vào tại thiết bị 
+├── recordtime:     (datetime, )
+├── in_num:         (int, not_null)
+├── out_num:        (int, not_null)
+├── position:       (char(30), )
+└── storeid:        (int, not_null) - (mapping dbo.store.tid)
