@@ -13,8 +13,8 @@ import pandera.pandas as pa
 from pathlib import Path
 from typing import List, Optional
 
-from app.core.config import TableConfig, etl_settings
-from app.etl.schemas import table_schemas
+from .schemas import table_schemas
+from ..core.config import TableConfig, etl_settings
 
 logger = logging.getLogger(__name__)
 

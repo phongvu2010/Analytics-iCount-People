@@ -12,7 +12,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Iterator
 
-from app.core.config import etl_settings, TableConfig
+from ..core.config import etl_settings, TableConfig
 
 logger = logging.getLogger(__name__)
 

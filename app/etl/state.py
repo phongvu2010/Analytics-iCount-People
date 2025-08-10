@@ -13,7 +13,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict
 
-from app.core.config import etl_settings
+from ..core.config import etl_settings
 
 logger = logging.getLogger(__name__)
 STATE_FILE = Path(etl_settings.STATE_FILE)

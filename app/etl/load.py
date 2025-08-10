@@ -17,7 +17,7 @@ from duckdb import DuckDBPyConnection
 from pathlib import Path
 from typing import Optional
 
-from app.core.config import etl_settings, TableConfig
+from ..core.config import etl_settings, TableConfig
 
 logger = logging.getLogger(__name__)
 BASE_DATA_PATH = Path(etl_settings.DATA_DIR)
