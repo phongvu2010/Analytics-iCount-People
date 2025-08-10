@@ -1,41 +1,51 @@
+"""
+Định nghĩa tất cả các model cấu hình cho dự án bằng Pydantic.
+
+Module này sử dụng pydantic-settings để đọc cấu hình từ file .env
+và file tables.yaml, cung cấp một đối tượng `etl_settings` duy nhất,
+đã được xác thực và có kiểu dữ liệu rõ ràng cho toàn bộ ứng dụng.
+"""
 import yaml
 
 from pathlib import Path
 from pydantic import BaseModel, Field, model_validator, TypeAdapter, ValidationError
-from pydantic_core import Url
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, List, Literal, Optional
 from urllib import parse
 
 class CleaningRule(BaseModel):
-    column: str
-    action: Literal['strip']
+    """ Định nghĩa một quy tắc làm sạch dữ liệu cho một cột. """
+    column: str # Tên cột gốc trong source_table
+    action: Literal['strip'] # Hành động làm sạch (hiện chỉ hỗ trợ 'strip')
 
 class TableConfig(BaseModel):
-    source_table: str
-    dest_table: str
-    incremental: bool = True
-    rename_map: Dict[str, str] = {}
-    partition_cols: List[str] = []
-    cleaning_rules: List[CleaningRule] = Field(default_factory=list)
-
-    timestamp_col: Optional[str] = None
+    """ Cấu hình chi tiết cho việc xử lý một bảng. """
+    source_table: str                       # Tên bảng nguồn trong MS SQL
+    dest_table: str                         # Tên bảng đích trong DuckDB
+    incremental: bool = True                # True: chạy incremental, False: full-load
+    rename_map: Dict[str, str] = {}         # Mapping đổi tên cột
+    partition_cols: List[str] = []          # Danh sách các cột để partition trong Parquet
+    cleaning_rules: List[CleaningRule] = Field(default_factory=list) # Danh sách quy tắc làm sạch
+    timestamp_col: Optional[str] = None     # Tên cột timestamp cho incremental load
 
     @model_validator(mode='after')
     def validate_incremental_config(self) -> 'TableConfig':
+        """ Xác thực rằng timestamp_col phải được cung cấp khi chạy incremental. """
         if self.incremental and not self.timestamp_col:
             raise ValueError(
-                f"Cấu hình cho bảng '{self.source_table}': Cần cung cấp 'timestamp_col' khi 'incremental' là True."
+                f"Cấu hình cho '{self.source_table}': 'timestamp_col' là bắt buộc khi 'incremental' là True."
             )
         return self
 
     @property
     def final_timestamp_col(self) -> Optional[str]:
+        """ Lấy tên cột timestamp cuối cùng (sau khi đã đổi tên). """
         if not self.timestamp_col: return None
         return self.rename_map.get(self.timestamp_col, self.timestamp_col)
 
 class DatabaseSettings(BaseModel):
-    SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'
+    """ Cấu hình kết nối tới MS SQL Server. """
+    SQLSERVER_DRIVER: str
     SQLSERVER_SERVER: str
     SQLSERVER_DATABASE: str
     SQLSERVER_UID: str
@@ -43,12 +53,10 @@ class DatabaseSettings(BaseModel):
 
     @property
     def sqlalchemy_db_uri(self) -> str:
-        # URL-encode the password to handle special characters
+        """ Tạo chuỗi kết nối SQLAlchemy từ các biến cấu hình. """
         encoded_pwd = parse.quote_plus(self.SQLSERVER_PWD)
         driver_for_query = self.SQLSERVER_DRIVER.replace(' ', '+')
 
-        # Trả về chuỗi kết nối SQLAlchemy cho SQL Server
-        # Sử dụng pyodbc driver
         return (
             f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}@"
             f"{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}?"
@@ -56,28 +64,51 @@ class DatabaseSettings(BaseModel):
         )
 
 class EtlSettings(BaseSettings):
+    """ Model cấu hình chính, tổng hợp tất cả các thiết lập. """
     model_config = SettingsConfigDict(
         env_file='.env',
         env_file_encoding='utf-8',
-        extra='ignore' # Bỏ qua các biến môi trường không được định nghĩa trong model
+        extra='ignore' # Bỏ qua các biến môi trường không có trong model
     )
 
-    # 1. Đưa các trường cấu hình DB lên cấp cao nhất của EtlSettings
-    #    để pydantic-settings có thể đọc trực tiếp từ file .env
+    # --- Database Credentials (đọc từ .env) ---
     SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'
     SQLSERVER_SERVER: str
     SQLSERVER_DATABASE: str
     SQLSERVER_UID: str
     SQLSERVER_PWD: str
 
-    # 2. Định nghĩa trường 'db' là Optional, chúng ta sẽ tạo nó ngay sau đây
-    db: Optional[DatabaseSettings] = None
+    # --- Các thiết lập chung cho ETL ---
+    DATA_DIR: Path = Path('data')
+    ETL_CHUNK_SIZE: int = 100000
+    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
+    ETL_CLEANUP_ON_FAILURE: bool = True
+    TABLE_CONFIG_PATH: Path = Path('configs/tables.yaml')
 
-    # 3. Sử dụng model_validator để xây dựng đối tượng 'db' sau khi đã đọc các biến
+    # --- Các thuộc tính được tính toán ---
+    db: Optional[DatabaseSettings] = None
+    TABLE_CONFIG: Dict[str, TableConfig] = {}
+
+    @property
+    def DUCKDB_PATH(self) -> Path:
+        """ Đường dẫn đến file database DuckDB. """
+        return self.DATA_DIR / 'analytics.duckdb'
+
+    @property
+    def STATE_FILE(self) -> Path:
+        """ Đường dẫn đến file JSON lưu trạng thái ETL. """
+        return self.DATA_DIR / 'etl_state.json'
+
+    # --- Validators ---
     @model_validator(mode='after')
-    def assemble_db_settings(self) -> 'EtlSettings':
-        # Sau khi các biến SQLSERVER_* đã được load,
-        # chúng ta dùng chúng để tạo đối tượng DatabaseSettings
+    def assemble_settings(self) -> 'EtlSettings':
+        """
+        Validator chạy sau khi các biến môi trường đã được load.
+        Nó thực hiện hai việc:
+        1. Tạo đối tượng `DatabaseSettings` từ các biến SQLSERVER_*.
+        2. Tải và xác thực cấu hình bảng từ file `tables.yaml`.
+        """
+        # 1. Tạo đối tượng db
         if not self.db:
             self.db = DatabaseSettings(
                 SQLSERVER_DRIVER=self.SQLSERVER_DRIVER,
@@ -86,25 +117,8 @@ class EtlSettings(BaseSettings):
                 SQLSERVER_UID=self.SQLSERVER_UID,
                 SQLSERVER_PWD=self.SQLSERVER_PWD
             )
-        return self
 
-    DATA_DIR: Path = Path('data')
-    ETL_CHUNK_SIZE: int = 100000
-    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
-    ETL_CLEANUP_ON_FAILURE: bool = True
-    TABLE_CONFIG_PATH: Path = Path('configs/tables.yaml')
-    TABLE_CONFIG: Dict[str, TableConfig] = {}
-
-    @property
-    def DUCKDB_PATH(self) -> Path:
-        return self.DATA_DIR / 'analytics.duckdb'
-
-    @property
-    def STATE_FILE(self) -> Path:
-        return self.DATA_DIR / 'etl_state.json'
-
-    @model_validator(mode='after')
-    def load_and_validate_table_config(self) -> 'EtlSettings':
+        # 2. Tải cấu hình bảng
         if self.TABLE_CONFIG: return self
 
         try:
@@ -112,19 +126,17 @@ class EtlSettings(BaseSettings):
                 raw_config = yaml.safe_load(f)
 
             if not raw_config:
-                raise ValueError(f"File cấu hình bảng '{self.TABLE_CONFIG_PATH}' rỗng hoặc không hợp lệ.")
+                raise ValueError(f"File cấu hình '{self.TABLE_CONFIG_PATH}' rỗng.")
 
+            # Dùng TypeAdapter để xác thực một dictionary phức tạp
             adapter = TypeAdapter(Dict[str, TableConfig])
             self.TABLE_CONFIG = adapter.validate_python(raw_config)
         except FileNotFoundError:
             raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
-        except yaml.YAMLError as e:
-            raise ValueError(f"Lỗi phân tích cú pháp file YAML cấu hình bảng '{self.TABLE_CONFIG_PATH}': {e}.")
-        except ValidationError as e:
-            raise ValueError(f"Lỗi xác thực cấu hình bảng từ file '{self.TABLE_CONFIG_PATH}':\n{e}.")
-        except Exception as e:
-            raise ValueError(f"Lỗi không xác định khi tải hoặc xác thực cấu hình bảng: {e}")
+        except (yaml.YAMLError, ValidationError) as e:
+            raise ValueError(f"Lỗi cú pháp hoặc nội dung file cấu hình bảng '{self.TABLE_CONFIG_PATH}':\n{e}.")
 
         return self
 
+# Khởi tạo một đối tượng settings duy nhất để sử dụng trong toàn bộ ứng dụng
 etl_settings = EtlSettings()
