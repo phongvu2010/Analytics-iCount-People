@@ -1,5 +1,3 @@
-### Sơ đồ cấu trúc dự án:
-```
 iCount/
 ├── app/
 │   ├── api/                            # (Dành cho Giai đoạn 2) Chứa logic API của FastAPI
@@ -14,7 +12,7 @@ iCount/
 │   │   ├── load.py
 │   │   ├── state.py
 │   │   └── transform.py
-│   ├── schemas/                        # (Dành cho Giai đoạn 2) Định nghĩa các Pydantic model/schema
+│   ├── schemas/                        # (Dành cho Giai đoạn 2) Định nghĩa các Pydantic model/schemas
 │   ├── utils/
 │   │   └── logger.py
 │   └── main.py                         # Entrypoint cho cả CLI (ETL) và chạy web server
@@ -23,7 +21,7 @@ iCount/
 │   └── tables.yaml
 ├── data/                               # Nơi lưu trữ file DuckDB
 ├── logs/                               # Nơi lưu trữ file log
-├── template/
+├── template/                           # (Dành cho Giai đoạn 3)
 │   ├── partials/
 │   │   ├── _charts.html                # Phần chứa các biểu đồ
 │   │   ├── _error_modal.html           # Phần chứa các error modal
@@ -52,53 +50,3 @@ iCount/
 ├── .gitignore
 ├── pyproject.toml                      # Thay cho requirements.txt để quản lý dependency tốt hơn
 └── README.md
-```
-
-### Cấu trúc DB SQL Server
-```
-dbo.store: Bảng ghi vị trí thiết bị cửa ra vào
-├── tid:            (int, not_null)
-└── name:           (char(80), not_null) ( Tên vị trí cửa đặt thiết bị )
-
-dbo.ErrLog: Bảng ghi lỗi hệ thống thiết bị
-├── ID:             (bigint, not_null)
-├── storeid:        (int, not_null) - (mapping dbo.store.tid)
-├── DeviceCode:     (smallint, )
-├── LogTime:        (datetime, )
-├── Errorcode:      (int, )
-└── ErrorMessage:   (nchar(120), )
-
-dbo.num_crowd: Bảng đếm dữ liệu ra vào tại thiết bị 
-├── recordtime:     (datetime, )
-├── in_num:         (int, not_null)
-├── out_num:        (int, not_null)
-├── position:       (char(30), )
-└── storeid:        (int, not_null) - (mapping dbo.store.tid)
-
-dbo.Status
-├── ID:             (int, not_null)
-├── storeid:        (int, not_null) - (mapping dbo.store.tid)
-├── FlashNum:       (int, )
-├── RamNum:         (int, )
-├── RC1:            (bit, )
-├── RC2:            (bit, )
-├── RC3:            (bit, )
-├── RC4:            (bit, )
-├── RC5:            (bit, )
-├── RC6:            (bit, )
-├── RC7:            (bit, )
-├── RC8:            (bit, )
-├── DcID:           (smallint, )
-├── FV:             (nchar(20), )
-├── DcTime:         (datetime, )
-├── DeviceID:       (smallint, )
-├── IA:             (int, )
-├── OA:             (int, )
-├── S:              (smallint, )
-└── T:              (datetime, )
-```
-
-### Để chạy quy trình ETL: python -m app.main run-etl
-### Để chạy web server: python -m app.main serve
-### Bạn cũng có thể thay đổi host và port: python -m app.main serve --host 0.0.0.0 --port 8888
-### Để xem tất cả các lệnh có sẵn: python -m app.main --help

@@ -43,25 +43,57 @@ class DatabaseSettings(BaseModel):
 
     @property
     def sqlalchemy_db_uri(self) -> str:
-        return str(Url.build(
-            scheme='mssql+pyodbc',
-            username=self.SQLSERVER_UID,
-            password=parse.quote_plus(self.SQLSERVER_PWD),
-            host=self.SQLSERVER_SERVER,
-            path=f"{self.SQLSERVER_DATABASE}",
-            query=f"driver={self.SQLSERVER_DRIVER.replace(' ', '+')}"
-        ))
+        # URL-encode the password to handle special characters
+        encoded_pwd = parse.quote_plus(self.SQLSERVER_PWD)
+        driver_for_query = self.SQLSERVER_DRIVER.replace(' ', '+')
+
+        # Trả về chuỗi kết nối SQLAlchemy cho SQL Server
+        # Sử dụng pyodbc driver
+        return (
+            f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}@"
+            f"{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}?"
+            f"driver={driver_for_query}"
+        )
 
 class EtlSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file='.env',
         env_file_encoding='utf-8',
-        extra='ignore'
+        extra='ignore' # Bỏ qua các biến môi trường không được định nghĩa trong model
     )
 
-    db: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    # 1. Đưa các trường cấu hình DB lên cấp cao nhất của EtlSettings
+    #    để pydantic-settings có thể đọc trực tiếp từ file .env
+    SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'
+    SQLSERVER_SERVER: str
+    SQLSERVER_DATABASE: str
+    SQLSERVER_UID: str
+    SQLSERVER_PWD: str
 
-    DATA_DIR: Path = 'data'
+    # 2. Định nghĩa trường 'db' là Optional, chúng ta sẽ tạo nó ngay sau đây
+    db: Optional[DatabaseSettings] = None
+
+    # 3. Sử dụng model_validator để xây dựng đối tượng 'db' sau khi đã đọc các biến
+    @model_validator(mode='after')
+    def assemble_db_settings(self) -> 'EtlSettings':
+        # Sau khi các biến SQLSERVER_* đã được load,
+        # chúng ta dùng chúng để tạo đối tượng DatabaseSettings
+        if not self.db:
+            self.db = DatabaseSettings(
+                SQLSERVER_DRIVER=self.SQLSERVER_DRIVER,
+                SQLSERVER_SERVER=self.SQLSERVER_SERVER,
+                SQLSERVER_DATABASE=self.SQLSERVER_DATABASE,
+                SQLSERVER_UID=self.SQLSERVER_UID,
+                SQLSERVER_PWD=self.SQLSERVER_PWD
+            )
+        return self
+
+    DATA_DIR: Path = Path('data')
+    ETL_CHUNK_SIZE: int = 100000
+    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
+    ETL_CLEANUP_ON_FAILURE: bool = True
+    TABLE_CONFIG_PATH: Path = Path('configs/tables.yaml')
+    TABLE_CONFIG: Dict[str, TableConfig] = {}
 
     @property
     def DUCKDB_PATH(self) -> Path:
@@ -70,12 +102,6 @@ class EtlSettings(BaseSettings):
     @property
     def STATE_FILE(self) -> Path:
         return self.DATA_DIR / 'etl_state.json'
-
-    ETL_CHUNK_SIZE: int = 100000
-    ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
-    ETL_CLEANUP_ON_FAILURE: bool = True
-    TABLE_CONFIG_PATH: Path = 'configs/tables.yaml'
-    TABLE_CONFIG: Dict[str, TableConfig] = {}
 
     @model_validator(mode='after')
     def load_and_validate_table_config(self) -> 'EtlSettings':
@@ -91,14 +117,11 @@ class EtlSettings(BaseSettings):
             adapter = TypeAdapter(Dict[str, TableConfig])
             self.TABLE_CONFIG = adapter.validate_python(raw_config)
         except FileNotFoundError:
-            raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}. "
-                             "Hãy đảm bảo đường dẫn chính xác và file tồn tại.")
+            raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
         except yaml.YAMLError as e:
-            raise ValueError(f"Lỗi phân tích cú pháp file YAML cấu hình bảng '{self.TABLE_CONFIG_PATH}': {e}. "
-                             "Kiểm tra định dạng YAML.")
+            raise ValueError(f"Lỗi phân tích cú pháp file YAML cấu hình bảng '{self.TABLE_CONFIG_PATH}': {e}.")
         except ValidationError as e:
-            raise ValueError(f"Lỗi xác thực cấu hình bảng từ file '{self.TABLE_CONFIG_PATH}':\n{e}. "
-                             "Kiểm tra cấu trúc file tables.yaml.")
+            raise ValueError(f"Lỗi xác thực cấu hình bảng từ file '{self.TABLE_CONFIG_PATH}':\n{e}.")
         except Exception as e:
             raise ValueError(f"Lỗi không xác định khi tải hoặc xác thực cấu hình bảng: {e}")
 
