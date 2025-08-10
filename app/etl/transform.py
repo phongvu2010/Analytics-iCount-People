@@ -10,9 +10,10 @@ import logging
 import pandas as pd
 import pandera.pandas as pa
 
+from pathlib import Path
 from typing import List, Optional
 
-from app.core.config import TableConfig
+from app.core.config import TableConfig, etl_settings
 from app.etl.schemas import table_schemas
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,21 @@ def _select_final_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame
     # Trả về DataFrame chỉ với các cột đã được chọn lọc
     return df[final_columns]
 
+def _save_rejected_data(df: pd.DataFrame, config: TableConfig):
+    """ Lưu các hàng dữ liệu bị từ chối vào một file Parquet riêng. """
+    rejected_path = etl_settings.DATA_DIR / 'rejected' / config.dest_table
+    rejected_path.mkdir(parents=True, exist_ok=True)
+
+    # Tạo tên file duy nhất dựa trên timestamp hiện tại
+    timestamp_str = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S_%f')
+    file_path = rejected_path / f"rejected_{timestamp_str}.parquet"
+
+    try:
+        df.to_parquet(file_path, index=False)
+        logger.warning(f"Đã lưu {len(df)} hàng dữ liệu không hợp lệ vào: {file_path}")
+    except Exception as e:
+        logger.error(f"Không thể lưu dữ liệu không hợp lệ: {e}")
+
 def _validate_with_pandera(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     """ Xác thực DataFrame với schema Pandera tương ứng. """
     schema = table_schemas.get(config.dest_table)
@@ -50,6 +66,12 @@ def _validate_with_pandera(df: pd.DataFrame, config: TableConfig) -> pd.DataFram
     except pa.errors.SchemaErrors as err:
         logger.error(f"Xác thực dữ liệu cho bảng '{config.dest_table}' thất bại!")
         logger.error(f"Chi tiết lỗi schema:\n{err.failure_cases.to_string()}")
+
+        # Triển khai "Dead-Letter Queue"
+        # Lưu các hàng lỗi vào một file riêng để phân tích sau.
+        if not err.failure_cases.empty:
+            _save_rejected_data(err.failure_cases, config)
+
         # Ném lại lỗi để quy trình ETL cho bảng này dừng lại và được ghi nhận là FAILED
         raise
 

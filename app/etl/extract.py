@@ -36,18 +36,37 @@ def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str
     Raises:
         SQLAlchemyError: Nếu có lỗi xảy ra trong quá trình thực thi câu lệnh SQL.
     """
-    # Xây dựng câu lệnh SELECT cơ bản
-    # Lưu ý: f-string ở đây an toàn vì tên bảng/cột được kiểm soát nội bộ qua config
-    query = f"SELECT * FROM {config.source_table}"
+    # Lấy danh sách các cột nguồn cần thiết từ `rename_map`.
+    source_columns = list(config.rename_map.keys())
+
+    # Nếu là incremental, đảm bảo cột timestamp có trong danh sách.
+    if config.timestamp_col and config.timestamp_col not in source_columns:
+        source_columns.append(config.timestamp_col)
+
+    if not source_columns:
+        # Fallback về `*` nếu không có cột nào được định nghĩa, kèm cảnh báo.
+        logger.warning(
+            f"Không có cột nào được định nghĩa trong 'rename_map' cho '{config.source_table}'. "
+            "Quay về sử dụng 'SELECT *'. Cân nhắc định nghĩa rõ các cột để tối ưu hiệu suất."
+        )
+        columns_selection = "*"
+    else:
+        # Xây dựng chuỗi các cột được chọn, bọc trong dấu ngoặc vuông
+        # để xử lý các tên cột có thể chứa ký tự đặc biệt hoặc là từ khóa của SQL.
+        columns_selection = ", ".join(f"[{col}]" for col in source_columns)
+
+    query = f"SELECT {columns_selection} FROM {config.source_table}"
     params = {}
 
     # Nếu là incremental load, thêm mệnh đề WHERE và ORDER BY
     if config.incremental and config.timestamp_col:
-        query += f" WHERE {config.timestamp_col} > :last_ts ORDER BY {config.timestamp_col}"
+        query += f" WHERE [{config.timestamp_col}] > :last_ts ORDER BY [{config.timestamp_col}]"
         params = {"last_ts": last_timestamp}
         logger.info(f"Trích xuất incremental từ '{config.source_table}' với high-water-mark > '{last_timestamp}'.")
     else:
         logger.info(f"Trích xuất full-load từ '{config.source_table}'.")
+
+    logger.debug(f"Executing SQL: {query} with params: {params}")
 
     try:
         # Sử dụng pd.read_sql với chunksize để trả về một iterator

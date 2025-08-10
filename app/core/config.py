@@ -23,6 +23,8 @@ class TableConfig(BaseModel):
     source_table: str                       # Tên bảng nguồn trong MS SQL
     dest_table: str                         # Tên bảng đích trong DuckDB
     incremental: bool = True                # True: chạy incremental, False: full-load
+    description: Optional[str] = None       # Mô tả mục đích của bảng
+    processing_order: int = 99              # Thứ tự xử lý để đảm bảo dependency
     rename_map: Dict[str, str] = {}         # Mapping đổi tên cột
     partition_cols: List[str] = []          # Danh sách các cột để partition trong Parquet
     cleaning_rules: List[CleaningRule] = Field(default_factory=list) # Danh sách quy tắc làm sạch

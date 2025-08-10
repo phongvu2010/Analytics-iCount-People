@@ -147,11 +147,18 @@ def run_etl():
     succeeded_tables, failed_tables = [], []
     etl_state = state.load_etl_state()
 
+    # Sắp xếp các bảng theo thứ tự xử lý đã định nghĩa trong config.
+    # Điều này đảm bảo các bảng dimension được tạo/cập nhật trước các bảng fact.
+    tables_to_process = sorted(
+        etl_settings.TABLE_CONFIG.items(),
+        key=lambda item: item[1].processing_order
+    )
+
     try:
         # Sử dụng context manager để quản lý kết nối một cách an toàn
         with database_connections() as (sql_engine, duckdb_conn):
-            # Lặp qua từng bảng trong file cấu hình
-            for table_name, config in etl_settings.TABLE_CONFIG.items():
+            # Lặp qua danh sách các bảng đã được sắp xếp
+            for table_name, config in tables_to_process:
                 try:
                     _process_table(sql_engine, duckdb_conn, config, etl_state)
                     # Lưu lại trạng thái ngay sau khi một bảng xử lý thành công

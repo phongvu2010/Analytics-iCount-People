@@ -144,12 +144,20 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
         logger.info(f"Bắt đầu hoán đổi bảng chính '{dest_table}'...")
         swap_sql = f"""
         BEGIN TRANSACTION;
-        -- Xóa bảng backup cũ nếu nó còn tồn tại từ lần chạy trước bị lỗi
+
+        -- Bước 1: Dọn dẹp bảng backup cũ (_old) nếu nó còn tồn tại
+        -- từ một lần chạy trước bị lỗi giữa chừng, đảm bảo trạng thái sạch.
         DROP TABLE IF EXISTS {dest_table}_old;
-        -- Đổi tên bảng chính hiện tại -> bảng backup (nếu bảng chính tồn tại)
+
+        -- Bước 2: Đổi tên bảng chính hiện tại thành bảng backup.
+        -- 'IF EXISTS' đảm bảo không có lỗi nếu đây là lần chạy đầu tiên
+        -- và bảng chính chưa tồn tại.
         ALTER TABLE IF EXISTS {dest_table} RENAME TO {dest_table}_old;
-        -- Nâng cấp bảng staging -> bảng chính
+
+        -- Bước 3: "Thăng cấp" bảng staging mới thành bảng chính.
+        -- Đây là bước hoán đổi cốt lõi, diễn ra cực nhanh và an toàn trong transaction.
         ALTER TABLE {staging_table} RENAME TO {dest_table};
+
         COMMIT;
         """
         conn.execute(swap_sql)
