@@ -1,7 +1,7 @@
 store:
   source_table: dbo.store
   dest_table: dim_stores
-  description: "Bảng dimension (bảng chiều) chứa thông tin định danh các cửa hàng."
+  description: 'Bảng dimension (bảng chiều) chứa thông tin định danh các cửa hàng.'
   processing_order: 10  # Chạy trước tiên
   incremental: false
   rename_map:
@@ -14,7 +14,7 @@ store:
 num_crowd:
   source_table: dbo.num_crowd
   dest_table: fact_traffic
-  description: "Bảng fact (bảng sự kiện) ghi nhận dữ liệu lượt ra/vào của khách."
+  description: 'Bảng fact (bảng sự kiện) ghi nhận dữ liệu lượt ra/vào của khách.'
   processing_order: 20  # Chạy sau store
   incremental: true
   timestamp_col: recordtime
@@ -32,7 +32,7 @@ num_crowd:
 ErrLog:
   source_table: dbo.ErrLog
   dest_table: fact_errors
-  description: "Bảng fact ghi nhận các lỗi phát sinh từ thiết bị đếm."
+  description: 'Bảng fact ghi nhận các lỗi phát sinh từ thiết bị đếm.'
   processing_order: 20  # Chạy sau store
   incremental: true
   timestamp_col: LogTime

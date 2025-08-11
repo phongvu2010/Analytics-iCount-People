@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 # Khởi tạo các ứng dụng
 cli_app = typer.Typer()
 api_app = FastAPI(
-    title="Analytics iCount People API",
-    version="1.0.0",
-    description="API cung cấp dữ liệu phân tích lượt ra vào cửa hàng."
+    title='Analytics iCount People API',
+    version='1.0.0',
+    description='API cung cấp dữ liệu phân tích lượt ra vào cửa hàng.'
 )
 
 @contextlib.contextmanager
@@ -56,14 +56,14 @@ def database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnection]]
     sql_engine, duckdb_conn = None, None
     try:
         # 1. Kết nối SQL Server
-        logger.info("Đang thiết lập kết nối tới MS SQL Server...")
+        logger.info('Đang thiết lập kết nối tới MS SQL Server...')
         sql_engine = create_engine(etl_settings.db.sqlalchemy_db_uri, pool_pre_ping=True)
         with sql_engine.connect() as connection:
-            connection.execute(text("SELECT 1")) # Ping để kiểm tra kết nối
-        logger.info("✅ Kết nối SQL Server thành công.")
+            connection.execute(text('SELECT 1')) # Ping để kiểm tra kết nối
+        logger.info('✅ Kết nối SQL Server thành công.')
 
         # 2. Kết nối DuckDB
-        logger.info("Đang thiết lập kết nối tới DuckDB...")
+        logger.info('Đang thiết lập kết nối tới DuckDB...')
         duckdb_path = str(etl_settings.DUCKDB_PATH.resolve())
         duckdb_conn = duckdb.connect(database=duckdb_path, read_only=False)
         logger.info(f"✅ Kết nối DuckDB ('{duckdb_path}') thành công.\n")
@@ -79,11 +79,11 @@ def database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnection]]
         # 3. Đóng kết nối
         if sql_engine:
             sql_engine.dispose()
-            logger.info("Kết nối SQL Server đã được đóng.")
+            logger.info('Kết nối SQL Server đã được đóng.')
 
         if duckdb_conn:
             duckdb_conn.close()
-            logger.info("Kết nối DuckDB đã được đóng.")
+            logger.info('Kết nối DuckDB đã được đóng.')
 
 def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, config: TableConfig, etl_state: dict):
     """
@@ -145,9 +145,9 @@ def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, c
 @cli_app.command()
 def run_etl():
     """ Chạy quy trình ETL hoàn chỉnh từ SQL Server sang DuckDB. """
-    logger.info("="*60)
-    logger.info("🚀 BẮT ĐẦU QUY TRÌNH ETL")
-    logger.info("="*60)
+    logger.info('='*60)
+    logger.info('🚀 BẮT ĐẦU QUY TRÌNH ETL')
+    logger.info('='*60)
 
     succeeded_tables, failed_tables = [], []
     etl_state = state.load_etl_state()
@@ -179,14 +179,14 @@ def run_etl():
         logger.critical(f"Quy trình ETL bị dừng do lỗi kết nối hoặc lỗi nghiêm trọng khác: {e}")
     finally:
         # In ra bản tóm tắt kết quả cuối cùng
-        logger.info("="*60)
-        logger.info("📊 TÓM TẮT KẾT QUẢ ETL")
+        logger.info('='*60)
+        logger.info('📊 TÓM TẮT KẾT QUẢ ETL')
         logger.info(f"Tổng số bảng cấu hình: {len(etl_settings.TABLE_CONFIG)}")
         logger.info(f"✅ Thành công: {len(succeeded_tables)}")
         logger.info(f"❌ Thất bại: {len(failed_tables)}")
         if failed_tables:
             logger.warning(f"Danh sách bảng thất bại: {', '.join(failed_tables)}")
-        logger.info("="*60 + "\n")
+        logger.info('='*60 + '\n')
 
 # --- Tích hợp router vào ứng dụng chính ---
 api_app.include_router(stores_router.router, prefix='/api/v1')
@@ -194,13 +194,13 @@ api_app.include_router(stores_router.router, prefix='/api/v1')
 @api_app.get('/', include_in_schema=False)
 def read_root():
     """ Endpoint gốc của API. """
-    return {"message": "Chào mừng đến với Analytics iCount People API"}
+    return {'message': 'Chào mừng đến với Analytics iCount People API'}
 
 @cli_app.command()
 def serve(
-    host: Annotated[str, typer.Option(help="Host để chạy server.")] = '127.0.0.1',
-    port: Annotated[int, typer.Option(help="Port để chạy server.")] = 8000,
-    reload: Annotated[bool, typer.Option(help="Tự động tải lại server khi có thay đổi.")] = True
+    host: Annotated[str, typer.Option(help='Host để chạy server.')] = '127.0.0.1',
+    port: Annotated[int, typer.Option(help='Port để chạy server.')] = 8000,
+    reload: Annotated[bool, typer.Option(help='Tự động tải lại server khi có thay đổi.')] = True
 ):
     """ Khởi chạy web server Uvicorn cho ứng dụng FastAPI. """
     # Chỉ định rõ thư mục cần giám sát cho việc tự động tải lại
@@ -208,7 +208,7 @@ def serve(
 
     logger.info(f"🚀 Khởi chạy FastAPI server tại http://{host}:{port}")
     uvicorn.run(
-        "app.main:api_app",
+        'app.main:api_app',
         host=host,
         port=port,
         reload=reload,

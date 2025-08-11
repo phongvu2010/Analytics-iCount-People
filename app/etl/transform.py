@@ -90,8 +90,8 @@ def _apply_strip(series: pd.Series) -> pd.Series:
 #     return series.astype(str).str.lower()
 
 CLEANING_ACTIONS = {
-    "strip": _apply_strip,
-    # "lowercase": _apply_lowercase,
+    'strip': _apply_strip,
+    # 'lowercase': _apply_lowercase,
 }
 
 def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:

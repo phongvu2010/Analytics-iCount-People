@@ -39,4 +39,4 @@ def get_db_connection() -> Iterator[duckdb.DuckDBPyConnection]:
     finally:
         if db_conn:
             db_conn.close()
-            logger.debug("API: Kết nối DuckDB đã được đóng.")
+            logger.debug('API: Kết nối DuckDB đã được đóng.')

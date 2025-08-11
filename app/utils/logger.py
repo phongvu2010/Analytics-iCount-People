@@ -70,7 +70,7 @@ def setup_logging(
             if log_level_from_env:
                 logging.info(f"Log level được ghi đè thành '{log_level_from_env.upper()}' bởi biến môi trường LOG_LEVEL.")
         else:
-            raise ValueError("File YAML rỗng hoặc không hợp lệ.")
+            raise ValueError('File YAML rỗng hoặc không hợp lệ.')
     except Exception as e:
         logging.basicConfig(level=default_level)
         logging.exception(f"Lỗi khi cấu hình logging từ file YAML: {e}")

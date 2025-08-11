@@ -49,11 +49,11 @@ def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str
             f"Không có cột nào được định nghĩa trong 'rename_map' cho '{config.source_table}'. "
             "Quay về sử dụng 'SELECT *'. Cân nhắc định nghĩa rõ các cột để tối ưu hiệu suất."
         )
-        columns_selection = "*"
+        columns_selection = '*'
     else:
         # Xây dựng chuỗi các cột được chọn, bọc trong dấu ngoặc vuông
         # để xử lý các tên cột có thể chứa ký tự đặc biệt hoặc là từ khóa của SQL.
-        columns_selection = ", ".join(f"[{col}]" for col in source_columns)
+        columns_selection = ', '.join(f"[{col}]" for col in source_columns)
 
     query = f"SELECT {columns_selection} FROM {config.source_table}"
     params = {}
@@ -61,7 +61,7 @@ def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str
     # Nếu là incremental load, thêm mệnh đề WHERE và ORDER BY
     if config.incremental and config.timestamp_col:
         query += f" WHERE [{config.timestamp_col}] > :last_ts ORDER BY [{config.timestamp_col}]"
-        params = {"last_ts": last_timestamp}
+        params = {'last_ts': last_timestamp}
         logger.info(f"Trích xuất incremental từ '{config.source_table}' với high-water-mark > '{last_timestamp}'.")
     else:
         logger.info(f"Trích xuất full-load từ '{config.source_table}'.")

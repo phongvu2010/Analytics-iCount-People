@@ -24,7 +24,7 @@ BASE_DATA_PATH = Path(etl_settings.DATA_DIR)
 
 def _validate_table_name(table_name: str):
     """ Kiểm tra tên bảng để tránh lỗi SQL Injection cơ bản. """
-    if not all(c.isalnum() or c == "_" for c in table_name):
+    if not all(c.isalnum() or c == '_' for c in table_name):
         raise ValueError(f"Tên bảng không hợp lệ: '{table_name}'.")
 
 class ParquetLoader:
@@ -63,7 +63,7 @@ class ParquetLoader:
                     arrow_table,
                     root_path=str(self.dest_path),
                     partition_cols=self.config.partition_cols,
-                    existing_data_behavior="overwrite_or_ignore"
+                    existing_data_behavior='overwrite_or_ignore'
                 )
             else:
                 if self.writer is None:
@@ -169,13 +169,13 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
         success = True
     except Exception as e:
         logger.error(f"Lỗi khi refresh bảng DuckDB '{dest_table}': {e}", exc_info=True)
-        conn.execute("ROLLBACK;") # Đảm bảo quay lại trạng thái an toàn
+        conn.execute('ROLLBACK;') # Đảm bảo quay lại trạng thái an toàn
         logger.warning(f"Đã ROLLBACK transaction cho bảng '{dest_table}'.")
         raise
     finally:
         # 4. Dọn dẹp file Parquet
         if success or etl_settings.ETL_CLEANUP_ON_FAILURE:
-            logger.info("Bắt đầu dọn dẹp thư mục staging...")
+            logger.info('Bắt đầu dọn dẹp thư mục staging...')
             ParquetLoader(config).clean_staging_area()
         else:
             logger.warning(f"Giữ lại dữ liệu staging tại '{staging_dir}' để gỡ lỗi.")

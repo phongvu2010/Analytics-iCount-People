@@ -50,7 +50,7 @@ class FactErrorsSchema(pa.DataFrameModel):
 
 # Dictionary để dễ dàng truy cập schema từ tên bảng
 table_schemas = {
-    "dim_stores": DimStoresSchema,
-    "fact_traffic": FactTrafficSchema,
-    "fact_errors": FactErrorsSchema,
+    'dim_stores': DimStoresSchema,
+    'fact_traffic': FactTrafficSchema,
+    'fact_errors': FactErrorsSchema,
 }

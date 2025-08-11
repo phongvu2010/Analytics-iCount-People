@@ -22,7 +22,7 @@ def get_all_stores(db: duckdb.DuckDBPyConnection = Depends(get_db_connection)):
     có trong hệ thống.
     """
     try:
-        stores_df = db.execute("SELECT store_id, store_name FROM dim_stores ORDER BY store_name").fetchdf()
+        stores_df = db.execute('SELECT store_id, store_name FROM dim_stores ORDER BY store_name').fetchdf()
         # Chuyển đổi DataFrame thành list of dictionaries để Pydantic có thể xử lý
         return stores_df.to_dict('records')
     except duckdb.Error as e:
@@ -41,7 +41,7 @@ def get_store_by_id(
     API endpoint để lấy thông tin chi tiết của một cửa hàng dựa trên ID.
     """
     try:
-        query = "SELECT store_id, store_name FROM dim_stores WHERE store_id = ?"
+        query = 'SELECT store_id, store_name FROM dim_stores WHERE store_id = ?'
         result = db.execute(query, [store_id]).fetchone()
 
         if result is None:
@@ -52,7 +52,7 @@ def get_store_by_id(
             )
 
         # `fetchone()` trả về một tuple, cần chuyển thành dictionary
-        return {"store_id": result[0], "store_name": result[1]}
+        return {'store_id': result[0], 'store_name': result[1]}
     except duckdb.Error as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
