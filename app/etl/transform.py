@@ -79,6 +79,7 @@ def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     """ Đổi tên các cột dựa trên `rename_map` trong cấu hình. """
     if config.rename_map:
         df = df.rename(columns=config.rename_map)
+
     return df
 
 def _apply_strip(series: pd.Series) -> pd.Series:

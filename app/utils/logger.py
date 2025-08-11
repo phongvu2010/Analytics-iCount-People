@@ -30,7 +30,7 @@ class MaxLevelFilter(logging.Filter):
 
 # Đường dẫn mặc định đến file cấu hình logger
 CURRENT_DIR = Path(__file__).parent
-DEFAULT_CONFIG_PATH = CURRENT_DIR.parent.parent / 'configs' / 'logger.yaml'
+DEFAULT_CONFIG_PATH = CURRENT_DIR / 'configs' / 'logger.yaml'
 
 def setup_logging(
     config_path: Union[str, Path] = DEFAULT_CONFIG_PATH,

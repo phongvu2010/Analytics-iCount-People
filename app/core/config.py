@@ -15,8 +15,8 @@ from urllib import parse
 
 class CleaningRule(BaseModel):
     """ Định nghĩa một quy tắc làm sạch dữ liệu cho một cột. """
-    column: str # Tên cột gốc trong source_table
-    action: Literal['strip'] # Hành động làm sạch (hiện chỉ hỗ trợ 'strip')
+    column: str                 # Tên cột gốc trong source_table
+    action: Literal['strip']    # Hành động làm sạch (hiện chỉ hỗ trợ 'strip')
 
 class TableConfig(BaseModel):
     """ Cấu hình chi tiết cho việc xử lý một bảng. """
@@ -42,7 +42,8 @@ class TableConfig(BaseModel):
     @property
     def final_timestamp_col(self) -> Optional[str]:
         """ Lấy tên cột timestamp cuối cùng (sau khi đã đổi tên). """
-        if not self.timestamp_col: return None
+        if not self.timestamp_col:
+            return None
         return self.rename_map.get(self.timestamp_col, self.timestamp_col)
 
 class DatabaseSettings(BaseModel):

@@ -18,10 +18,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from typing import Iterator
 from typing_extensions import Annotated
 
-from app.core.config import etl_settings, TableConfig
-from app.utils.logger import setup_logging
-from app.etl import state, extract, transform
-from app.etl.load import ParquetLoader, prepare_destination, refresh_duckdb_table
+from .api.routers import stores as stores_router
+from .core.config import etl_settings, TableConfig
+from .etl import state, extract, transform
+from .etl.load import ParquetLoader, prepare_destination, refresh_duckdb_table
+from .utils.logger import setup_logging
 
 # Cấu hình logging ngay khi ứng dụng khởi chạy
 setup_logging('configs/logger.yaml')
@@ -29,7 +30,11 @@ logger = logging.getLogger(__name__)
 
 # Khởi tạo các ứng dụng
 cli_app = typer.Typer()
-api_app = FastAPI(title="Analytics iCount People API", version="1.0.0")
+api_app = FastAPI(
+    title="Analytics iCount People API",
+    version="1.0.0",
+    description="API cung cấp dữ liệu phân tích lượt ra vào cửa hàng."
+)
 
 @contextlib.contextmanager
 def database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnection]]:
@@ -183,6 +188,9 @@ def run_etl():
             logger.warning(f"Danh sách bảng thất bại: {', '.join(failed_tables)}")
         logger.info("="*60 + "\n")
 
+# --- Tích hợp router vào ứng dụng chính ---
+api_app.include_router(stores_router.router, prefix='/api/v1')
+
 @api_app.get('/', include_in_schema=False)
 def read_root():
     """ Endpoint gốc của API. """
@@ -198,5 +206,5 @@ def serve(
     logger.info(f"🚀 Khởi chạy FastAPI server tại http://{host}:{port}")
     uvicorn.run("app.main:api_app", host=host, port=port, reload=reload)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     cli_app()
