@@ -65,7 +65,7 @@ def setup_logging(
                 config_dict['root']['level'] = log_level_from_env.upper()
 
             logging.config.dictConfig(config_dict)
-            logging.info(f"Hệ thống logging đã được cấu hình thành công từ file: {config_path}")
+            # logging.info(f"Hệ thống logging đã được cấu hình thành công từ file: {config_path}")
 
             if log_level_from_env:
                 logging.info(f"Log level được ghi đè thành '{log_level_from_env.upper()}' bởi biến môi trường LOG_LEVEL.")

@@ -34,7 +34,7 @@ fastapi[all]
 pandera
 python-json-logger
 SQLAlchemy
-typer[all]
+typer
 
 
 # bcrypt==4.0.1

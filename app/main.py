@@ -203,8 +203,17 @@ def serve(
     reload: Annotated[bool, typer.Option(help="Tự động tải lại server khi có thay đổi.")] = True
 ):
     """ Khởi chạy web server Uvicorn cho ứng dụng FastAPI. """
+    # Chỉ định rõ thư mục cần giám sát cho việc tự động tải lại
+    reload_dirs = ['app', 'configs', 'template']
+
     logger.info(f"🚀 Khởi chạy FastAPI server tại http://{host}:{port}")
-    uvicorn.run("app.main:api_app", host=host, port=port, reload=reload)
+    uvicorn.run(
+        "app.main:api_app",
+        host=host,
+        port=port,
+        reload=reload,
+        reload_dirs=reload_dirs  # Tham số này để chỉ định thư mục cần theo dõi
+    )
 
 if __name__ == '__main__':
     cli_app()
