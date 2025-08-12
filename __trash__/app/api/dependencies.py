@@ -10,7 +10,7 @@ import logging
 
 from typing import Iterator
 
-from ..core.config import etl_settings
+from ....app.core.config import etl_settings
 
 logger = logging.getLogger(__name__)
 
