@@ -8,10 +8,20 @@ và file tables.yaml, cung cấp một đối tượng `etl_settings` duy nhất
 import yaml
 
 from pathlib import Path
-from pydantic import BaseModel, Field, model_validator, TypeAdapter, ValidationError
+from pydantic import AnyUrl, BeforeValidator, BaseModel, Field, model_validator, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 from urllib import parse
+
+def parse_cors(v: Any) -> List[str] | str:
+    """ Helper để phân tích chuỗi CORS từ biến môi trường thành danh sách. """
+    if isinstance(v, str) and not v.startswith('['):
+        return [i.strip() for i in v.split(', ')]
+
+    if isinstance(v, list | str):
+        return v
+
+    raise ValueError(v)
 
 class CleaningRule(BaseModel):
     """ Định nghĩa một quy tắc làm sạch dữ liệu cho một cột. """
@@ -70,9 +80,18 @@ class EtlSettings(BaseSettings):
     """ Model cấu hình chính, tổng hợp tất cả các thiết lập. """
     model_config = SettingsConfigDict(
         env_file='.env',
+        case_sensitive=True,
         env_file_encoding='utf-8',
         extra='ignore' # Bỏ qua các biến môi trường không có trong model
     )
+
+    # Cấu hình chung
+    PROJECT_NAME: str = 'Analytics iCount People API'
+    DESCRIPTION: str = 'API cung cấp dữ liệu phân tích lượt ra vào cửa hàng.'
+
+    BACKEND_CORS_ORIGINS: Annotated[
+        List[AnyUrl], BeforeValidator(parse_cors)
+    ] = []
 
     # --- Database Credentials (đọc từ .env) ---
     SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'

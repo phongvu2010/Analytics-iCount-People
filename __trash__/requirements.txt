@@ -22,7 +22,7 @@
 
 ### Database Drivers & Client
 duckdb
-pyodbc                  # Driver for MSSQL
+pyodbc
 
 ### Data Handling
 pandas
