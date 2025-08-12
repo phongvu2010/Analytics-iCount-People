@@ -10,12 +10,13 @@ from .services import DashboardService
 router = APIRouter()
 
 def get_dashboard_service(
-    period: str = Query('day', description="Khoảng thời gian: 'day', 'week', 'month', 'year'"),
-    start_date: date = Query(..., description="Ngày bắt đầu, định dạng: YYYY-MM-DD"),
-    end_date: date = Query(..., description="Ngày kết thúc, định dạng: YYYY-MM-DD"),
-    store: str = Query('all', description="Lọc theo cửa hàng hoặc 'all' cho tất cả")
+    period: str = Query('day', description='Khoảng thời gian: `day`, `week`, `month`, `year`'),
+    start_date: date = Query(..., description='Ngày bắt đầu, định dạng: YYYY-MM-DD'),
+    end_date: date = Query(..., description='Ngày kết thúc, định dạng: YYYY-MM-DD'),
+    store: str = Query('all', description='Lọc theo cửa hàng hoặc `all` cho tất cả')
 ) -> DashboardService:
-    """Dependency để khởi tạo và cung cấp DashboardService cho mỗi request.
+    """
+    Dependency để khởi tạo và cung cấp DashboardService cho mỗi request.
 
     Hàm này nhận các tham số query từ request, khởi tạo một instance của
     DashboardService và inject vào các endpoint cần thiết.
@@ -29,7 +30,8 @@ def get_dashboard_service(
 async def get_dashboard_data(
     service: DashboardService = Depends(get_dashboard_service)
 ):
-    """Cung cấp toàn bộ dữ liệu cho trang dashboard.
+    """
+    Cung cấp toàn bộ dữ liệu cho trang dashboard.
 
     Endpoint này tổng hợp dữ liệu từ nhiều nguồn khác nhau bằng cách thực thi
     các tác vụ I/O một cách song song để tối ưu hóa thời gian phản hồi.
@@ -58,7 +60,8 @@ async def get_dashboard_data(
 
 @router.get('/stores', response_model=List[str])
 def get_stores():
-    """Lấy danh sách duy nhất tất cả các cửa hàng.
+    """
+    Lấy danh sách duy nhất tất cả các cửa hàng.
 
     Dữ liệu này được dùng để khởi tạo bộ lọc (filter) trên giao diện người dùng.
     """

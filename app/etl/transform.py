@@ -10,7 +10,7 @@ import logging
 import pandas as pd
 import pandera.pandas as pa
 
-from pathlib import Path
+# from pathlib import Path
 from typing import List, Optional
 
 from .schemas import table_schemas

@@ -5,7 +5,8 @@ import pandas as pd
 from ..utils.logger import setup_logging
 
 def get_duckdb_connection():
-    """Tạo và trả về một kết nối DuckDB in-memory.
+    """
+    Tạo và trả về một kết nối DuckDB in-memory.
 
     Sử dụng kết nối ':memory:' để đạt hiệu năng cao nhất cho các tác vụ đọc.
     Mỗi lời gọi sẽ tạo một kết nối mới để đảm bảo thread-safety khi
@@ -14,7 +15,8 @@ def get_duckdb_connection():
     return duckdb.connect(database=':memory:', read_only=False)
 
 def query_parquet_as_dataframe(query: str, params: list = None) -> pd.DataFrame:
-    """Thực thi một câu lệnh SQL trên các tệp Parquet bằng DuckDB.
+    """
+    Thực thi một câu lệnh SQL trên các tệp Parquet bằng DuckDB.
 
     Hàm này mở một kết nối DuckDB, thực thi truy vấn, và đóng kết nối
     để giải phóng tài nguyên.

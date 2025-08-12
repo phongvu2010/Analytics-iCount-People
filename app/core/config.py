@@ -95,16 +95,16 @@ class EtlSettings(BaseSettings):
     # Đường dẫn dữ liệu
     DATA_PATH: str = 'data'
 
-    @property
-    def CROWD_COUNTS_PATH(self) -> str:
-        """Đường dẫn tới các tệp parquet chứa dữ liệu đếm người."""
-        # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
-        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+    # @property
+    # def CROWD_COUNTS_PATH(self) -> str:
+    #     """ Đường dẫn tới các tệp parquet chứa dữ liệu đếm người. """
+    #     # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
+    #     return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
 
-    @property
-    def ERROR_LOGS_PATH(self) -> str:
-        """Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi."""
-        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
+    # @property
+    # def ERROR_LOGS_PATH(self) -> str:
+    #     """ Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi. """
+    #     return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
     # Cấu hình xử lý dữ liệu ngoại lệ (outlier)
     OUTLIER_THRESHOLD: int = 100

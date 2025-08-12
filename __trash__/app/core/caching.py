@@ -8,7 +8,8 @@ from typing import Callable, Any
 service_cache = TTLCache(maxsize=128, ttl=1800)
 
 def async_cache(func: Callable) -> Callable:
-    """Decorator để cache kết quả của các hàm async trong service.
+    """
+    Decorator để cache kết quả của các hàm async trong service.
 
     Decorator này giải quyết vấn đề service được tạo mới mỗi request bằng cách
     tạo ra một cache key duy nhất dựa trên các thuộc tính quan trọng của

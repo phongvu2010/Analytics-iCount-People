@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 
 class Metric(BaseModel):
-    """Định nghĩa cấu trúc cho các thẻ chỉ số (KPIs) chính trên dashboard."""
+    """ Định nghĩa cấu trúc cho các thẻ chỉ số (KPIs) chính trên dashboard. """
     total_in: int
     average_in: float
     peak_time: Optional[str]
@@ -12,22 +12,22 @@ class Metric(BaseModel):
     growth: float
 
 class ChartDataPoint(BaseModel):
-    """Định nghĩa một điểm dữ liệu duy nhất trên biểu đồ (ví dụ: một cột, một điểm)."""
+    """ Định nghĩa một điểm dữ liệu duy nhất trên biểu đồ (ví dụ: một cột, một điểm). """
     x: Any  # Trục hoành, có thể là ngày, giờ, hoặc tên cửa hàng
     y: int  # Trục tung, thường là giá trị số (ví dụ: lượt khách)
 
 class ChartData(BaseModel):
-    """Định nghĩa dữ liệu cho một biểu đồ hoàn chỉnh."""
+    """ Định nghĩa dữ liệu cho một biểu đồ hoàn chỉnh. """
     series: List[ChartDataPoint]
 
 class SummaryTableRow(BaseModel):
-    """Định nghĩa cấu trúc cho một hàng trong bảng dữ liệu chi tiết."""
+    """ Định nghĩa cấu trúc cho một hàng trong bảng dữ liệu chi tiết. """
     period: str
     total_in: int
     pct_change: float
 
 class PaginatedTable(BaseModel):
-    """Định nghĩa cấu trúc cho toàn bộ bảng dữ liệu có phân trang."""
+    """ Định nghĩa cấu trúc cho toàn bộ bảng dữ liệu có phân trang. """
     total_records: int
     page: int
     page_size: int
@@ -35,7 +35,7 @@ class PaginatedTable(BaseModel):
     summary: Dict[str, Any]
 
 class ErrorLog(BaseModel):
-    """Định nghĩa cấu trúc cho một bản ghi log lỗi."""
+    """ Định nghĩa cấu trúc cho một bản ghi log lỗi. """
     id: int
     store_name: str
     log_time: datetime
@@ -43,7 +43,8 @@ class ErrorLog(BaseModel):
     error_message: str
 
 class DashboardData(BaseModel):
-    """Model tổng hợp, định nghĩa cấu trúc response cuối cùng cho API dashboard.
+    """
+    Model tổng hợp, định nghĩa cấu trúc response cuối cùng cho API dashboard.
     
     Đây là đối tượng dữ liệu chính mà frontend sẽ nhận và sử dụng để hiển thị
     toàn bộ thông tin trên trang.

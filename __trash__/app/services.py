@@ -10,7 +10,8 @@ from .core.config import etl_settings
 from .core.data_handler import query_parquet_as_dataframe
 
 class DashboardService:
-    """Lớp chứa logic nghiệp vụ để xử lý và truy vấn dữ liệu cho dashboard.
+    """
+    Lớp chứa logic nghiệp vụ để xử lý và truy vấn dữ liệu cho dashboard.
 
     Mỗi instance của lớp này tương ứng với một bộ lọc (thời gian, cửa hàng)
     cụ thể từ người dùng, đóng vai trò là context cho các truy vấn dữ liệu.
@@ -22,7 +23,8 @@ class DashboardService:
         self.store = store
 
     def _get_date_range_params(self, start_date: date, end_date: date) -> Tuple[str, str]:
-        """Tạo chuỗi thời gian query dựa trên "ngày làm việc" đã định nghĩa.
+        """
+        Tạo chuỗi thời gian query dựa trên "ngày làm việc" đã định nghĩa.
 
         Giờ làm việc có thể kéo dài qua nửa đêm (ví dụ: 9h sáng đến 2h sáng hôm sau).
         Hàm này điều chỉnh ngày bắt đầu và kết thúc để bao trọn khung giờ này.
@@ -32,7 +34,8 @@ class DashboardService:
         return start_dt.strftime('%Y-%m-%d %H:%M:%S'), end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     def _build_base_query(self, start_date_str: str, end_date_str: str) -> Tuple[str, list]:
-        """Xây dựng câu truy vấn CTE (Common Table Expression) cơ sở và tham số.
+        """
+        Xây dựng câu truy vấn CTE (Common Table Expression) cơ sở và tham số.
 
         Hàm này tạo ra một CTE chuẩn hóa dữ liệu nguồn, bao gồm:
         - Lọc dữ liệu theo khoảng thời gian và cửa hàng.
