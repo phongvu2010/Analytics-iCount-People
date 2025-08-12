@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 # from .api.routers import stores as stores_router
 from .core.config import etl_settings
+from .routers import router as api_router
 
 # Khởi tạo ứng dụng FastAPI.
 api_app = FastAPI(
@@ -41,11 +42,11 @@ api_app.mount('/statics', StaticFiles(directory='template/statics'), name='stati
 templates = Jinja2Templates(directory='template')
 
 # --- Tích hợp router vào ứng dụng chính ---
-# api_app.include_router(
-#     stores_router.router,
-#     prefix='/api/v1',     # Tiền tố cho tất cả các route trong router này
-#     tags=['Dashboard']    # Gắn tag để nhóm các API trong giao diện Swagger
-# )
+api_app.include_router(
+    api_router,
+    prefix='/api/v1',     # Tiền tố cho tất cả các route trong router này
+    tags=['Dashboard']    # Gắn tag để nhóm các API trong giao diện Swagger
+)
 
 @api_app.get('/health', tags=['Health Check'])
 def health_check():
@@ -76,7 +77,6 @@ async def read_root(request: Request):
 # # Unix: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # import logging
 
-# from .routers import router as api_router
 # from .utils.logger import setup_logging
 
 # # --- Application Events ---

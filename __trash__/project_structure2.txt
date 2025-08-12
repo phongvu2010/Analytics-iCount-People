@@ -1,0 +1,53 @@
+iCount/
+├── app/
+│   ├── core/
+│   │   ├── caching.py
+│   │   ├── config.py
+│   │   └── data_handler.py
+│   ├── etl/
+│   │   ├── __init__.py
+│   │   ├── extract.py
+│   │   ├── load.py
+│   │   ├── schemas.py
+│   │   ├── state.py
+│   │   └── transform.py
+│   ├── utils/
+│   │   └── logger.py
+│   ├── main.py
+│   ├── routers.py
+│   ├── schemas.py
+│   └── services.py
+├── configs/
+│   ├── logger.yaml
+│   └── tables.yaml
+├── data/                               # Nơi lưu trữ file DuckDB
+├── logs/                               # Nơi lưu trữ file log
+├── template/                           # (Dành cho Giai đoạn 3)
+│   ├── partials/
+│   │   ├── _charts.html                # Phần chứa các biểu đồ
+│   │   ├── _error_modal.html           # Phần chứa các error modal
+│   │   ├── _filters.html               # Phần chứa các bộ lọc
+│   │   ├── _header.html                # Phần header của trang
+│   │   ├── _metrics.html               # Phần chứa các thẻ chỉ số
+│   │   ├── _scripts.html               # Toàn bộ code JavaScript
+│   │   ├── _sidebar.html               # Phần chứa các sidebar
+│   │   └── _table.html                 # Phần bảng dữ liệu chi tiết
+│   ├── statics/
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── js/
+│   │   │   └── dashboard.js
+│   │   ├── favicon.ico
+│   │   └── logo.png
+│   ├── base.html                       # File layout chính, chứa cấu trúc chung
+│   └── dashboard.html                  # File nội dung chính, kế thừa từ base.html
+├── tests/                              # Thư mục chứa các bài test
+│   ├── etl/
+│   │   ├── __init__.py
+│   │   └── test_transform.py
+│   └── __init__.py
+├── .env
+├── .env.example
+├── .gitignore
+├── pyproject.toml                      # Thay cho requirements.txt để quản lý dependency tốt hơn
+└── README.md

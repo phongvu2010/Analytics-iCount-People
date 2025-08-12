@@ -92,6 +92,27 @@ class EtlSettings(BaseSettings):
     BACKEND_CORS_ORIGINS: Annotated[
         List[AnyUrl], BeforeValidator(parse_cors)
     ] = []
+    # Đường dẫn dữ liệu
+    DATA_PATH: str = 'data'
+
+    @property
+    def CROWD_COUNTS_PATH(self) -> str:
+        """Đường dẫn tới các tệp parquet chứa dữ liệu đếm người."""
+        # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
+        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+
+    @property
+    def ERROR_LOGS_PATH(self) -> str:
+        """Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi."""
+        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
+
+    # Cấu hình xử lý dữ liệu ngoại lệ (outlier)
+    OUTLIER_THRESHOLD: int = 100
+    OUTLIER_SCALE_RATIO: float = 0.00001
+
+    # Định nghĩa "ngày làm việc" (có thể qua đêm)
+    WORKING_HOUR_START: int = 9   # 09:00
+    WORKING_HOUR_END: int = 2     # 02:00 sáng hôm sau
 
     # --- Database Credentials (đọc từ .env) ---
     SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'

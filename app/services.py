@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from typing import List, Dict, Any, Optional, Tuple
 
 from .core.caching import async_cache
-from .core.config import settings
+from .core.config import etl_settings
 from .core.data_handler import query_parquet_as_dataframe
 
 class DashboardService:
@@ -27,8 +27,8 @@ class DashboardService:
         Giờ làm việc có thể kéo dài qua nửa đêm (ví dụ: 9h sáng đến 2h sáng hôm sau).
         Hàm này điều chỉnh ngày bắt đầu và kết thúc để bao trọn khung giờ này.
         """
-        start_dt = datetime.combine(start_date, datetime.min.time()) + timedelta(hours=settings.WORKING_HOUR_START)
-        end_dt = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1, hours=settings.WORKING_HOUR_END)
+        start_dt = datetime.combine(start_date, datetime.min.time()) + timedelta(hours=etl_settings.WORKING_HOUR_START)
+        end_dt = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1, hours=etl_settings.WORKING_HOUR_END)
         return start_dt.strftime('%Y-%m-%d %H:%M:%S'), end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     def _build_base_query(self, start_date_str: str, end_date_str: str) -> Tuple[str, list]:
@@ -48,9 +48,9 @@ class DashboardService:
             params.append(self.store)
 
         # Xử lý outlier: thay thế các giá trị quá lớn bằng một tỷ lệ nhỏ hoặc giá trị cố định.
-        if settings.OUTLIER_SCALE_RATIO > 0:
-            then_logic_in = f'CAST(ROUND(in_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
-            then_logic_out = f'CAST(ROUND(out_count * {settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
+        if etl_settings.OUTLIER_SCALE_RATIO > 0:
+            then_logic_in = f'CAST(ROUND(in_count * {etl_settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
+            then_logic_out = f'CAST(ROUND(out_count * {etl_settings.OUTLIER_SCALE_RATIO}, 0) AS INTEGER)'
         else:
             # Nếu không muốn scale, có thể thay bằng một giá trị mặc định, ví dụ là 1.
             then_logic_in, then_logic_out = '1', '1'
@@ -60,14 +60,14 @@ class DashboardService:
             SELECT
                 CAST(record_time AS TIMESTAMP) as record_time,
                 store_name,
-                CASE WHEN in_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in} ELSE in_count END as in_count,
-                CASE WHEN out_count > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out} ELSE out_count END as out_count
-            FROM read_parquet('{settings.CROWD_COUNTS_PATH}')
+                CASE WHEN in_count > {etl_settings.OUTLIER_THRESHOLD} THEN {then_logic_in} ELSE in_count END as in_count,
+                CASE WHEN out_count > {etl_settings.OUTLIER_THRESHOLD} THEN {then_logic_out} ELSE out_count END as out_count
+            FROM read_parquet('{etl_settings.CROWD_COUNTS_PATH}')
             WHERE record_time >= ? AND record_time < ?
             {store_filter_clause}
         ),
         filtered_data AS (
-            SELECT *, (record_time - INTERVAL '{settings.WORKING_HOUR_START} hours') AS adjusted_time
+            SELECT *, (record_time - INTERVAL '{etl_settings.WORKING_HOUR_START} hours') AS adjusted_time
             FROM source_data
         )
         """
@@ -180,7 +180,7 @@ class DashboardService:
         query = f"""
         {base_cte}
         SELECT
-            (date_trunc('{time_unit}', adjusted_time) + INTERVAL '{settings.WORKING_HOUR_START} hours') as x,
+            (date_trunc('{time_unit}', adjusted_time) + INTERVAL '{etl_settings.WORKING_HOUR_START} hours') as x,
             SUM(in_count) as y
         FROM filtered_data
         GROUP BY x ORDER BY x
@@ -230,7 +230,7 @@ class DashboardService:
             FROM period_summary
         )
         SELECT
-            strftime(period_start + INTERVAL '{settings.WORKING_HOUR_START} hours', '{date_format}') as period,
+            strftime(period_start + INTERVAL '{etl_settings.WORKING_HOUR_START} hours', '{date_format}') as period,
             total_in,
             CASE WHEN previous_period_in = 0 THEN 0.0 ELSE ROUND(((total_in - previous_period_in) * 100.0) / previous_period_in, 1) END as pct_change
         FROM period_summary_with_lag
@@ -258,7 +258,7 @@ class DashboardService:
     @staticmethod
     def get_latest_record_time() -> Optional[datetime]:
         """Lấy thời gian của bản ghi gần nhất trong toàn bộ dữ liệu."""
-        query = f"SELECT MAX(record_time) as latest_time FROM read_parquet('{settings.CROWD_COUNTS_PATH}')"
+        query = f"SELECT MAX(record_time) as latest_time FROM read_parquet('{etl_settings.CROWD_COUNTS_PATH}')"
         df = query_parquet_as_dataframe(query)
         if not df.empty and pd.notna(df['latest_time'].iloc[0]):
             return df['latest_time'].iloc[0]
@@ -267,7 +267,7 @@ class DashboardService:
     @staticmethod
     def get_all_stores() -> List[str]:
         """Lấy danh sách duy nhất tất cả các cửa hàng có trong dữ liệu."""
-        query = f"SELECT DISTINCT store_name FROM read_parquet('{settings.CROWD_COUNTS_PATH}') ORDER BY store_name"
+        query = f"SELECT DISTINCT store_name FROM read_parquet('{etl_settings.CROWD_COUNTS_PATH}') ORDER BY store_name"
         df = query_parquet_as_dataframe(query)
         return df['store_name'].tolist()
 
@@ -276,7 +276,7 @@ class DashboardService:
         """Lấy các log lỗi gần nhất từ dữ liệu."""
         query = f"""
         SELECT id, store_name, log_time, error_code, error_message
-        FROM read_parquet('{settings.ERROR_LOGS_PATH}')
+        FROM read_parquet('{etl_settings.ERROR_LOGS_PATH}')
         ORDER BY log_time DESC
         LIMIT ?
         """
