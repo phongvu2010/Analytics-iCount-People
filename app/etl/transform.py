@@ -115,7 +115,8 @@ def _process_numeric_columns(df: pd.DataFrame, columns: List[str]) -> pd.DataFra
             df[col] = pd.to_numeric(df[col], errors='coerce')
             neg_count = (df[col] < 0).sum()
             if neg_count > 0:
-                df[col] = df[col].apply(lambda x: max(0, x) if pd.notna(x) else x)
+                # df[col] = df[col].apply(lambda x: max(0, x) if pd.notna(x) else x)
+                df[col] = df[col].clip(lower=0)
             df[col] = df[col].fillna(0).astype(int)
 
     return df
