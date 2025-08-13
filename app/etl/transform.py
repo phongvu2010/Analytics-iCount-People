@@ -10,11 +10,10 @@ import logging
 import pandas as pd
 import pandera.pandas as pa
 
-# from pathlib import Path
 from typing import List, Optional
 
 from .schemas import table_schemas
-from ..core.config import TableConfig, etl_settings
+from ..core.config import settings, TableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ def _select_final_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame
 
 def _save_rejected_data(df: pd.DataFrame, config: TableConfig):
     """ Lưu các hàng dữ liệu bị từ chối vào một file Parquet riêng. """
-    rejected_path = etl_settings.DATA_DIR / 'rejected' / config.dest_table
+    rejected_path = settings.DATA_DIR / 'rejected' / config.dest_table
     rejected_path.mkdir(parents=True, exist_ok=True)
 
     # Tạo tên file duy nhất dựa trên timestamp hiện tại
@@ -86,12 +85,8 @@ def _apply_strip(series: pd.Series) -> pd.Series:
     """ Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi. """
     return series.astype(str).str.strip()
 
-# def _apply_lowercase(series: pd.Series) -> pd.Series:
-#     return series.astype(str).str.lower()
-
 CLEANING_ACTIONS = {
     'strip': _apply_strip,
-    # 'lowercase': _apply_lowercase,
 }
 
 def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:

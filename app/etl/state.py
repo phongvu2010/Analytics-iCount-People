@@ -13,10 +13,10 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict
 
-from ..core.config import etl_settings
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
-STATE_FILE = Path(etl_settings.STATE_FILE)
+STATE_FILE = Path(settings.STATE_FILE)
 
 def load_etl_state() -> Dict[str, str]:
     """ Tải trạng thái ETL từ file JSON. """
@@ -39,7 +39,7 @@ def save_etl_state(state: Dict[str, str]):
 
 def get_last_timestamp(state: Dict[str, str], table_name: str) -> str:
     """ Lấy high-water mark của một bảng, hoặc trả về giá trị mặc định nếu chưa có. """
-    return state.get(table_name, etl_settings.ETL_DEFAULT_TIMESTAMP)
+    return state.get(table_name, settings.ETL_DEFAULT_TIMESTAMP)
 
 def update_timestamp(state: Dict[str, str], table_name: str, new_timestamp: pd.Timestamp):
     """ Cập nhật high-water mark cho một bảng. """

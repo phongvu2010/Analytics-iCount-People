@@ -12,7 +12,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Iterator
 
-from ..core.config import etl_settings, TableConfig
+from ..core.config import settings, TableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,7 @@ def from_sql_server(sql_engine: Engine, config: TableConfig, last_timestamp: str
             sql=text(query),
             con=sql_engine,
             params=params,
-            chunksize=etl_settings.ETL_CHUNK_SIZE
+            chunksize=settings.ETL_CHUNK_SIZE
         )
     except SQLAlchemyError as e:
         logger.error(f"Lỗi SQL khi trích xuất từ bảng {config.source_table}: {e}")

@@ -17,10 +17,10 @@ from duckdb import DuckDBPyConnection
 from pathlib import Path
 from typing import Optional
 
-from ..core.config import etl_settings, TableConfig
+from ..core.config import settings, TableConfig
 
 logger = logging.getLogger(__name__)
-BASE_DATA_PATH = Path(etl_settings.DATA_DIR)
+BASE_DATA_PATH = Path(settings.DATA_DIR)
 
 def _validate_table_name(table_name: str):
     """ Kiểm tra tên bảng để tránh lỗi SQL Injection cơ bản. """
@@ -80,6 +80,7 @@ class ParquetLoader:
     def clean_staging_area(self):
         """ Xóa thư mục/file Parquet sau khi đã tải xong vào DuckDB. """
         if not self.dest_path.exists(): return
+
         if self.dest_path.is_dir(): shutil.rmtree(self.dest_path)
         else: self.dest_path.unlink()
         logger.info(f"Đã xóa thư mục staging: {self.dest_path}")
@@ -174,7 +175,7 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
         raise
     finally:
         # 4. Dọn dẹp file Parquet
-        if success or etl_settings.ETL_CLEANUP_ON_FAILURE:
+        if success or settings.ETL_CLEANUP_ON_FAILURE:
             logger.info('Bắt đầu dọn dẹp thư mục staging...')
             ParquetLoader(config).clean_staging_area()
         else:

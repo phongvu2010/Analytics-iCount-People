@@ -18,7 +18,7 @@ from typing import Iterator
 from typing_extensions import Annotated
 
 from app.main import api_app
-from app.core.config import etl_settings, TableConfig
+from app.core.config import settings, TableConfig
 from app.etl import state, extract, transform
 from app.etl.load import ParquetLoader, prepare_destination, refresh_duckdb_table
 from app.utils.logger import setup_logging
@@ -51,14 +51,14 @@ def _get_database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnect
     try:
         # 1. Kết nối SQL Server
         logger.info('Đang thiết lập kết nối tới MS SQL Server...')
-        sql_engine = create_engine(etl_settings.db.sqlalchemy_db_uri, pool_pre_ping=True)
+        sql_engine = create_engine(settings.db.sqlalchemy_db_uri, pool_pre_ping=True)
         with sql_engine.connect() as connection:
             connection.execute(text('SELECT 1')) # Ping để kiểm tra kết nối
         logger.info('✅ Kết nối SQL Server thành công.')
 
         # 2. Kết nối DuckDB
         logger.info('Đang thiết lập kết nối tới DuckDB...')
-        duckdb_path = str(etl_settings.DUCKDB_PATH.resolve())
+        duckdb_path = str(settings.DUCKDB_PATH.resolve())
         duckdb_conn = duckdb.connect(database=duckdb_path, read_only=False)
         logger.info(f"✅ Kết nối DuckDB ('{duckdb_path}') thành công.\n")
 
@@ -149,7 +149,7 @@ def run_etl():
     # Sắp xếp các bảng theo thứ tự xử lý đã định nghĩa trong config.
     # Điều này đảm bảo các bảng dimension được tạo/cập nhật trước các bảng fact.
     tables_to_process = sorted(
-        etl_settings.TABLE_CONFIG.items(),
+        settings.TABLE_CONFIG.items(),
         key=lambda item: item[1].processing_order
     )
 
@@ -175,7 +175,7 @@ def run_etl():
         # In ra bản tóm tắt kết quả cuối cùng
         logger.info('='*60)
         logger.info('📊 TÓM TẮT KẾT QUẢ ETL')
-        logger.info(f"Tổng số bảng cấu hình: {len(etl_settings.TABLE_CONFIG)}")
+        logger.info(f"Tổng số bảng cấu hình: {len(settings.TABLE_CONFIG)}")
         logger.info(f"✅ Thành công: {len(succeeded_tables)}")
         logger.info(f"❌ Thất bại: {len(failed_tables)}")
         if failed_tables:
