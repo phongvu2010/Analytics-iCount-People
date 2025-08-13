@@ -8,9 +8,11 @@ bao gồm việc chạy quy trình ETL và khởi chạy máy chủ web.
 import contextlib
 import duckdb
 import logging
+import pandera.errors as pa_errors
 import typer
 import uvicorn
 
+from duckdb import DuckDBPyConnection, Error as DuckdbError
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 cli_app = typer.Typer()
 
 @contextlib.contextmanager
-def _get_database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnection]]:
+def _get_database_connections() -> Iterator[tuple[Engine, DuckDBPyConnection]]:
     """
     Context manager để quản lý vòng đời của các kết nối database.
 
@@ -63,12 +65,15 @@ def _get_database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnect
         logger.info(f"✅ Kết nối DuckDB ('{duckdb_path}') thành công.\n")
 
         yield sql_engine, duckdb_conn
+
     except SQLAlchemyError as e:
         logger.critical(f"❌ Lỗi nghiêm trọng khi kết nối SQL Server: {e}\n", exc_info=True)
         raise
-    except duckdb.Error as e:
+
+    except DuckdbError as e:
         logger.critical(f"❌ Lỗi nghiêm trọng khi kết nối DuckDB: {e}\n", exc_info=True)
         raise
+
     finally:
         # 3. Đóng kết nối
         if sql_engine:
@@ -79,7 +84,7 @@ def _get_database_connections() -> Iterator[tuple[Engine, duckdb.DuckDBPyConnect
             duckdb_conn.close()
             logger.info('Kết nối DuckDB đã được đóng.')
 
-def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, config: TableConfig, etl_state: dict):
+def _process_table(sql_engine: Engine, duckdb_conn: DuckDBPyConnection, config: TableConfig, etl_state: dict):
     """
     Thực hiện toàn bộ pipeline ETL cho một bảng duy nhất.
     Bao gồm Extract, Transform, và Load.
@@ -108,7 +113,7 @@ def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, c
             for chunk in data_iterator:
                 if chunk.empty: continue
 
-                # 4. Biến đổi dữ liệu (Transform)
+                # 4. Biến đổi và xác thực dữ liệu (Transform)
                 transformed_chunk = transform.run_transformations(chunk, config)
                 if transformed_chunk.empty: continue
 
@@ -121,7 +126,7 @@ def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, c
                 if current_max_ts and (max_ts_in_run is None or current_max_ts > max_ts_in_run):
                     max_ts_in_run = current_max_ts
 
-        # 7. Tải dữ liệu từ Parquet vào DuckDB (Load)
+        # 7. Tải dữ liệu từ Parquet vào DuckDB (Load) và hoán đổi bảng chính
         if total_rows > 0:
             logger.info(f"Đã xử lý {total_rows} dòng. Bắt đầu tải vào DuckDB.")
             refresh_duckdb_table(duckdb_conn, config, loader.has_written_data)
@@ -132,9 +137,23 @@ def _process_table(sql_engine: Engine, duckdb_conn: duckdb.DuckDBPyConnection, c
                 state.update_timestamp(etl_state, config.dest_table, max_ts_in_run)
         else:
             logger.info(f"Không tìm thấy dữ liệu mới cho bảng '{config.dest_table}'.")
+
+    except (SQLAlchemyError, DuckdbError) as e:
+        logger.error(f"❌ Lỗi kết nối/truy vấn DB khi xử lý bảng '{config.source_table}': {e}", exc_info=True)
+        raise
+
+    except pa_errors.SchemaErrors as e:
+        logger.error(f"❌ Lỗi xác thực dữ liệu cho bảng '{config.source_table}': {e}", exc_info=True)
+        raise
+
     except Exception as e:
-        logger.error(f"Lỗi trong quá trình xử lý cho bảng '{config.dest_table}': {e}", exc_info=True)
+        logger.error(f"❌ Lỗi không xác định khi xử lý bảng '{config.source_table}': {e}", exc_info=True)
         raise # Ném lại lỗi để vòng lặp chính bắt và đánh dấu là FAILED
+
+    finally:
+        # Đảm bảo writer được đóng ngay cả khi có lỗi
+        if loader.writer:
+            loader.writer.close()
 
 @cli_app.command()
 def run_etl():
@@ -169,8 +188,10 @@ def run_etl():
                     failed_tables.append(config.source_table)
                     logger.error(f"❌ Xử lý bảng '{config.source_table}' thất bại. Chuyển sang bảng tiếp theo.\n")
                     continue
+
     except Exception as e:
         logger.critical(f"Quy trình ETL bị dừng do lỗi kết nối hoặc lỗi nghiêm trọng khác: {e}")
+
     finally:
         # In ra bản tóm tắt kết quả cuối cùng
         logger.info('='*60)

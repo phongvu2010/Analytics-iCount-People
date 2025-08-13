@@ -82,8 +82,11 @@ def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     return df
 
 def _apply_strip(series: pd.Series) -> pd.Series:
-    """ Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi. """
-    return series.astype(str).str.strip()
+    """ 
+    Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi.
+    Hàm này xử lý an toàn các giá trị null (None/NaN) mà không ép kiểu.
+    """
+    return series.str.strip()
 
 CLEANING_ACTIONS = {
     'strip': _apply_strip,
@@ -94,12 +97,14 @@ def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     if not config.cleaning_rules: return df
 
     for rule in config.cleaning_rules:
+        # Lấy tên cột đích đã được đổi tên để áp dụng quy tắc làm sạch
         col_to_clean = config.rename_map.get(rule.column, rule.column)
-        if col_to_clean not in df.columns: continue
 
-        action_func = CLEANING_ACTIONS.get(rule.action)
-        if action_func and pd.api.types.is_object_dtype(df[col_to_clean]):
-            df[col_to_clean] = action_func(df[col_to_clean])
+        # Chỉ áp dụng quy tắc nếu cột tồn tại và có kiểu dữ liệu là chuỗi (object)
+        if col_to_clean in df.columns and pd.api.types.is_object_dtype(df[col_to_clean]):
+            action_func = CLEANING_ACTIONS.get(rule.action)
+            if action_func:
+                df[col_to_clean] = action_func(df[col_to_clean])
 
     return df
 

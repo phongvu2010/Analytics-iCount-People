@@ -168,11 +168,13 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
         conn.execute(f"DROP TABLE IF EXISTS {dest_table}_old;")
         logger.info(f"Đã dọn dẹp bảng backup '{dest_table}_old'.")
         success = True
+
     except Exception as e:
         logger.error(f"Lỗi khi refresh bảng DuckDB '{dest_table}': {e}", exc_info=True)
         conn.execute('ROLLBACK;') # Đảm bảo quay lại trạng thái an toàn
         logger.warning(f"Đã ROLLBACK transaction cho bảng '{dest_table}'.")
         raise
+
     finally:
         # 4. Dọn dẹp file Parquet
         if success or settings.ETL_CLEANUP_ON_FAILURE:

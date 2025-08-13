@@ -155,8 +155,10 @@ class Settings(BaseSettings):
             # Dùng TypeAdapter để xác thực một dictionary phức tạp
             adapter = TypeAdapter(Dict[str, TableConfig])
             self.TABLE_CONFIG = adapter.validate_python(raw_config)
+
         except FileNotFoundError:
             raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
+
         except (yaml.YAMLError, ValidationError) as e:
             raise ValueError(f"Lỗi cú pháp hoặc nội dung file cấu hình bảng '{self.TABLE_CONFIG_PATH}':\n{e}.")
 
