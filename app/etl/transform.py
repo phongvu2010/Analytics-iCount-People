@@ -126,6 +126,7 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
     if not (ts_col and ts_col in df.columns): return df
 
     df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
+
     num_nat = df[ts_col].isna().sum()
     if num_nat > 0:
         logger.warning(f"Tìm thấy {num_nat} timestamp không hợp lệ trong '{ts_col}', các hàng này sẽ bị loại bỏ.")
