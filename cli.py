@@ -27,7 +27,7 @@ from app.utils.logger import setup_logging
 setup_logging('configs/logger.yaml')
 logger = logging.getLogger(__name__)
 
-# Khởi tạo Typer App
+# Khởi tạo Typer App mới để quản lý các câu lệnh
 cli_app = typer.Typer()
 
 @contextlib.contextmanager
