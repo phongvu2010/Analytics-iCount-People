@@ -39,22 +39,19 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Tích hợp Router API từ `app/routers.py` vào ứng dụng chính
-api_app.include_router(
-    api_router,
-    prefix='/api/v1',     # Tiền tố cho tất cả các route trong router này
-    tags=['Dashboard']    # Gắn tag để nhóm các API trong giao diện Swagger
-)
+api_app.include_router(api_router)
 
 # Mount thư mục `statics` để phục vụ các tệp tĩnh (CSS, JS, Images).
 # Dòng này sẽ mount thư mục 'template/statics' tại URL '/static'
 # Ví dụ: file 'template/statics/logo.png' sẽ có thể được truy cập tại 'http://.../static/logo.png'
 api_app.mount('/static', StaticFiles(directory='template/statics'), name='static')
 
-# --- TẠO ENDPOINT ĐỂ HIỂN THỊ TRANG DASHBOARD ---
+# Tạo endpoint để hiển thị trong dashboard
 @api_app.get('/', response_class=HTMLResponse, include_in_schema=False)
 async def show_dashboard(request: Request):
     """ Endpoint chính, phục vụ trang dashboard.html cho người dùng. """
-    return templates.TemplateResponse('dashboard.html',
+    return templates.TemplateResponse(
+        'dashboard.html',
         {
             'request': request,
             'project_name': settings.PROJECT_NAME,

@@ -95,6 +95,14 @@ class Settings(BaseSettings):
         List[AnyUrl], BeforeValidator(parse_cors)
     ] = []
 
+    # Cấu hình xử lý dữ liệu ngoại lệ (outlier)
+    OUTLIER_THRESHOLD: int = 100
+    OUTLIER_SCALE_RATIO: float = 0.00001
+
+    # Định nghĩa "ngày làm việc" (có thể qua đêm)
+    WORKING_HOUR_START: int = 9   # 09:00
+    WORKING_HOUR_END: int = 2     # 02:00 sáng hôm sau
+
     # --- Database Credentials (đọc từ .env) ---
     SQLSERVER_DRIVER: str = 'ODBC Driver 17 for SQL Server'
     SQLSERVER_SERVER: str
