@@ -17,7 +17,7 @@ def get_db_connection() -> Iterator[DuckDBPyConnection]:
     luôn được đóng lại sau khi request hoàn tất, kể cả khi có lỗi.
 
     Yields:
-        duckdb.DuckDBPyConnection: Đối tượng kết nối DuckDB.
+        DuckDBPyConnection: Đối tượng kết nối DuckDB.
     """
     db_path = str(settings.DUCKDB_PATH.resolve())
     conn = None
