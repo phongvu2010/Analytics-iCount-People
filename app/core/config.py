@@ -8,7 +8,7 @@ và file tables.yaml, cung cấp một đối tượng `etl_settings` duy nhất
 import yaml
 
 from pathlib import Path
-from pydantic import AnyUrl, BeforeValidator, BaseModel, Field, model_validator, TypeAdapter, ValidationError
+from pydantic import AnyUrl, BaseModel, BeforeValidator, Field, model_validator, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Annotated, Any, Dict, List, Literal, Optional
 from urllib import parse
@@ -16,7 +16,7 @@ from urllib import parse
 def parse_cors(v: Any) -> List[str] | str:
     """ Helper để phân tích chuỗi CORS từ biến môi trường thành danh sách. """
     if isinstance(v, str) and not v.startswith('['):
-        return [i.strip() for i in v.split(', ')]
+        return [i.strip() for i in v.split(',')]
 
     if isinstance(v, list | str):
         return v

@@ -1,6 +1,6 @@
 from cachetools import TTLCache
 from functools import wraps
-from typing import Callable, Any
+from typing import Any, Callable
 
 # Bộ nhớ cache chia sẻ trong ứng dụng, có thời gian sống (TTL).
 # - maxsize=128: Lưu trữ tối đa 128 kết quả gần nhất.
