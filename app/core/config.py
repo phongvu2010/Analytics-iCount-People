@@ -28,6 +28,26 @@ class CleaningRule(BaseModel):
     column: str                 # Tên cột gốc trong source_table
     action: Literal['strip']    # Hành động làm sạch (hiện chỉ hỗ trợ 'strip')
 
+class DatabaseSettings(BaseModel):
+    """ Cấu hình kết nối tới MS SQL Server. """
+    SQLSERVER_DRIVER: str
+    SQLSERVER_SERVER: str
+    SQLSERVER_DATABASE: str
+    SQLSERVER_UID: str
+    SQLSERVER_PWD: str
+
+    @property
+    def sqlalchemy_db_uri(self) -> str:
+        """ Tạo chuỗi kết nối SQLAlchemy từ các biến cấu hình. """
+        encoded_pwd = parse.quote_plus(self.SQLSERVER_PWD)
+        driver_for_query = self.SQLSERVER_DRIVER.replace(' ', '+')
+
+        return (
+            f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}@"
+            f"{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}?"
+            f"driver={driver_for_query}"
+        )
+
 class TableConfig(BaseModel):
     """ Cấu hình chi tiết cho việc xử lý một bảng. """
     source_table: str                       # Tên bảng nguồn trong MS SQL
@@ -57,26 +77,6 @@ class TableConfig(BaseModel):
             return None
 
         return self.rename_map.get(self.timestamp_col, self.timestamp_col)
-
-class DatabaseSettings(BaseModel):
-    """ Cấu hình kết nối tới MS SQL Server. """
-    SQLSERVER_DRIVER: str
-    SQLSERVER_SERVER: str
-    SQLSERVER_DATABASE: str
-    SQLSERVER_UID: str
-    SQLSERVER_PWD: str
-
-    @property
-    def sqlalchemy_db_uri(self) -> str:
-        """ Tạo chuỗi kết nối SQLAlchemy từ các biến cấu hình. """
-        encoded_pwd = parse.quote_plus(self.SQLSERVER_PWD)
-        driver_for_query = self.SQLSERVER_DRIVER.replace(' ', '+')
-
-        return (
-            f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}@"
-            f"{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}?"
-            f"driver={driver_for_query}"
-        )
 
 class Settings(BaseSettings):
     """ Model cấu hình chính, tổng hợp tất cả các thiết lập. """

@@ -1,3 +1,10 @@
+"""
+Module này định nghĩa các dependency cho API.
+
+Dependency Injection là một tính năng mạnh mẽ của FastAPI, cho phép
+tách biệt và tái sử dụng các logic chung (như kết nối database,
+xác thực người dùng).
+"""
 import duckdb
 import logging
 
@@ -19,9 +26,11 @@ def get_db_connection() -> Iterator[DuckDBPyConnection]:
     Yields:
         DuckDBPyConnection: Đối tượng kết nối DuckDB.
     """
-    db_path = str(settings.DUCKDB_PATH.resolve())
     conn = None
     try:
+        # Kết nối tới file DuckDB ở chế độ chỉ đọc (read_only=True)
+        # vì API chỉ có nhiệm vụ đọc dữ liệu, không ghi.
+        db_path = str(settings.DUCKDB_PATH.resolve())
         logger.debug(f"Mở kết nối tới DuckDB tại: {db_path}")
         # Kết nối ở chế độ READ_ONLY để đảm bảo an toàn, API chỉ đọc dữ liệu
         conn = duckdb.connect(database=db_path, read_only=True)
