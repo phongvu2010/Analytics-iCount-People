@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Dict, Optional, Any
 
 class Metric(BaseModel):
     """Định nghĩa cấu trúc cho các thẻ chỉ số (KPIs) chính trên dashboard."""
@@ -13,7 +13,7 @@ class Metric(BaseModel):
 
 class ChartDataPoint(BaseModel):
     """Định nghĩa một điểm dữ liệu duy nhất trên biểu đồ (ví dụ: một cột, một điểm)."""
-    x: Union[str, datetime, int]  # Trục hoành, có thể là ngày, giờ, hoặc tên cửa hàng
+    x: Any  # Trục hoành, có thể là ngày, giờ, hoặc tên cửa hàng
     y: int  # Trục tung, thường là giá trị số (ví dụ: lượt khách)
 
 class ChartData(BaseModel):

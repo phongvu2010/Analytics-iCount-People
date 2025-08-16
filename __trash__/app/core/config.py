@@ -1,27 +1,49 @@
-from pydantic import computed_field
+from pydantic import AnyUrl, BeforeValidator, computed_field
 from pydantic_core import MultiHostUrl
-from pydantic_settings import BaseSettings
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated, Any, List
 from urllib import parse
+
+def parse_cors(v: Any) -> List[str] | str:
+    """Helper để phân tích chuỗi CORS từ biến môi trường thành danh sách."""
+    if isinstance(v, str) and not v.startswith('['):
+        return [i.strip() for i in v.split(',')]
+    if isinstance(v, list | str):
+        return v
+    raise ValueError(v)
 
 class Settings(BaseSettings):
     """Lớp quản lý tập trung cấu hình cho toàn bộ ứng dụng.
 
     Các thuộc tính được tự động đọc và xác thực từ tệp `.env`.
     """
+    model_config = SettingsConfigDict(
+        env_file = '.env',
+        case_sensitive = True,
+        env_file_encoding = 'utf-8'
+    )
+
+    # Cấu hình chung
+    PROJECT_NAME: str = "Traffic Counting Analysis"
+    DESCRIPTION: str = 'Hệ thống thống kê và phân tích lưu lượng người ra / vào trung tâm thương mại.'
+
+    BACKEND_CORS_ORIGINS: Annotated[
+        List[AnyUrl], BeforeValidator(parse_cors)
+    ] = []
+
     # Đường dẫn dữ liệu
     DATA_PATH: str = 'data'
 
-    # @property
-    # def CROWD_COUNTS_PATH(self) -> str:
-    #     """ Đường dẫn tới các tệp parquet chứa dữ liệu đếm người. """
-    #     # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
-    #     return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
+    @property
+    def CROWD_COUNTS_PATH(self) -> str:
+        """Đường dẫn tới các tệp parquet chứa dữ liệu đếm người."""
+        # Dấu `*` cho phép DuckDB tự động đọc tất cả các tệp trong thư mục con.
+        return f'{self.DATA_PATH}/crowd_counts/*/*.parquet'
 
-    # @property
-    # def ERROR_LOGS_PATH(self) -> str:
-    #     """ Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi. """
-    #     return f'{self.DATA_PATH}/error_logs/*/*.parquet'
+    @property
+    def ERROR_LOGS_PATH(self) -> str:
+        """Đường dẫn tới các tệp parquet chứa dữ liệu log lỗi."""
+        return f'{self.DATA_PATH}/error_logs/*/*.parquet'
 
     # Cấu hình xử lý dữ liệu ngoại lệ (outlier)
     OUTLIER_THRESHOLD: int = 100
