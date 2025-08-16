@@ -18,7 +18,7 @@ def async_cache(func: Callable) -> Callable:
     """
     @wraps(func)
     async def wrapper(self, *args, **kwargs) -> Any:
-        # Tạo cache key duy nhất từ tên hàm, các thuộc tính của service,
+        # Tạo cache key duy nhất từ tên hàm, các thuộc tính của service
         # và các tham số truyền vào.
         key = (
             func.__name__,
