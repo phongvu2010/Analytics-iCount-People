@@ -142,7 +142,8 @@ def _ensure_data_types(df: pd.DataFrame) -> pd.DataFrame:
     """ Đảm bảo các cột có kiểu dữ liệu phù hợp trước khi xác thực và tải. """
     for col in df.columns:
         if pd.api.types.is_object_dtype(df[col]):
-            df[col] = df[col].astype(str).replace({'None': None, 'NaT': None, 'nan': None})
+            # df[col] = df[col].astype(str).replace({'None': None, 'NaT': None, 'nan': None})
+            df[col] = pd.to_string(df[col], na_rep=None)
         elif 'id' in col or 'code' in col:
             df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
