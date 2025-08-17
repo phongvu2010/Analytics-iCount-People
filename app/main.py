@@ -1,11 +1,11 @@
 """
 Điểm khởi đầu (Entrypoint) cho ứng dụng web FastAPI.
 
-File này chịu trách nhiệm:
+Tệp này chịu trách nhiệm:
 - Khởi tạo đối tượng FastAPI.
+- Cấu hình Middleware (ví dụ: CORS).
 - Tích hợp các routers từ các module khác.
-- Định nghĩa các endpoint chung (ví dụ: health-check).
-- Phục vụ các file tĩnh và template HTML cho dashboard.
+- Phục vụ các tệp tĩnh và template HTML cho giao diện người dùng.
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,40 +16,41 @@ from fastapi.templating import Jinja2Templates
 from .core.config import settings
 from .routers import router as api_router
 
-# Khởi tạo ứng dụng FastAPI.
+# Khởi tạo ứng dụng FastAPI với các thông tin cơ bản.
 api_app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.DESCRIPTION,
     version='2.1.0'
 )
 
-# Cấu hình Template Engine Jinja2. Trỏ đến thư mục 'template'
+# Cấu hình Template Engine Jinja2, trỏ đến thư mục 'template'.
 templates = Jinja2Templates(directory='template')
 
 # Cấu hình CORS (Cross-Origin Resource Sharing) Middleware.
-# Cho phép frontend từ các domain khác có thể gọi API này.
+# Cho phép frontend từ các domain được chỉ định có thể gọi API này.
 if settings.BACKEND_CORS_ORIGINS:
     origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
     api_app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,    # Cho phép các origin trong danh sách
-        allow_credentials=True,   # Cho phép gửi cookie
-        allow_methods=['*'],      # Cho phép tất cả các phương thức (GET, POST, etc.)
-        allow_headers=['*']       # Cho phép tất cả các header
+        allow_origins=origins,      # Cho phép các origin trong danh sách
+        allow_credentials=True,     # Cho phép gửi cookie
+        allow_methods=['*'],        # Cho phép tất cả các phương thức (GET, POST, etc.)
+        allow_headers=['*']         # Cho phép tất cả các header.
     )
 
-# Tích hợp Router API từ `app/routers.py` vào ứng dụng chính
+# Tích hợp Router API từ `app/routers.py` vào ứng dụng chính.
 api_app.include_router(api_router)
 
 # Mount thư mục `statics` để phục vụ các tệp tĩnh (CSS, JS, Images).
-# Dòng này sẽ mount thư mục 'template/statics' tại URL '/static'
-# Ví dụ: file 'template/statics/logo.png' sẽ có thể được truy cập tại 'http://.../static/logo.png'
+# URL '/static' sẽ trỏ đến thư mục 'template/statics'.
 api_app.mount('/static', StaticFiles(directory='template/statics'), name='static')
 
-# Tạo endpoint để hiển thị trong dashboard
+
 @api_app.get('/', response_class=HTMLResponse, include_in_schema=False)
 async def show_dashboard(request: Request):
-    """ Endpoint chính, phục vụ trang dashboard.html cho người dùng. """
+    """
+    Endpoint gốc, phục vụ trang dashboard.html cho người dùng.
+    """
     return templates.TemplateResponse(
         'dashboard.html',
         {
@@ -59,7 +60,10 @@ async def show_dashboard(request: Request):
         }
     )
 
+
 @api_app.get('/health', tags=['Health Check'])
 def health_check():
-    """ Endpoint để kiểm tra tình trạng hoạt động của ứng dụng. """
+    """
+    Endpoint để kiểm tra tình trạng hoạt động (health status) của ứng dụng.
+    """
     return {'status': 'ok'}

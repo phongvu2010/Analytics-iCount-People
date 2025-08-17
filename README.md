@@ -180,3 +180,16 @@ python -m cli serve --host 0.0.0.0 --port 8888
 ```
 python -m cli --help
 ```
+
+app/core/caching.py
+app/core/config.py
+app/core/dependencies.py
+
+app/etl/extract.py
+app/etl/load.py
+
+app/etl/transform.py
+
+app/main.py
+app/routers.py
+app/services.py

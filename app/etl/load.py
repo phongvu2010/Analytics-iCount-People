@@ -1,17 +1,17 @@
 """
-Module này xử lý giai đoạn 'L' (Load) của pipeline ETL.
+Module xử lý giai đoạn 'L' (Load) của pipeline ETL.
 
 Chức năng chính:
-1.  Ghi dữ liệu (đã biến đổi) vào các file Parquet (staging area).
-2.  Tải dữ liệu từ các file Parquet vào DuckDB bằng kỹ thuật "atomic swap"
-    để đảm bảo tính toàn vẹn và không có thời gian chết.
+1. Ghi dữ liệu đã biến đổi vào các tệp Parquet (staging area).
+2. Tải dữ liệu từ Parquet vào DuckDB bằng kỹ thuật "atomic swap" để đảm bảo
+   tính toàn vẹn và không có thời gian chết (zero downtime) cho người dùng cuối.
 """
 import logging
+import os
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import shutil
-import os
 
 from duckdb import DuckDBPyConnection
 from pathlib import Path
@@ -22,16 +22,21 @@ from ..core.config import settings, TableConfig
 logger = logging.getLogger(__name__)
 BASE_DATA_PATH = Path(settings.DATA_DIR)
 
+
 def _validate_table_name(table_name: str):
-    """ Kiểm tra tên bảng để tránh lỗi SQL Injection cơ bản. """
+    """
+    Kiểm tra tên bảng để tránh lỗi SQL Injection cơ bản.
+    """
     if not all(c.isalnum() or c == '_' for c in table_name):
         raise ValueError(f"Tên bảng không hợp lệ: '{table_name}'.")
 
+
 class ParquetLoader:
     """
-    Một context manager để xử lý việc ghi dữ liệu vào file/dataset Parquet.
-    Nó quản lý việc mở và đóng ParquetWriter, đặc biệt hữu ích khi
-    ghi dữ liệu theo từng khối (chunk-by-chunk).
+    Context manager để quản lý việc ghi dữ liệu vào tệp/dataset Parquet.
+
+    Nó tự động xử lý việc mở và đóng `ParquetWriter`, đặc biệt hữu ích khi
+    ghi dữ liệu theo từng khối (chunk-by-chunk) cho các bảng không phân vùng.
     """
     def __init__(self, config: TableConfig):
         self.config = config
@@ -40,25 +45,32 @@ class ParquetLoader:
         self.has_written_data = False
 
     def __enter__(self):
-        """ Khởi tạo môi trường, tạo thư mục nếu cần. """
+        """
+        Khởi tạo môi trường, tạo thư mục nếu cần.
+        """
         self.dest_path.mkdir(parents=True, exist_ok=True)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """ Dọn dẹp, đảm bảo writer được đóng lại. """
+        """
+        Dọn dẹp, đảm bảo writer được đóng lại an toàn.
+        """
         if self.writer:
             self.writer.close()
-
         if exc_type is not None:
             logger.error(f"Lỗi khi ghi Parquet cho '{self.config.dest_table}': {exc_val}")
 
     def write_chunk(self, df: pd.DataFrame):
-        """ Ghi một chunk DataFrame vào file/dataset Parquet. """
-        if df.empty: return
+        """
+        Ghi một chunk DataFrame vào tệp/dataset Parquet.
+        """
+        if df.empty:
+            return
 
         try:
             arrow_table = pa.Table.from_pandas(df, preserve_index=False)
             if self.config.partition_cols:
+                # Ghi dữ liệu phân vùng trực tiếp.
                 pq.write_to_dataset(
                     arrow_table,
                     root_path=str(self.dest_path),
@@ -66,11 +78,14 @@ class ParquetLoader:
                     existing_data_behavior='overwrite_or_ignore'
                 )
             else:
+                # Đối với bảng không phân vùng, sử dụng ParquetWriter.
                 if self.writer is None:
                     output_file = self.dest_path / 'data.parquet'
                     if not self.config.incremental and output_file.exists():
                         output_file.unlink()
-                    self.writer = pq.ParquetWriter(str(output_file), arrow_table.schema)
+                    self.writer = pq.ParquetWriter(
+                        str(output_file), arrow_table.schema
+                    )
                 self.writer.write_table(arrow_table)
             self.has_written_data = True
         except pa.ArrowException as e:
@@ -78,37 +93,48 @@ class ParquetLoader:
             raise
 
     def clean_staging_area(self):
-        """ Xóa thư mục/file Parquet sau khi đã tải xong vào DuckDB. """
-        if not self.dest_path.exists(): return
+        """
+        Xóa thư mục/tệp Parquet sau khi đã tải xong vào DuckDB.
+        """
+        if not self.dest_path.exists():
+            return
 
-        if self.dest_path.is_dir(): shutil.rmtree(self.dest_path)
-        else: self.dest_path.unlink()
+        if self.dest_path.is_dir():
+            shutil.rmtree(self.dest_path)
+        else:
+            self.dest_path.unlink()
         logger.info(f"Đã xóa thư mục staging: {self.dest_path}")
 
+
 def prepare_destination(config: TableConfig):
-    """ Chuẩn bị thư mục staging, xóa dữ liệu cũ nếu là full-load. """
+    """
+    Chuẩn bị thư mục staging, xóa dữ liệu cũ nếu là full-load.
+    """
     dest_path = BASE_DATA_PATH / config.dest_table
     if not config.incremental and dest_path.exists():
-        if dest_path.is_dir(): shutil.rmtree(dest_path)
-        else: dest_path.unlink()
         logger.info(f"Full-load: Đã xóa staging cũ: {dest_path}")
+        if dest_path.is_dir():
+            shutil.rmtree(dest_path)
+        else:
+            dest_path.unlink()
     dest_path.mkdir(parents=True, exist_ok=True)
+
 
 def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_data_written: bool):
     """
     Tải dữ liệu từ Parquet vào DuckDB và thực hiện "atomic swap".
 
     Quy trình:
-    1. Tải dữ liệu từ các file Parquet vào một bảng tạm (staging_table).
+    1. Tải dữ liệu từ Parquet vào một bảng tạm (staging_table).
     2. Bắt đầu một TRANSACTION.
     3. Đổi tên bảng chính hiện tại thành bảng cũ (old_table).
     4. Đổi tên bảng tạm thành bảng chính.
-    5. COMMIT transaction. Nếu thành công, dữ liệu mới sẽ được "publish".
+    5. COMMIT transaction.
     6. Xóa bảng cũ.
     7. Nếu có lỗi, ROLLBACK để quay về trạng thái ban đầu.
     """
     dest_table = config.dest_table
-    staging_table = f"{dest_table}_staging"
+    staging_table = f'{dest_table}_staging'
 
     _validate_table_name(dest_table)
     _validate_table_name(staging_table)
@@ -126,7 +152,7 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
             return
 
         # 1. Tải dữ liệu vào bảng staging
-        logger.info(f"Bắt đầu tải dữ liệu vào bảng staging '{staging_table}'...")
+        logger.info(f"Bắt đầu tải Parquet vào bảng staging '{staging_table}'...")
         if config.partition_cols:
             read_path = str(staging_dir / '**' / '*.parquet')
             hive_partitioning = True
@@ -139,7 +165,7 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
             SELECT * FROM read_parquet(?, hive_partitioning=?);
         """
         conn.execute(create_staging_sql, [read_path, hive_partitioning])
-        logger.info(f"Tải dữ liệu vào bảng staging '{staging_table}' thành công.")
+        logger.info(f"Tải vào bảng staging '{staging_table}' thành công.")
 
         # 2. Thực hiện hoán đổi nguyên tử (atomic swap)
         logger.info(f"Bắt đầu hoán đổi bảng chính '{dest_table}'...")
@@ -165,13 +191,13 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
         logger.info(f"Hoán đổi bảng '{dest_table}' thành công.")
 
         # 3. Dọn dẹp bảng backup
-        conn.execute(f"DROP TABLE IF EXISTS {dest_table}_old;")
+        conn.execute(f'DROP TABLE IF EXISTS {dest_table}_old;')
         logger.info(f"Đã dọn dẹp bảng backup '{dest_table}_old'.")
         success = True
 
     except Exception as e:
         logger.error(f"Lỗi khi refresh bảng DuckDB '{dest_table}': {e}", exc_info=True)
-        conn.execute('ROLLBACK;') # Đảm bảo quay lại trạng thái an toàn
+        conn.execute('ROLLBACK;')   # Đảm bảo quay lại trạng thái an toàn
         logger.warning(f"Đã ROLLBACK transaction cho bảng '{dest_table}'.")
         raise
 

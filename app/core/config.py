@@ -15,7 +15,7 @@ from pydantic import (
     Field,
     model_validator,
     TypeAdapter,
-    ValidationError,
+    ValidationError
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Annotated, Any, Dict, List, Literal, Optional
