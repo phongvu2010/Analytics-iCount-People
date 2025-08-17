@@ -123,6 +123,46 @@ document.addEventListener('DOMContentLoaded', async function () {
         };
     };
 
+    // --- NEW: URL STATE FUNCTIONS ---
+    /**
+     * Cập nhật URL của trình duyệt với các filter hiện tại mà không tải lại trang.
+     */
+    function updateURLWithFilters() {
+        const params = new URLSearchParams();
+        params.set('period', state.filters.period);
+        params.set('startDate', state.filters.startDate);
+        params.set('endDate', state.filters.endDate);
+        params.set('store', state.filters.store);
+        window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+    }
+
+    /**
+     * Đọc các filter từ URL, cập nhật state và giao diện khi tải trang.
+     */
+    function applyFiltersFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        const urlPeriod = params.get('period');
+        const urlStartDate = params.get('startDate');
+        const urlEndDate = params.get('endDate');
+        const urlStore = params.get('store');
+
+        if (urlPeriod) {
+            state.filters.period = urlPeriod;
+            elements.periodSelector.value = urlPeriod;
+        }
+        if (urlStore && Array.from(elements.storeSelector.options).some(opt => opt.value === urlStore)) {
+            state.filters.store = urlStore;
+            elements.storeSelector.value = urlStore;
+        }
+        if (urlStartDate && urlEndDate) {
+            state.filters.startDate = urlStartDate;
+            state.filters.endDate = urlEndDate;
+            if (datePickerInstance) {
+                datePickerInstance.setDateRange(urlStartDate, urlEndDate, true); // true để không trigger event
+            }
+        }
+    }
+
     // --- INITIALIZATION FUNCTIONS ---
     function initCharts() {
         trendChart = new ApexCharts(document.querySelector('#trend-chart'), trendChartOptions);
@@ -135,6 +175,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         const today = new Date();
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+        // Đặt giá trị mặc định ban đầu cho state
         state.filters.startDate = firstDayOfMonth.toISOString().split('T')[0];
         state.filters.endDate = today.toISOString().split('T')[0];
 
@@ -156,12 +197,27 @@ document.addEventListener('DOMContentLoaded', async function () {
         const today = new Date();
 
         let startDate = new Date(), endDate = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
 
         switch (period) {
-            case 'day': startDate = today; break;
-            case 'week': startDate = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))); break;
-            case 'month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
-            case 'year': startDate = new Date(today.getFullYear(), 0, 1); break;
+            case 'day':
+                startDate = today;
+                endDate = today;
+                break;
+            case 'week':
+                const firstDayOfWeek = today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1);
+                startDate = new Date(today.setDate(firstDayOfWeek));
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6);
+                break;
+            case 'month':
+                startDate = new Date(currentYear, currentMonth, 1);
+                endDate = new Date(currentYear, currentMonth + 1, 0);
+                break;
+            case 'year':
+                startDate = new Date(currentYear, 0, 1);
+                endDate = new Date(currentYear, 11, 31);
+                break;
         }
 
         if (startDate && endDate && datePickerInstance) {
@@ -174,6 +230,8 @@ document.addEventListener('DOMContentLoaded', async function () {
             state.currentPage = 1;
             state.filters.period = elements.periodSelector.value;
             state.filters.store = elements.storeSelector.value;
+
+            updateURLWithFilters(); // <-- THAY ĐỔI: Ghi trạng thái vào URL
             fetchDashboardData();
         }, 400);
 
@@ -199,16 +257,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         // Tạo các hàng dữ liệu cho file CSV
         const csvRows = [
-        headers.join(','), // Hàng tiêu đề
-
-        ...state.tableData.map(row => 
-            [
-                row.period, 
-                row.total_in, 
-                row.proportion_pct.toFixed(2),
-                row.pct_change
-            ].join(','))
-        ];
+            headers.join(','), // Hàng tiêu đề
+            ...state.tableData.map(row =>
+                [
+                    row.period,
+                    row.total_in,
+                    row.proportion_pct.toFixed(2),
+                    row.pct_change
+                ].join(','))
+            ];
 
         // Tạo chuỗi CSV hoàn chỉnh với ký tự xuống dòng
         const csvString = csvRows.join('\n');
@@ -298,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 minute: '2-digit'
             }).replace(',', '');
 
-            timestampEl.innerHTML = `Dữ liệu gần nhất: <br> <span class="font-semibold text-gray-400">${formattedDate}</span>`;
+            timestampEl.innerHTML = `Dữ liệu cập nhật lúc: <span class="font-semibold text-gray-300">${formattedDate}</span>`;
         } else if (timestampEl) {
             timestampEl.textContent = 'Dữ liệu gần nhất: Không rõ';
         }
@@ -314,8 +371,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         const growthEl = elements.metrics.growth;
         const growthCard = elements.metrics.growthCard;
         const growthIconDiv = growthCard.querySelector('[data-container="icon"]');
-
         const growthIcon = growthIconDiv ? growthIconDiv.querySelector('[data-lucide]') : null;
+
         if (!growthIcon) return;
         growthEl.textContent = `${growthValue.toFixed(1)}%`;
         ['text-green-400', 'text-red-400', 'text-white'].forEach(c => growthEl.classList.remove(c));
@@ -423,15 +480,28 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // --- SEQUENTIAL INITIALIZATION ---
-    try {
-        initCharts();
-        initDatePicker();
-        addEventListeners();
-        document.body.classList.add('sidebar-collapsed');
+    async function initializeDashboard() {
+        try {
+            // Các tác vụ khởi tạo không phụ thuộc
+            initCharts();
+            initDatePicker();
+            addEventListeners();
+            document.body.classList.add('sidebar-collapsed');
 
-        await loadStores();
-        await fetchDashboardData();
-    } catch (error) {
-        console.error('An error occurred during initial page load:', error);
+            // Tải dữ liệu cần thiết cho UI (như danh sách cửa hàng)
+            await loadStores();
+
+            // Áp dụng các filter từ URL (nếu có)
+            applyFiltersFromURL();
+
+            // Cuối cùng, tải dữ liệu chính của dashboard
+            await fetchDashboardData();
+
+        } catch (error) {
+            console.error('An error occurred during initial page load:', error);
+            // Xử lý lỗi nếu cần thiết, ví dụ hiển thị thông báo lỗi chung
+        }
     }
+
+    initializeDashboard();
 });
