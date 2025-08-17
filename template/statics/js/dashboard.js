@@ -4,8 +4,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const API_BASE_URL = '/api/v1';
     const state = {
-        currentPage: 1,
-        pageSize: 10,
         tableData: [],
         filters: { period: 'month', startDate: '', endDate: '', store: 'all' }
     };
@@ -197,12 +195,20 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
-        const headers = ['Kỳ báo cáo', 'Tổng lượt vào', 'Chênh lệch (%)'];
+        const headers = ['Kỳ báo cáo', 'Tổng lượt vào', 'Tỷ trọng (%)', 'Chênh lệch (%)'];
 
         // Tạo các hàng dữ liệu cho file CSV
         const csvRows = [
         headers.join(','), // Hàng tiêu đề
-        ...state.tableData.map(row => [row.period, row.total_in, row.pct_change].join(','))];
+
+        ...state.tableData.map(row => 
+            [
+                row.period, 
+                row.total_in, 
+                row.proportion_pct.toFixed(2),
+                row.pct_change
+            ].join(','))
+        ];
 
         // Tạo chuỗi CSV hoàn chỉnh với ký tự xuống dòng
         const csvString = csvRows.join('\n');
@@ -352,11 +358,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     function updateTable(tableData) {
         if (!tableData.data || tableData.data.length === 0) {
-            elements.tableBody.innerHTML = `<tr><td colspan="3" class="text-center py-8 text-gray-400">Không có dữ liệu tổng hợp.</td></tr>`;
+            elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">Không có dữ liệu tổng hợp.</td></tr>`;
             return;
         }
 
         elements.tableBody.innerHTML = tableData.data.map(row => {
+            // Logic cho cột "Chênh lệch"
             const pct_change = row.pct_change;
             let changeClass = 'text-gray-300', changeIcon = '<i data-lucide="minus" class="h-4 w-4 mr-1"></i>', sign = pct_change > 0 ? '+' : '';
             if (pct_change > 0) {
@@ -367,9 +374,19 @@ document.addEventListener('DOMContentLoaded', async function () {
                 changeIcon = '<i data-lucide="trending-down" class="h-4 w-4 mr-1"></i>';
             }
 
+            const prop_change = row.proportion_change;
+            let proportionClass = 'text-gray-300'; // Mặc định là màu xám
+            
+            if (prop_change > 0) {
+                proportionClass = 'text-green-400 font-semibold'; // Màu xanh nếu tăng
+            } else if (prop_change < 0) {
+                proportionClass = 'text-red-400 font-semibold'; // Màu đỏ nếu giảm
+            }
+
             return `<tr class="hover:bg-gray-800 transition-colors duration-200">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${row.period}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-white font-semibold">${formatNumber(row.total_in)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${proportionClass}">${row.proportion_pct.toFixed(2)}%</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold"><div class="flex items-center ${changeClass}">${changeIcon}<span>${sign}${pct_change.toFixed(1)}%</span></div></td>
                 </tr>`;
         }).join('');

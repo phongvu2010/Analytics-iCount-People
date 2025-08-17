@@ -98,19 +98,31 @@ class DashboardService:
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
 
+        # Định dạng và đơn vị thời gian cho truy vấn
+        # peak_time_format = {'day': '%H:00', 'week': '%Y-%m-%d', 'month': '%Y-%m-%d', 'year': 'Tháng %m'}.get(self.period, '%Y-%m-%d')
         peak_time_format = {'day': '%H:%M', 'week': '%d/%m', 'month': '%d/%m', 'year': 'Tháng %m'}.get(self.period, '%d/%m')
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
 
         query = f"""
         {base_cte}
         , period_summary AS (
-            SELECT SUM(in_count) as total_in_per_period FROM filtered_data
-            GROUP BY date_trunc('{time_unit}', adjusted_time)
+            -- Tổng hợp dữ liệu theo từng kỳ (giống hệt biểu đồ)
+            SELECT
+                date_trunc('{time_unit}', adjusted_time) as period,
+                SUM(in_count) as total_in_per_period
+            FROM filtered_data
+            GROUP BY period
+        )
+        , peak_period AS (
+            -- Tìm ra kỳ có tổng lượt vào cao nhất
+            SELECT period FROM period_summary
+            ORDER BY total_in_per_period DESC
+            LIMIT 1
         )
         SELECT
             (SELECT SUM(in_count) FROM filtered_data) as total_in,
             (SELECT AVG(total_in_per_period) FROM period_summary) as average_in,
-            (SELECT strftime(arg_max(record_time, in_count), '{peak_time_format}') FROM filtered_data) as peak_time,
+            (SELECT strftime(period + INTERVAL '{settings.WORKING_HOUR_START} hours', '{peak_time_format}') FROM peak_period) as peak_time,
             (SELECT SUM(in_count) - SUM(out_count) FROM filtered_data) as current_occupancy,
             (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
         """
@@ -237,8 +249,8 @@ class DashboardService:
         return df.to_dict(orient='records')
 
     @async_cache
-    async def get_paginated_details(self, page: int, page_size: int) -> Dict[str, Any]:
-        """ Lấy dữ liệu chi tiết, đã được phân trang cho bảng. """
+    async def get_table_details(self) -> Dict[str, Any]:
+        """ Lấy dữ liệu chi tiết cho bảng, giới hạn 31 dòng gần nhất. """
         start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
         base_cte, params = self._build_base_query(start_str, end_str)
 
@@ -263,20 +275,32 @@ class DashboardService:
         """
 
         final_query_cte = f"WITH query_result AS ({aggregation_query})"
-        data_query = f"{final_query_cte} SELECT * FROM query_result ORDER BY period DESC LIMIT ? OFFSET ?"
+        data_query = f"{final_query_cte} SELECT * FROM query_result ORDER BY period DESC LIMIT 31"
         summary_query = f"{final_query_cte} SELECT SUM(total_in) as total_sum, AVG(total_in) as average_in FROM query_result"
-        paginated_params = params + [page_size, (page - 1) * page_size]
 
         df, summary_df = await asyncio.gather(
-            asyncio.to_thread(query_db_to_df, data_query, params=paginated_params),
+            asyncio.to_thread(query_db_to_df, data_query, params=params),
             asyncio.to_thread(query_db_to_df, summary_query, params=params)
         )
         summary_data = summary_df.iloc[0].to_dict() if not summary_df.empty else {'total_sum': 0, 'average_in': 0}
+        
+        total_sum = summary_data.get('total_sum', 0) or 0
+        if total_sum > 0 and not df.empty:
+            df['proportion_pct'] = (df['total_in'] / total_sum * 100)
+        else:
+            # Gán cột trống nếu không có dữ liệu để tránh lỗi
+            df['proportion_pct'] = 0.0
+
+        if not df.empty:
+            # Bảng đang được sắp xếp theo thời gian GIẢM DẦN (DESC).
+            # .diff(periods=-1) sẽ tính chênh lệch của dòng hiện tại so với dòng TIẾP THEO.
+            # Vì dòng tiếp theo là kỳ cũ hơn, nên phép tính này chính là (hiện tại - quá khứ).
+            df['proportion_change'] = df['proportion_pct'].diff(periods=-1).fillna(0)
+        else:
+            # Gán cột trống nếu không có dữ liệu
+            df['proportion_change'] = 0.0
 
         return {
-            'total_records': len(df),
-            'page': page,
-            'page_size': page_size,
             'data': df.to_dict(orient='records'),
             'summary': summary_data
         }
@@ -304,148 +328,3 @@ class DashboardService:
         df = query_db_to_df(query, params=[limit])
 
         return df.to_dict(orient='records')
-
-
-
-
-
-
-
-
-
-
-
-
-
-# from duckdb import DuckDBPyConnection
-
-# def _get_date_range_for_growth(start_date: datetime, end_date: datetime) -> tuple[datetime, datetime]:
-#     """ Tính toán khoảng thời gian của kỳ trước để so sánh tăng trưởng. """
-#     delta = end_date - start_date
-#     prev_end_date = start_date - timedelta(days=1)
-#     prev_start_date = prev_end_date - delta
-#     return prev_start_date, prev_end_date
-
-# def get_dashboard_data(start_date: str, end_date: str, period: str, store: str) -> dict:
-#     """ Hàm chính để truy vấn và tính toán tất cả dữ liệu cho dashboard. """
-#     start_date_dt = datetime.fromisoformat(start_date)
-#     end_date_dt = datetime.fromisoformat(end_date)
-
-#     # 1. Xây dựng câu lệnh WHERE và tham số
-#     params = [start_date, end_date]
-#     store_filter_clause = ''
-#     if store != 'all':
-#         store_filter_clause = 'AND s.store_name = ?'
-#         params.append(store)
-
-#     # 2. Truy vấn dữ liệu chính cho kỳ hiện tại
-#     query = f"""
-#         SELECT
-#             f.recorded_at,
-#             f.visitors_in,
-#             s.store_name
-#         FROM fact_traffic AS f
-#         JOIN dim_stores AS s ON f.store_id = s.store_id
-#         WHERE f.recorded_at::DATE BETWEEN ? AND ?
-#         {store_filter_clause}
-#     """
-#     try:
-#         main_df = self.ddb.execute(query, params).df()
-#         if not main_df.empty:
-#             main_df['recorded_at'] = pd.to_datetime(main_df['recorded_at'])
-#     except Exception as e:
-#         logger.error(f"Lỗi truy vấn dữ liệu chính: {e}", exc_info=True)
-#         main_df = pd.DataFrame(columns=['recorded_at', 'visitors_in', 'store_name'])
-
-#     # 3. Lấy 10 log lỗi gần nhất
-#     try:
-#         errors_df = self.ddb.execute("""
-#             SELECT l.logged_at, s.store_name, l.error_code, l.error_message
-#             FROM fact_errors l JOIN dim_stores s ON l.store_id = s.store_id
-#             ORDER BY l.logged_at DESC LIMIT 10
-#         """).df()
-#     except Exception:
-#         errors_df = pd.DataFrame()
-
-#     # 4. --- Bắt đầu tính toán các chỉ số (Metrics) ---
-#     if main_df.empty:
-#         # Trả về dữ liệu rỗng nếu không có bản ghi nào
-#         empty_chart = {'series': []}
-#         empty_table = {'data': [], 'summary': {}}
-#         return {
-#             'metrics': {'total_in': 0, 'average_in': 0, 'peak_time': None, 'busiest_store': None, 'growth': 0},
-#             'trend_chart': empty_chart,
-#             'store_comparison_chart': empty_chart,
-#             'table_data': empty_table,
-#             'error_logs': [],
-#             'latest_record_time': None
-#         }
-
-#     # Tổng và trung bình
-#     total_in = int(main_df['visitors_in'].sum())
-#     num_days = (end_date_dt - start_date_dt).days + 1
-#     average_in = total_in / num_days
-
-#     # Giờ cao điểm
-#     peak_hour = main_df.groupby(main_df['recorded_at'].dt.hour)['visitors_in'].sum().idxmax()
-#     peak_time_str = f"{peak_hour:02d}:00"
-
-#     # Vị trí đông nhất
-#     busiest_store = main_df.groupby('store_name')['visitors_in'].sum().idxmax()
-
-#     # Tăng trưởng
-#     prev_start, prev_end = _get_date_range_for_growth(start_date_dt, end_date_dt)
-#     growth_params = [prev_start.strftime('%Y-%m-%d'), prev_end.strftime('%Y-%m-%d')]
-#     if store != 'all':
-#         growth_params.append(store)
-
-#     prev_total_in = db.execute(f"SELECT SUM(visitors_in) FROM fact_traffic f JOIN dim_stores s ON f.store_id = s.store_id WHERE recorded_at::DATE BETWEEN ? AND ? {store_filter_clause}", growth_params).fetchone()[0]
-#     prev_total_in = prev_total_in or 0
-#     growth = ((total_in - prev_total_in) / prev_total_in * 100) if prev_total_in > 0 else 0
-
-#     metrics = {
-#         'total_in': total_in, 'average_in': round(average_in, 1),
-#         'peak_time': peak_time_str, 'busiest_store': busiest_store,
-#         'growth': round(growth, 1)
-#     }
-
-#     # 5. --- Chuẩn bị dữ liệu cho Biểu đồ (Charts) ---
-#     # Biểu đồ xu hướng (Trend Chart)
-#     period_map = {'day': 'D', 'week': 'W-MON', 'month': 'M', 'year': 'Y'}
-#     trend_df = main_df.set_index('recorded_at').resample(period_map[period], label='left', closed='left')['visitors_in'].sum().reset_index()
-#     trend_df['recorded_at'] = trend_df['recorded_at'].dt.strftime('%Y-%m-%d')
-#     trend_chart_data = [{'x': row['recorded_at'], 'y': int(row['visitors_in'])} for _, row in trend_df.iterrows()]
-
-#     # Biểu đồ so sánh cửa hàng (Store Comparison)
-#     store_df = main_df.groupby('store_name')['visitors_in'].sum().reset_index()
-#     store_chart_data = [{'x': row['store_name'], 'y': int(row['visitors_in'])} for _, row in store_df.iterrows()]
-
-#     # 6. --- Chuẩn bị dữ liệu cho Bảng tổng hợp (Table) ---
-#     table_df = trend_df.copy()
-#     table_df['total_in'] = table_df['visitors_in']
-#     # Tính % thay đổi so với kỳ trước
-#     table_df['pct_change'] = table_df['total_in'].pct_change().fillna(0) * 100
-#     table_df['period'] = table_df['recorded_at'] # Đổi tên cột cho khớp schema
-#     table_data = [
-#         {'period': row['period'], 'total_in': int(row['total_in']), 'pct_change': round(row['pct_change'], 1)}
-#         for _, row in table_df.iterrows()
-#     ]
-
-#     # 7. --- Chuẩn bị dữ liệu Log lỗi và Dữ liệu mới nhất ---
-#     latest_record_time = main_df['recorded_at'].max().isoformat()
-#     error_logs = errors_df.rename(columns={'logged_at': 'log_time'}).to_dict('records')
-#     for log in error_logs:
-#         log['log_time'] = pd.to_datetime(log['log_time']).isoformat()
-
-#     # 8. Đóng gói tất cả dữ liệu trả về theo schema
-#     return {
-#         'metrics': metrics,
-#         'trend_chart': {'series': trend_chart_data},
-#         'store_comparison_chart': {'series': store_chart_data},
-#         'table_data': {
-#             'data': table_data,
-#             'summary': {'total_sum': total_in, 'average_in': round(average_in, 1)}
-#         },
-#         'error_logs': error_logs,
-#         'latest_record_time': latest_record_time
-#     }

@@ -46,7 +46,7 @@ async def get_dashboard_data(
         service.get_metrics(),
         service.get_trend_chart_data(),
         service.get_store_comparison_chart_data(),
-        service.get_paginated_details(page=1, page_size=31)
+        service.get_table_details() # Bỏ tham số page, page_size
     )
 
     # Các hàm static (đồng bộ) có thể được gọi tuần tự.
@@ -58,7 +58,7 @@ async def get_dashboard_data(
         metrics=schemas.Metric(**metrics_data),
         trend_chart=schemas.ChartData(series=trend_data),
         store_comparison_chart=schemas.ChartData(series=store_data),
-        table_data=schemas.PaginatedTable(**table_data),
+        table_data=schemas.TableData(**table_data),
         error_logs=error_logs_data,
         latest_record_time=latest_record_time_data
     )
@@ -71,27 +71,3 @@ def get_stores():
     Dữ liệu này được dùng để khởi tạo bộ lọc (filter) trên giao diện người dùng.
     """
     return DashboardService.get_all_stores()
-
-
-
-# from duckdb import DuckDBPyConnection
-
-# from . import services
-# from .core.dependencies import get_db_connection
-# from .schemas import DashboardResponse
-
-# @router.get('/dashboard', response_model=DashboardResponse)
-# def get_dashboard_summary(
-#     start_date: date = Query(..., description='Ngày bắt đầu, định dạng YYYY-MM-DD'),
-#     end_date: date = Query(..., description='Ngày kết thúc, định dạng YYYY-MM-DD'),
-#     period: str = Query('month', enum=['day', 'week', 'month', 'year'], description='Xem theo ngày, tuần, tháng, hoặc năm'),
-#     store: str = Query('all', description='Lọc theo một vị trí cụ thể hoặc `all` cho tất cả'),
-#     db: DuckDBPyConnection = Depends(get_db_connection)
-# ):
-#     """ Endpoint chính, trả về toàn bộ dữ liệu cần thiết để hiển thị dashboard. """
-#     logger.info(
-#         f"Nhận request dashboard: {start_date=} {end_date=} {period=} {store=}"
-#     )
-#     # Chuyển đổi date object thành string để truyền vào service
-#     data = services.get_dashboard_data(db, str(start_date), str(end_date), period, store)
-#     return data
