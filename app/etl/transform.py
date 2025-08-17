@@ -82,7 +82,7 @@ def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     return df
 
 def _apply_strip(series: pd.Series) -> pd.Series:
-    """ 
+    """
     Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi.
     Hàm này xử lý an toàn các giá trị null (None/NaN) mà không ép kiểu.
     """
@@ -142,8 +142,12 @@ def _ensure_data_types(df: pd.DataFrame) -> pd.DataFrame:
     """ Đảm bảo các cột có kiểu dữ liệu phù hợp trước khi xác thực và tải. """
     for col in df.columns:
         if pd.api.types.is_object_dtype(df[col]):
-            # df[col] = df[col].astype(str).replace({'None': None, 'NaT': None, 'nan': None})
-            df[col] = pd.to_string(df[col], na_rep=None)
+            df[col] = df[col].astype(str).replace({
+                'None': None,
+                'NaT': None,
+                'nan': None,
+                '<NA>': None
+            })
         elif 'id' in col or 'code' in col:
             df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
