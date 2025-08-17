@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         if (summary && summaryTotalEl && summaryAverageEl) {
             summaryTotalEl.textContent = formatNumber(summary.total_sum || 0);
-            summaryAverageEl.textContent = `TB: ${formatNumber(parseFloat(summary.average_in || 0).toFixed(1))}`;
+            summaryAverageEl.textContent = `TB: ${formatNumber(parseFloat(summary.average_in || 0).toFixed(0))}`;
         }
     }
 
