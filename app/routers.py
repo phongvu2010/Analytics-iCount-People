@@ -2,7 +2,8 @@
 Định nghĩa các API endpoint cho ứng dụng.
 
 Router này nhóm tất cả các endpoint liên quan đến dashboard, giúp mã nguồn
-trở nên có tổ chức và dễ dàng quản lý hơn.
+trở nên có tổ chức và dễ dàng quản lý hơn. Nó sử dụng dependency injection
+của FastAPI để cung cấp `DashboardService` cho các endpoint.
 """
 import asyncio
 import logging
@@ -14,7 +15,7 @@ from typing import List
 from . import schemas
 from .services import DashboardService
 
-# Khởi tạo router với tiền tố và tag chung.
+# Khởi tạo router với tiền tố và tag chung để nhóm các API liên quan.
 router = APIRouter(prefix='/api/v1', tags=['Dashboard'])
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,12 @@ async def get_dashboard_data(service: DashboardService = Depends(get_dashboard_s
     """
     Cung cấp toàn bộ dữ liệu cần thiết cho trang dashboard.
 
-    Endpoint này tổng hợp dữ liệu từ nhiều nguồn bằng cách thực thi các tác vụ
-    I/O (truy vấn file) một cách song song để tối ưu hóa thời gian phản hồi.
+    Endpoint này tổng hợp dữ liệu từ nhiều phương thức của service bằng cách
+    thực thi các tác vụ I/O (truy vấn file) một cách song song để tối ưu
+    hóa thời gian phản hồi.
     """
-    # Các tác vụ I/O (query file) được thực thi đồng thời để tối ưu hiệu năng.
+    # Các tác vụ I/O (query file) được thực thi đồng thời với asyncio.gather
+    # để giảm thiểu thời gian chờ đợi.
     (
         metrics_data,
         trend_data,
@@ -62,11 +65,11 @@ async def get_dashboard_data(service: DashboardService = Depends(get_dashboard_s
         service.get_table_details()
     )
 
-    # Các hàm static (đồng bộ) có thể được gọi tuần tự.
+    # Các hàm static (đồng bộ) có thể được gọi tuần tự vì chúng nhanh.
     error_logs_data = DashboardService.get_error_logs()
     latest_record_time_data = DashboardService.get_latest_record_time()
 
-    # Xây dựng đối tượng response hoàn chỉnh theo schema.
+    # Xây dựng đối tượng response hoàn chỉnh theo schema đã định nghĩa.
     return schemas.DashboardData(
         metrics=schemas.Metric(**metrics_data),
         trend_chart=schemas.ChartData(series=trend_data),
