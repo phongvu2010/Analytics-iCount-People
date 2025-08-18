@@ -1,9 +1,9 @@
 """
-Định nghĩa các dependency cho API, giúp tái sử dụng logic chung.
+Định nghĩa các dependency cho API, giúp tái sử dụng logic trong ứng dụng.
 
 Dependency Injection là một tính năng cốt lõi của FastAPI, cho phép tách biệt
-và tái sử dụng các thành phần như kết nối database, xác thực người dùng,
-giúp mã nguồn trở nên module hóa và dễ kiểm thử hơn.
+và tái sử dụng các thành phần như kết nối database, xác thực người dùng. Điều
+này giúp mã nguồn trở nên module hóa, dễ kiểm thử và bảo trì hơn.
 """
 import duckdb
 import logging
@@ -21,30 +21,32 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def get_db_connection() -> Iterator[DuckDBPyConnection]:
     """
-    Context manager để quản lý vòng đời của một kết nối đến DuckDB.
+    Context manager để quản lý vòng đời kết nối đến DuckDB.
 
-    Nó sẽ mở một kết nối khi được gọi và tự động đóng lại khi khối lệnh
-    kết thúc, kể cả khi có lỗi xảy ra. Kết nối được mở ở chế độ chỉ đọc
-    (read-only) để đảm bảo an toàn cho dữ liệu trong môi trường API.
+    Hàm này tạo ra một kết nối khi vào khối `with` và đảm bảo kết nối
+    được đóng lại một cách an toàn khi kết thúc, kể cả khi có lỗi xảy ra.
+    Kết nối được mở ở chế độ chỉ đọc (read-only) để đảm bảo an toàn cho
+    dữ liệu trong môi trường API.
 
     Yields:
         Một đối tượng kết nối DuckDB đang hoạt động.
 
     Raises:
-        Error: Nếu không thể kết nối tới file database.
+        DuckDBError: Nếu không thể kết nối tới file database.
     """
     conn = None
     try:
         db_path = str(settings.DUCKDB_PATH.resolve())
         logger.debug(f"Đang mở kết nối tới DuckDB (read-only): {db_path}")
 
-        # Kết nối ở chế độ READ_ONLY để đảm bảo an toàn, API chỉ đọc dữ liệu
+        # Kết nối ở chế độ READ_ONLY để đảm bảo an toàn, API chỉ có quyền đọc.
         conn = duckdb.connect(database=db_path, read_only=True)
         yield conn
 
     except DuckDBError as e:
         logger.critical(f"Không thể kết nối tới DuckDB: {e}", exc_info=True)
-        raise  # Ném lại lỗi để FastAPI xử lý và trả về lỗi 500.
+        # Ném lại lỗi để FastAPI xử lý và trả về lỗi 500 Internal Server Error.
+        raise
 
     finally:
         if conn:
@@ -56,20 +58,23 @@ def query_db_to_df(query: str, params: list = None) -> pd.DataFrame:
     """
     Hàm tiện ích để thực thi một câu lệnh SQL và trả về kết quả dưới dạng DataFrame.
 
-    Hàm này tự quản lý kết nối, phù hợp cho các tác vụ đơn lẻ không cần
-    truyền đối tượng kết nối đi nhiều nơi.
+    Hàm này tự quản lý việc mở và đóng kết nối, phù hợp cho các tác vụ
+    truy vấn đơn lẻ trong service layer.
 
     Args:
         query: Câu lệnh SQL cần thực thi.
         params: Danh sách các tham số cho câu lệnh SQL để chống SQL injection.
 
     Returns:
-        Một Pandas DataFrame chứa kết quả, hoặc DataFrame rỗng nếu có lỗi.
+        Một Pandas DataFrame chứa kết quả. Trả về DataFrame rỗng nếu có lỗi
+        xảy ra trong quá trình kết nối hoặc truy vấn.
     """
     try:
+        # Sử dụng context manager để đảm bảo kết nối được quản lý an toàn.
         with get_db_connection() as conn:
             return conn.execute(query, parameters=params).df()
     except Exception:
-        # Lỗi đã được log trong get_db_connection, ở đây chỉ cần trả về
-        # một DataFrame rỗng để tránh làm sập ứng dụng.
+        # Lỗi đã được log trong `get_db_connection`. Ở đây, chúng ta chỉ cần
+        # trả về một DataFrame rỗng để business logic có thể xử lý
+        # trường hợp không có dữ liệu mà không làm sập ứng dụng.
         return pd.DataFrame()

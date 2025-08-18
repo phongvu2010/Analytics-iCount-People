@@ -1,22 +1,15 @@
 """
-Định nghĩa các Pydantic model cho việc quản lý cấu hình của ứng dụng.
+Định nghĩa các Pydantic model để quản lý cấu hình của ứng dụng.
 
-Module này sử dụng `pydantic-settings` để đọc và xác thực cấu hình từ nhiều nguồn
-khác nhau (ví dụ: file .env, biến môi trường), cung cấp một đối tượng `settings`
-duy nhất, an toàn về kiểu dữ liệu cho toàn bộ ứng dụng.
+Module này sử dụng `pydantic-settings` để đọc và xác thực cấu hình từ
+nhiều nguồn khác nhau (ví dụ: file .env, biến môi trường). Nó cung cấp một
+đối tượng `settings` duy nhất, an toàn về kiểu dữ liệu, giúp việc truy cập
+cấu hình trong toàn bộ ứng dụng trở nên nhất quán và dễ đoán.
 """
 import yaml
 
 from pathlib import Path
-from pydantic import (
-    AnyUrl,
-    BaseModel,
-    BeforeValidator,
-    Field,
-    model_validator,
-    TypeAdapter,
-    ValidationError
-)
+from pydantic import AnyUrl, BaseModel, BeforeValidator, Field, TypeAdapter, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Annotated, Any, Dict, List, Literal, Optional
 from urllib import parse
@@ -26,11 +19,17 @@ def parse_cors(v: Any) -> List[str] | str:
     """
     Hàm helper để chuyển đổi chuỗi CORS từ biến môi trường thành danh sách.
 
+    Ví dụ, một chuỗi "http://localhost, http://127.0.0.1" sẽ được chuyển đổi
+    thành `['http://localhost', 'http://127.0.0.1']`.
+
     Args:
         v: Giá trị từ biến môi trường, có thể là chuỗi hoặc danh sách.
 
     Returns:
-        Danh sách các origin được cho phép.
+        Danh sách các origin được phép hoặc giá trị gốc nếu đã là danh sách.
+
+    Raises:
+        ValueError: Nếu giá trị đầu vào không phải là chuỗi hoặc danh sách.
     """
     if isinstance(v, str) and not v.startswith('['):
         return [i.strip() for i in v.split(',')]
@@ -42,9 +41,14 @@ def parse_cors(v: Any) -> List[str] | str:
 class CleaningRule(BaseModel):
     """
     Định nghĩa một quy tắc làm sạch dữ liệu cho một cột cụ thể.
+
+    Attributes:
+        column: Tên cột gốc trong bảng nguồn.
+        action: Hành động làm sạch (hiện tại chỉ hỗ trợ 'strip' để loại
+                bỏ khoảng trắng thừa).
     """
-    column: str                 # Tên cột gốc trong bảng nguồn.
-    action: Literal['strip']    # Hành động làm sạch (hiện tại chỉ hỗ trợ 'strip').
+    column: str
+    action: Literal['strip']
 
 
 class DatabaseSettings(BaseModel):
@@ -62,22 +66,31 @@ class DatabaseSettings(BaseModel):
         """
         Tạo chuỗi kết nối SQLAlchemy an toàn từ các biến cấu hình.
 
+        Phương thức này tự động mã hóa mật khẩu và định dạng driver để đảm bảo
+        chuỗi kết nối hợp lệ, tránh các lỗi liên quan đến ký tự đặc biệt.
+
         Returns:
-            Chuỗi kết nối tương thích với SQLAlchemy cho MS SQL Server qua pyodbc.
+            Chuỗi kết nối tương thích với SQLAlchemy cho MS SQL Server
+            sử dụng driver `pyodbc`.
         """
+        # Mã hóa mật khẩu để xử lý các ký tự đặc biệt
         encoded_pwd = parse.quote_plus(self.SQLSERVER_PWD)
+        # Thay thế khoảng trắng trong tên driver bằng dấu '+' cho URL
         driver_for_query = self.SQLSERVER_DRIVER.replace(' ', '+')
 
         return (
-            f'mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}@'
-            f'{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}?'
-            f'driver={driver_for_query}'
+            f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}"
+            f"@{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}"
+            f"?driver={driver_for_query}"
         )
 
 
 class TableConfig(BaseModel):
     """
     Cấu hình chi tiết cho việc xử lý ETL của một bảng.
+
+    Mỗi instance của lớp này đại diện cho một pipeline ETL nhỏ cho một bảng
+    duy nhất, từ trích xuất, biến đổi đến tải dữ liệu.
     """
     source_table: str                       # Tên bảng nguồn trong MS SQL.
     dest_table: str                         # Tên bảng đích trong DuckDB (sau khi biến đổi).
@@ -96,8 +109,7 @@ class TableConfig(BaseModel):
         """
         if self.incremental and not self.timestamp_col:
             raise ValueError(
-                f"Cấu hình cho '{self.source_table}': 'timestamp_col' là bắt buộc "
-                f"khi 'incremental' là True."
+                f"Cấu hình cho '{self.source_table}': 'timestamp_col' là bắt buộc khi 'incremental' là True."
             )
         return self
 
@@ -105,6 +117,9 @@ class TableConfig(BaseModel):
     def final_timestamp_col(self) -> Optional[str]:
         """
         Lấy tên cột timestamp cuối cùng (sau khi đã được đổi tên).
+
+        Hàm này giúp pipeline ETL biết được tên cột timestamp trong DataFrame
+        đã được biến đổi để thực hiện các thao tác liên quan đến incremental load.
         """
         if not self.timestamp_col:
             return None
@@ -114,14 +129,17 @@ class TableConfig(BaseModel):
 class Settings(BaseSettings):
     """
     Model cấu hình chính, tổng hợp tất cả các thiết lập cho ứng dụng.
+
+    Lớp này sử dụng `BaseSettings` để tự động đọc các biến từ file `.env`
+    và môi trường, sau đó xác thực và gán chúng vào các thuộc tính đã định nghĩa.
     """
     model_config = SettingsConfigDict(
         env_file='.env',
         env_file_encoding='utf-8',
-        extra='ignore'                      # Bỏ qua các biến môi trường không được định nghĩa.
+        extra='ignore'  # Bỏ qua các biến môi trường không được định nghĩa
     )
 
-    # --- Cấu hình chung ---
+    # --- Cấu hình chung của ứng dụng ---
     PROJECT_NAME: str = 'Analytics iCount People API'
     DESCRIPTION: str = 'API cung cấp dữ liệu phân tích lượt ra vào cửa hàng.'
     BACKEND_CORS_ORIGINS: Annotated[
@@ -129,8 +147,8 @@ class Settings(BaseSettings):
     ] = []
 
     # --- Cấu hình nghiệp vụ ---
-    OUTLIER_THRESHOLD: int = 100            # Ngưỡng để xác định giá trị ngoại lệ.
-    OUTLIER_SCALE_RATIO: float = 0.00001    # Tỷ lệ để điều chỉnh giá trị ngoại lệ.
+    OUTLIER_THRESHOLD: int = 100            # Ngưỡng để xác định giá trị ngoại lai.
+    OUTLIER_SCALE_RATIO: float = 0.00001    # Tỷ lệ để điều chỉnh giá trị ngoại lai.
     WORKING_HOUR_START: int = 9             # Giờ bắt đầu ngày làm việc (09:00).
     WORKING_HOUR_END: int = 2               # Giờ kết thúc ngày làm việc (02:00 sáng hôm sau).
 
@@ -170,10 +188,11 @@ class Settings(BaseSettings):
     def assemble_settings(self) -> 'Settings':
         """
         Validator để tự động tạo các đối tượng cấu hình phụ sau khi load .env.
+
         - Tạo đối tượng `DatabaseSettings`.
         - Tải và xác thực cấu hình bảng từ file YAML.
         """
-        # 1. Tạo đối tượng `db`
+        # 1. Tạo đối tượng `db` để nhóm các thông tin kết nối
         if not self.db:
             self.db = DatabaseSettings(
                 SQLSERVER_DRIVER=self.SQLSERVER_DRIVER,
@@ -194,23 +213,19 @@ class Settings(BaseSettings):
             if not raw_config:
                 raise ValueError(f"File cấu hình '{self.TABLE_CONFIG_PATH}' rỗng.")
 
+            # Sử dụng TypeAdapter để xác thực toàn bộ cấu trúc dict
             adapter = TypeAdapter(Dict[str, TableConfig])
             self.TABLE_CONFIG = adapter.validate_python(raw_config)
 
         except FileNotFoundError:
-            raise ValueError(
-                f"Lỗi: Không tìm thấy file cấu hình bảng tại: "
-                f"{self.TABLE_CONFIG_PATH}."
-            )
+            raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
 
         except (yaml.YAMLError, ValidationError) as e:
-            raise ValueError(
-                f"Lỗi cú pháp hoặc nội dung file cấu hình bảng "
-                f"'{self.TABLE_CONFIG_PATH}':\n{e}."
-            )
+            raise ValueError(f"Lỗi cú pháp hoặc nội dung trong file '{self.TABLE_CONFIG_PATH}':\n{e}.")
 
         return self
 
 
-# Khởi tạo một đối tượng settings duy nhất để sử dụng trong toàn bộ ứng dụng.
+# Khởi tạo một instance duy nhất để sử dụng trong toàn bộ ứng dụng,
+# tuân theo Singleton pattern.
 settings = Settings()
