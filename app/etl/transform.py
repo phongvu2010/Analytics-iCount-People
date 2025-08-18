@@ -2,12 +2,13 @@
 Module xử lý giai đoạn 'T' (Transform) của pipeline ETL.
 
 Nhận vào một DataFrame thô từ bước Extract và thực hiện một chuỗi các thao tác
-biến đổi dữ liệu như: đổi tên cột, làm sạch, xử lý kiểu dữ liệu, và cuối cùng
-là xác thực với Pandera để đảm bảo chất lượng trước khi tải.
+biến đổi dữ liệu, bao gồm: đổi tên cột, làm sạch chuỗi, xử lý kiểu dữ liệu,
+tạo cột partition, và cuối cùng là xác thực với Pandera để đảm bảo chất lượng
+dữ liệu trước khi nạp.
 """
 import logging
 import pandas as pd
-import pandera.pandas as pa
+import pandera.errors as pa_errors
 
 from typing import List, Optional
 
@@ -18,11 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _select_final_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Chọn và sắp xếp các cột cuối cùng của DataFrame để khớp với schema.
-
-    Điều này đảm bảo không có cột thừa nào được đưa vào bước xác thực.
-    """
+    """ Chọn và sắp xếp các cột cuối cùng để khớp với schema đích. """
     schema = table_schemas.get(config.dest_table)
     if not schema:
         return df
@@ -35,12 +32,7 @@ def _select_final_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame
 
 
 def _save_rejected_data(df: pd.DataFrame, config: TableConfig):
-    """
-    Lưu các hàng dữ liệu bị từ chối vào một file Parquet riêng.
-
-    Đây là một phần của chiến lược "Dead-Letter Queue", giúp phân tích
-    lỗi dữ liệu sau này mà không làm gián đoạn pipeline chính.
-    """
+    """ Lưu các hàng dữ liệu bị từ chối vào một file Parquet riêng. """
     rejected_path = settings.DATA_DIR / 'rejected' / config.dest_table
     rejected_path.mkdir(parents=True, exist_ok=True)
 
@@ -58,46 +50,43 @@ def _save_rejected_data(df: pd.DataFrame, config: TableConfig):
 def _validate_with_pandera(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     """
     Xác thực DataFrame với schema Pandera tương ứng.
+
+    Nếu xác thực thất bại, các hàng lỗi sẽ được lưu lại và một exception
+    sẽ được ném ra để dừng quá trình xử lý của bảng hiện tại.
     """
     schema = table_schemas.get(config.dest_table)
     if not schema:
-        logger.warning(
-            f"Không tìm thấy schema Pandera cho bảng '{config.dest_table}'. "
-            f"Bỏ qua xác thực."
-        )
+        logger.warning(f"Không tìm thấy schema Pandera cho '{config.dest_table}'. "
+                       f"Bỏ qua xác thực.")
         return df
 
     try:
-        logger.debug(f"Bắt đầu xác thực schema cho bảng '{config.dest_table}'.")
+        logger.debug(f"Bắt đầu xác thực schema cho '{config.dest_table}'.")
         # lazy=True để thu thập tất cả lỗi thay vì dừng ở lỗi đầu tiên.
         validated_df = schema.validate(df, lazy=True)
         logger.debug(f"Xác thực schema cho '{config.dest_table}' thành công.")
         return validated_df
-    except pa.errors.SchemaErrors as err:
-        logger.error(f"Xác thực dữ liệu cho bảng '{config.dest_table}' thất bại!")
-        logger.error(f"Chi tiết lỗi schema:\n{err.failure_cases.to_string()}")
+    except pa_errors.SchemaErrors as err:
+        logger.error(f"Xác thực dữ liệu cho '{config.dest_table}' thất bại!")
+        logger.error(f"Chi tiết lỗi:\n{err.failure_cases.to_string()}")
 
         # Triển khai "Dead-Letter Queue"
         # Lưu các hàng lỗi vào một file riêng để phân tích sau.
         if not err.failure_cases.empty:
             _save_rejected_data(err.failure_cases, config)
 
-        raise  # Ném lại lỗi để quy trình ETL cho bảng này dừng lại.
+        raise  # Ném lại lỗi để pipeline chính xử lý.
 
 
 def _rename_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Đổi tên các cột dựa trên `rename_map` trong cấu hình.
-    """
+    """ Đổi tên các cột dựa trên `rename_map` trong cấu hình. """
     if config.rename_map:
-        df = df.rename(columns=config.rename_map)
+        return df.rename(columns=config.rename_map)
     return df
 
 
 def _apply_strip(series: pd.Series) -> pd.Series:
-    """
-    Loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi một cách an toàn.
-    """
+    """ Helper function để loại bỏ khoảng trắng thừa ở đầu và cuối chuỗi. """
     return series.str.strip()
 
 
@@ -107,17 +96,14 @@ CLEANING_ACTIONS = {
 
 
 def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Áp dụng các quy tắc làm sạch dữ liệu từ cấu hình.
-    """
+    """ Áp dụng các quy tắc làm sạch dữ liệu từ cấu hình. """
     if not config.cleaning_rules:
         return df
 
     for rule in config.cleaning_rules:
-        # Lấy tên cột đích đã được đổi tên để áp dụng quy tắc làm sạch
+        # Lấy tên cột đích đã được đổi tên để áp dụng quy tắc.
         col_to_clean = config.rename_map.get(rule.column, rule.column)
 
-        # Chỉ áp dụng quy tắc nếu cột tồn tại và có kiểu dữ liệu là chuỗi (object)
         if col_to_clean in df.columns and pd.api.types.is_object_dtype(df[col_to_clean]):
             action_func = CLEANING_ACTIONS.get(rule.action)
             if action_func:
@@ -127,15 +113,13 @@ def _clean_data(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
 
 
 def _process_numeric_columns(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-    """
-    Chuyển đổi các cột số, xử lý giá trị âm và rỗng.
-    """
+    """ Chuyển đổi các cột số, xử lý giá trị âm và rỗng. """
     for col in columns:
         if col in df.columns:
+            # `coerce` sẽ chuyển các giá trị không hợp lệ thành NaT.
             df[col] = pd.to_numeric(df[col], errors='coerce')
             # Chuyển các giá trị âm thành 0.
-            neg_count = (df[col] < 0).sum()
-            if neg_count > 0:
+            if (df[col] < 0).any():
                 df[col] = df[col].apply(lambda x: max(0, x) if pd.notna(x) else x)
             # Điền giá trị rỗng bằng 0 và chuyển sang kiểu integer.
             df[col] = df[col].fillna(0).astype(int)
@@ -144,9 +128,7 @@ def _process_numeric_columns(df: pd.DataFrame, columns: List[str]) -> pd.DataFra
 
 
 def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
-    """
-    Chuyển đổi cột timestamp và tạo các cột partition (năm, tháng).
-    """
+    """ Chuyển đổi cột timestamp và tạo các cột partition (năm, tháng). """
     ts_col = config.final_timestamp_col
     if not (ts_col and ts_col in df.columns):
         return df
@@ -154,12 +136,10 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
     df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
 
     # Loại bỏ các hàng có timestamp không hợp lệ.
-    num_nat = df[ts_col].isna().sum()
-    if num_nat > 0:
-        logger.warning(
-            f"Tìm thấy {num_nat} timestamp không hợp lệ trong '{ts_col}', "
-            f"các hàng này sẽ bị loại bỏ."
-        )
+    if df[ts_col].isna().any():
+        num_nat = df[ts_col].isna().sum()
+        logger.warning(f"Tìm thấy {num_nat} timestamp không hợp lệ trong cột '{ts_col}'. "
+                       f"Các hàng này sẽ bị loại bỏ.")
         df.dropna(subset=[ts_col], inplace=True)
 
     # Tạo cột partition nếu được cấu hình.
@@ -173,9 +153,7 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
 
 
 def _ensure_data_types(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Đảm bảo các cột có kiểu dữ liệu phù hợp trước khi xác thực và tải.
-    """
+    """ Đảm bảo các cột có kiểu dữ liệu phù hợp trước khi xác thực. """
     for col in df.columns:
         if pd.api.types.is_object_dtype(df[col]):
             # Chuẩn hóa các giá trị rỗng trong cột chuỗi.
@@ -191,22 +169,24 @@ def _ensure_data_types(df: pd.DataFrame) -> pd.DataFrame:
 
 def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     """
-    Chạy toàn bộ quy trình biến đổi dữ liệu trên một DataFrame.
+    Điều phối toàn bộ quy trình biến đổi dữ liệu trên một DataFrame.
 
     Sử dụng phương thức `.pipe()` của Pandas để chuỗi các hàm lại với nhau,
-    giúp mã nguồn dễ đọc và bảo trì.
+    giúp mã nguồn dễ đọc, dễ hiểu và dễ dàng thay đổi thứ tự hoặc thêm/bớt
+    các bước biến đổi.
 
     Args:
         df: DataFrame đầu vào từ bước Extract.
         config: Cấu hình cho bảng đang được xử lý.
 
     Returns:
-        DataFrame đã được biến đổi và sẵn sàng cho bước Load.
+        DataFrame đã được biến đổi, làm sạch và xác thực.
     """
+    # Lấy tên cột đích từ config
     visitors_in_col = config.rename_map.get('in_num', 'in_num')
     visitors_out_col = config.rename_map.get('out_num', 'out_num')
 
-    df_transformed = (
+    return (
         df.pipe(_rename_columns, config)
         .pipe(_clean_data, config)
         .pipe(_process_numeric_columns, [visitors_in_col, visitors_out_col])
@@ -215,12 +195,20 @@ def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
         .pipe(_select_final_columns, config)
         .pipe(_validate_with_pandera, config)
     )
-    return df_transformed
 
 
 def get_max_timestamp(df: pd.DataFrame, config: TableConfig) -> Optional[pd.Timestamp]:
     """
-    Lấy giá trị timestamp lớn nhất từ một chunk để cập nhật "high-water mark".
+    Lấy giá trị timestamp lớn nhất từ một chunk.
+
+    Giá trị này sẽ được dùng để cập nhật "high-water mark" cho lần chạy ETL tiếp theo.
+
+    Args:
+        df: DataFrame đã được biến đổi.
+        config: Cấu hình của bảng.
+
+    Returns:
+        Timestamp lớn nhất hoặc None nếu không áp dụng.
     """
     if not config.incremental:
         return None
