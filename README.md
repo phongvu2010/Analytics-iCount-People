@@ -193,3 +193,10 @@ app/etl/transform.py
 app/main.py
 app/routers.py
 app/services.py
+
+SELECT a.*, b.MaxLogTime
+FROM (SELECT TOP 100 storeid, MAX(recordtime) AS MaxRecordTime FROM num_crowd GROUP BY storeid ORDER BY storeid ASC) AS a
+LEFT JOIN (SELECT TOP 100 storeid, MAX(LogTime) AS MaxLogTime FROM ErrLog GROUP BY storeid ORDER BY storeid ASC) AS b
+	ON a.storeid = b.storeid
+WHERE a.storeid NOT IN (29, 38)
+ORDER BY storeid ASC
