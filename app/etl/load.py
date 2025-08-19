@@ -204,8 +204,11 @@ def refresh_duckdb_table(conn: DuckDBPyConnection, config: TableConfig, has_new_
 
     finally:
         # 4. Dọn dẹp file Parquet
-        if success or settings.ETL_CLEANUP_ON_FAILURE:
-            logger.info('Bắt đầu dọn dẹp thư mục staging...')
-            ParquetLoader(config).clean_staging_area()
-        else:
-            logger.warning(f"Giữ lại dữ liệu staging tại '{staging_dir}' để gỡ lỗi.")
+        # Chỉ dọn dẹp staging area đối với các bảng full-load.
+        # Đối với incremental load, staging area là nguồn dữ liệu và cần được giữ lại.
+        if not config.incremental:
+            if success or settings.ETL_CLEANUP_ON_FAILURE:
+                logger.info(f"Dọn dẹp staging area cho bảng full-load '{config.dest_table}'...")
+                ParquetLoader(config).clean_staging_area()
+            else:
+                logger.warning(f"Giữ lại dữ liệu staging tại '{staging_dir}' để gỡ lỗi.")
