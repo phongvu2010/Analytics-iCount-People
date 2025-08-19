@@ -2,9 +2,9 @@
 Module xử lý giai đoạn 'T' (Transform) của pipeline ETL.
 
 Nhận vào một DataFrame thô từ bước Extract và thực hiện một chuỗi các thao tác
-biến đổi dữ liệu, bao gồm: đổi tên cột, làm sạch chuỗi, xử lý kiểu dữ liệu,
-tạo cột partition, và cuối cùng là xác thực với Pandera để đảm bảo chất lượng
-dữ liệu trước khi nạp.
+biến đổi dữ liệu, bao gồm: điều chỉnh chênh lệch thời gian, đổi tên cột,
+làm sạch chuỗi, xử lý kiểu dữ liệu, tạo cột partition, và cuối cùng là xác
+thực với Pandera để đảm bảo chất lượng dữ liệu trước khi nạp.
 """
 import logging
 import pandas as pd
@@ -16,6 +16,58 @@ from .schemas import table_schemas
 from ..core.config import settings, TableConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_time_offsets(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
+    """
+    Áp dụng điều chỉnh chênh lệch thời gian cho cột timestamp một cách hiệu quả.
+
+    Hàm này sử dụng phương pháp vector hóa của Pandas để tăng hiệu suất:
+    1. Lấy map chênh lệch thời gian cho bảng hiện tại từ settings.
+    2. Tạo một Series chứa giá trị offset (đã chuyển đổi thành Timedelta) cho
+       mỗi dòng bằng cách map `storeid` với cấu hình.
+    3. Trừ trực tiếp Series Timedelta này khỏi cột timestamp.
+    """
+    if not config.timestamp_col:
+        return df
+
+    # Lấy tên bảng không có schema (ví dụ: 'num_crowd' thay vì 'dbo.num_crowd')
+    table_name_key = config.source_table.split('.')[-1]
+    time_offsets_for_table = settings.TIME_OFFSETS.get(table_name_key)
+
+    if not time_offsets_for_table:
+        logger.debug(f"Không có cấu hình chênh lệch thời gian cho bảng '{table_name_key}'. Bỏ qua.")
+        return df
+
+    # Sử dụng tên cột gốc từ SQL Server để map offset
+    store_id_col_source = 'storeid'
+    ts_col_source = config.timestamp_col
+
+    if store_id_col_source not in df.columns or ts_col_source not in df.columns:
+        logger.warning(
+            f"Bỏ qua điều chỉnh thời gian cho '{table_name_key}' do thiếu cột nguồn "
+            f"'{store_id_col_source}' hoặc '{ts_col_source}' trong DataFrame thô."
+        )
+        return df
+
+    # 1. Tạo một Series chứa giá trị offset cho mỗi dòng.
+    #    fillna(0) để các store_id không có trong config sẽ không bị điều chỉnh.
+    offsets_in_minutes = df[store_id_col_source].map(time_offsets_for_table).fillna(0)
+
+    # 2. Chuyển đổi Series offset (phút) thành Timedelta.
+    timedelta_offsets = pd.to_timedelta(offsets_in_minutes, unit='m')
+
+    # 3. Đảm bảo cột timestamp là kiểu datetime.
+    df[ts_col_source] = pd.to_datetime(df[ts_col_source], errors='coerce')
+
+    # 4. Thực hiện phép trừ vector hóa để điều chỉnh thời gian.
+    #    Lưu ý: Dấu trừ (-) vì logic là "thời gian đúng = thời gian sai - chênh lệch"
+    #    Ví dụ: đồng hồ chạy nhanh 55 phút (offset: 55), cần trừ đi 55 phút.
+    #            đồng hồ chạy chậm 105 phút (offset: -105), cần trừ đi -105 phút (tức là cộng thêm).
+    df[ts_col_source] = df[ts_col_source] - timedelta_offsets
+
+    logger.info(f"Đã áp dụng điều chỉnh chênh lệch thời gian cho bảng '{table_name_key}'.")
+    return df
 
 
 def _select_final_columns(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
@@ -133,6 +185,7 @@ def _handle_timestamps_and_partitions(df: pd.DataFrame, config: TableConfig) -> 
     if not (ts_col and ts_col in df.columns):
         return df
 
+    # Bước này chỉ đảm bảo kiểu dữ liệu, vì giá trị đã được chuyển đổi ở các bước trước
     df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
 
     # Loại bỏ các hàng có timestamp không hợp lệ.
@@ -187,7 +240,8 @@ def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     visitors_out_col = config.rename_map.get('out_num', 'out_num')
 
     return (
-        df.pipe(_rename_columns, config)
+        df.pipe(_apply_time_offsets, config)
+        .pipe(_rename_columns, config)
         .pipe(_clean_data, config)
         .pipe(_process_numeric_columns, [visitors_in_col, visitors_out_col])
         .pipe(_handle_timestamps_and_partitions, config)

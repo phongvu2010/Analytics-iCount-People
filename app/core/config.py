@@ -165,10 +165,12 @@ class Settings(BaseSettings):
     ETL_DEFAULT_TIMESTAMP: str = '1900-01-01 00:00:00'
     ETL_CLEANUP_ON_FAILURE: bool = True     # Xóa file tạm nếu ETL thất bại.
     TABLE_CONFIG_PATH: Path = Path('configs/tables.yaml')
+    TIME_OFFSETS_PATH: Path = Path('configs/time_offsets.yaml')
 
     # --- Thuộc tính được tính toán và tải động ---
     db: Optional[DatabaseSettings] = None
     TABLE_CONFIG: Dict[str, TableConfig] = {}
+    TIME_OFFSETS: Dict[str, Dict[int, int]] = {}
 
     @property
     def DUCKDB_PATH(self) -> Path:
@@ -191,6 +193,7 @@ class Settings(BaseSettings):
 
         - Tạo đối tượng `DatabaseSettings`.
         - Tải và xác thực cấu hình bảng từ file YAML.
+        - Tải và xác thực cấu hình chênh lệch thời gian từ file YAML.
         """
         # 1. Tạo đối tượng `db` để nhóm các thông tin kết nối
         if not self.db:
@@ -203,25 +206,36 @@ class Settings(BaseSettings):
             )
 
         # 2. Tải cấu hình bảng từ file YAML
-        if self.TABLE_CONFIG:
-            return self
+        if not self.TABLE_CONFIG:
+            try:
+                with self.TABLE_CONFIG_PATH.open('r', encoding='utf-8') as f:
+                    raw_config = yaml.safe_load(f)
 
-        try:
-            with self.TABLE_CONFIG_PATH.open('r', encoding='utf-8') as f:
-                raw_config = yaml.safe_load(f)
+                if not raw_config:
+                    raise ValueError(f"File cấu hình '{self.TABLE_CONFIG_PATH}' rỗng.")
 
-            if not raw_config:
-                raise ValueError(f"File cấu hình '{self.TABLE_CONFIG_PATH}' rỗng.")
+                # Sử dụng TypeAdapter để xác thực toàn bộ cấu trúc dict
+                adapter = TypeAdapter(Dict[str, TableConfig])
+                self.TABLE_CONFIG = adapter.validate_python(raw_config)
 
-            # Sử dụng TypeAdapter để xác thực toàn bộ cấu trúc dict
-            adapter = TypeAdapter(Dict[str, TableConfig])
-            self.TABLE_CONFIG = adapter.validate_python(raw_config)
+            except FileNotFoundError:
+                raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
 
-        except FileNotFoundError:
-            raise ValueError(f"Lỗi: Không tìm thấy file cấu hình bảng tại: {self.TABLE_CONFIG_PATH}.")
+            except (yaml.YAMLError, ValidationError) as e:
+                raise ValueError(f"Lỗi cú pháp hoặc nội dung trong file '{self.TABLE_CONFIG_PATH}':\n{e}.")
 
-        except (yaml.YAMLError, ValidationError) as e:
-            raise ValueError(f"Lỗi cú pháp hoặc nội dung trong file '{self.TABLE_CONFIG_PATH}':\n{e}.")
+        # 3. Tải cấu hình chênh lệch thời gian
+        if not self.TIME_OFFSETS:
+            try:
+                with self.TIME_OFFSETS_PATH.open('r', encoding='utf-8') as f:
+                    raw_offsets = yaml.safe_load(f)
+                if not raw_offsets:
+                    raise ValueError(f"File cấu hình '{self.TIME_OFFSETS_PATH}' rỗng.")
+                self.TIME_OFFSETS = raw_offsets
+            except FileNotFoundError:
+                raise ValueError(f"Lỗi: Không tìm thấy file cấu hình chênh lệch thời gian tại: {self.TIME_OFFSETS_PATH}.")
+            except yaml.YAMLError as e:
+                raise ValueError(f"Lỗi cú pháp trong file '{self.TIME_OFFSETS_PATH}':\n{e}.")
 
         return self
 

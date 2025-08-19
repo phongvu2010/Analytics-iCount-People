@@ -174,7 +174,7 @@ python -m cli serve
 ```
 #### Bạn cũng có thể thay đổi host và port:
 ```
-python -m cli serve --host 0.0.0.0 --port 8888
+python -m cli serve --host 0.0.0.0 --port 8000
 ```
 #### Để xem tất cả các lệnh có sẵn:
 ```
