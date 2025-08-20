@@ -23,7 +23,7 @@ def from_sql_server(
     sql_engine: Engine, config: TableConfig, last_timestamp: str
 ) -> Iterator[pd.DataFrame]:
     """
-    Trích xuất dữ liệu từ một bảng trong MS SQL Server theo từng khối (chunk).
+    Trích xuất dữ liệu từ MS SQL Server theo từng khối (chunk).
 
     Hàm này xây dựng câu lệnh SQL để lấy toàn bộ dữ liệu (full-load) hoặc
     chỉ dữ liệu mới (incremental load) dựa trên cấu hình và high-water mark.
@@ -37,7 +37,7 @@ def from_sql_server(
         Một iterator của các Pandas DataFrame, mỗi DataFrame là một chunk dữ liệu.
 
     Raises:
-        SQLAlchemyError: Nếu có lỗi xảy ra trong quá trình thực thi câu lệnh SQL.
+        SQLAlchemyError: Nếu có lỗi xảy ra trong quá trình thực thi SQL.
     """
     # Lấy danh sách các cột nguồn cần thiết từ `rename_map`.
     source_columns = list(config.rename_map.keys())
@@ -47,27 +47,29 @@ def from_sql_server(
         source_columns.append(config.timestamp_col)
 
     if not source_columns:
-        logger.warning(f"Không có cột nào được định nghĩa trong 'rename_map' cho bảng "
-                       f"'{config.source_table}'. Sử dụng 'SELECT *'. Cân nhắc định nghĩa "
-                       f"rõ các cột để tối ưu hiệu suất.")
+        logger.warning(
+            f"Không có cột nào trong 'rename_map' cho bảng '{config.source_table}'. "
+            f"Sử dụng 'SELECT *' làm mặc định."
+        )
         columns_selection = '*'
     else:
-        # Xây dựng chuỗi các cột được chọn. Bọc trong dấu ngoặc vuông `[]`
-        # là cú pháp chuẩn của T-SQL để xử lý các tên cột chứa ký tự đặc biệt
-        # hoặc là từ khóa của SQL.
+        # Xây dựng chuỗi các cột được chọn, bọc trong `[]` để tương thích T-SQL.
         columns_selection = ', '.join(f'[{col}]' for col in source_columns)
 
     query = f"SELECT {columns_selection} FROM {config.source_table}"
     params = {}
 
     # Nếu là incremental load, thêm mệnh đề WHERE và ORDER BY.
-    # ORDER BY trên cột timestamp là cần thiết để đảm bảo tính nhất quán
-    # của high-water mark.
     if config.incremental and config.timestamp_col:
-        query += f" WHERE [{config.timestamp_col}] > :last_ts ORDER BY [{config.timestamp_col}]"
+        query += (
+            f" WHERE [{config.timestamp_col}] > :last_ts "
+            f"ORDER BY [{config.timestamp_col}]"
+        )
         params = {'last_ts': last_timestamp}
-        logger.info(f"Trích xuất incremental từ '{config.source_table}' với "
-                    f"high-water-mark > '{last_timestamp}'.")
+        logger.info(
+            f"Trích xuất incremental từ '{config.source_table}' với "
+            f"high-water-mark > '{last_timestamp}'."
+        )
     else:
         logger.info(f"Trích xuất full-load từ '{config.source_table}'.")
 
@@ -84,5 +86,7 @@ def from_sql_server(
             chunksize=settings.ETL_CHUNK_SIZE
         )
     except SQLAlchemyError as e:
-        logger.error(f"Lỗi SQL khi trích xuất từ bảng '{config.source_table}': {e}")
+        logger.error(
+            f"Lỗi SQL khi trích xuất từ bảng '{config.source_table}': {e}"
+        )
         raise

@@ -1,5 +1,5 @@
 """
-Module này quản lý trạng thái của pipeline ETL.
+Module quản lý trạng thái của pipeline ETL.
 
 Chức năng chính là đọc và ghi "high-water mark" (thường là timestamp
 lớn nhất đã xử lý) cho mỗi bảng vào một file JSON. Điều này cho phép
@@ -36,7 +36,9 @@ def load_etl_state() -> Dict[str, str]:
         with STATE_FILE.open('r', encoding='utf-8') as f:
             return json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
-        logger.warning(f"Không thể đọc file state '{STATE_FILE}'. Bắt đầu lại từ đầu.")
+        logger.warning(
+            f"Không thể đọc file state '{STATE_FILE}'. Bắt đầu lại từ đầu."
+        )
         return {}
 
 
@@ -75,7 +77,9 @@ def get_last_timestamp(state: Dict[str, str], table_name: str) -> str:
     return state.get(table_name, settings.ETL_DEFAULT_TIMESTAMP)
 
 
-def update_timestamp(state: Dict[str, str], table_name: str, new_timestamp: pd.Timestamp):
+def update_timestamp(
+    state: Dict[str, str], table_name: str, new_timestamp: pd.Timestamp
+):
     """
     Cập nhật high-water mark cho một bảng trong dictionary state.
 
@@ -88,7 +92,9 @@ def update_timestamp(state: Dict[str, str], table_name: str, new_timestamp: pd.T
     if pd.notna(new_timestamp):
         # Dùng `isoformat` để đảm bảo định dạng chuỗi nhất quán và chuẩn mực.
         state[table_name] = new_timestamp.isoformat(sep=' ')
-        logger.debug(f"Đã cập nhật timestamp cho '{table_name}': {state[table_name]}")
+        logger.debug(
+            f"Đã cập nhật timestamp cho '{table_name}': {state[table_name]}"
+        )
     else:
         logger.warning(
             f"Không thể cập nhật timestamp cho '{table_name}' vì giá trị mới "

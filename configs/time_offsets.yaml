@@ -1,23 +1,23 @@
 # Cấu hình chênh lệch thời gian (tính bằng phút) cho mỗi store_id
 # Giá trị dương: cộng thêm phút. Giá trị âm: trừ đi số phút.
 num_crowd:
-  28: 55   # store_id 28 trong bảng ErrLog bị nhanh 55 phút
-  30: 82
-  31: -105   # store_id 31 trong bảng ErrLog bị chậm 105 phút
+  28: 55
+  30: 94     # Cập nhật từ 82
+  31: 45     # Cập nhật từ -105
   32: 45
   33: 0
   34: 96
-  35: 63
+  35: 43     # Cập nhật từ 63
   36: 45
   37: -25
 
 ErrLog:
-  28: 55   # store_id 28 trong bảng ErrLog bị nhanh 55 phút
-  30: 82
-  31: -105   # store_id 31 trong bảng ErrLog bị chậm 105 phút
+  28: 55
+  30: 94     # Cập nhật từ 82
+  31: 45     # Cập nhật từ -105
   32: 45
   33: 0
   34: 96
-  35: 63
+  35: 43     # Cập nhật từ 63
   36: 45
   37: -25

@@ -54,7 +54,10 @@ class MaxLevelFilter(logging.Filter):
         return record.levelno <= self.level
 
 
-def setup_logging(config_path: Union[str, Path] = 'configs/logger.yaml', default_level: int = logging.INFO ) -> None:
+def setup_logging(
+    config_path: Union[str, Path] = 'configs/logger.yaml',
+    default_level: int = logging.INFO
+) -> None:
     """
     Thiết lập cấu hình logging cho toàn bộ ứng dụng từ một file YAML.
 
@@ -63,8 +66,7 @@ def setup_logging(config_path: Union[str, Path] = 'configs/logger.yaml', default
     sử dụng cấu hình logging cơ bản.
 
     Args:
-        config_path: Đường dẫn đến file YAML cấu hình logging. Mặc định là
-                     'configs/logger.yaml'.
+        config_path: Đường dẫn đến file YAML cấu hình logging.
         default_level: Log level mặc định sẽ được sử dụng nếu file cấu hình
                        không hợp lệ hoặc không tìm thấy.
     """
@@ -76,7 +78,10 @@ def setup_logging(config_path: Union[str, Path] = 'configs/logger.yaml', default
 
     if not config_path.is_file():
         logging.basicConfig(level=default_level)
-        logging.warning(f"Không tìm thấy file cấu hình tại '{config_path}'. Sử dụng cấu hình logging cơ bản.")
+        logging.warning(
+            f"Không tìm thấy file cấu hình tại '{config_path}'. "
+            f"Sử dụng cấu hình logging cơ bản."
+        )
         return
 
     try:
@@ -84,7 +89,7 @@ def setup_logging(config_path: Union[str, Path] = 'configs/logger.yaml', default
             config_dict = yaml.safe_load(f)
 
         if not config_dict:
-            raise ValueError('File YAML rỗng hoặc không hợp lệ.')
+            raise ValueError("File YAML rỗng hoặc không hợp lệ.")
 
         # Cho phép ghi đè log level bằng biến môi trường `LOG_LEVEL`.
         # Điều này rất hữu ích khi cần gỡ lỗi trên môi trường production
@@ -92,7 +97,10 @@ def setup_logging(config_path: Union[str, Path] = 'configs/logger.yaml', default
         log_level_from_env = os.environ.get('LOG_LEVEL')
         if log_level_from_env and 'root' in config_dict:
             config_dict['root']['level'] = log_level_from_env.upper()
-            logging.info(f"Log level được ghi đè thành '{log_level_from_env.upper()}' bởi biến môi trường LOG_LEVEL.")
+            logging.info(
+                f"Log level được ghi đè thành '{log_level_from_env.upper()}' "
+                f"bởi biến môi trường LOG_LEVEL."
+            )
 
         logging.config.dictConfig(config_dict)
 

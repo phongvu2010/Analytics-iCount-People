@@ -11,9 +11,10 @@ import pandera.pandas as pa
 from pandera.typing import DateTime, Int, Series, String
 
 
-# --- Định nghĩa Schema cho các bảng Dimension và Fact ---
 class DimStoresSchema(pa.DataFrameModel):
-    """ Schema xác thực cho bảng `dim_stores`. """
+    """
+    Schema xác thực cho bảng `dim_stores`.
+    """
     store_id: Series[Int] = pa.Field(unique=True, nullable=False)
     store_name: Series[String] = pa.Field(nullable=False)
 
@@ -23,10 +24,11 @@ class DimStoresSchema(pa.DataFrameModel):
 
 
 class FactTrafficSchema(pa.DataFrameModel):
-    """ Schema xác thực cho bảng `fact_traffic`. """
+    """
+    Schema xác thực cho bảng `fact_traffic`.
+    """
     recorded_at: Series[DateTime] = pa.Field(nullable=False)
-    # ge=0: Ràng buộc giá trị phải lớn hơn hoặc bằng 0.
-    visitors_in: Series[Int] = pa.Field(ge=0, default=0)
+    visitors_in: Series[Int] = pa.Field(ge=0, default=0) # ge=0: Lớn hơn hoặc bằng 0
     visitors_out: Series[Int] = pa.Field(ge=0, default=0)
     device_position: Series[String] = pa.Field(nullable=True)
     store_id: Series[Int] = pa.Field(nullable=False)
@@ -41,7 +43,9 @@ class FactTrafficSchema(pa.DataFrameModel):
 
 
 class FactErrorsSchema(pa.DataFrameModel):
-    """ Schema xác thực cho bảng `fact_errors`. """
+    """
+    Schema xác thực cho bảng `fact_errors`.
+    """
     log_id: Series[Int] = pa.Field(unique=True, nullable=False)
     store_id: Series[Int] = pa.Field(nullable=False)
     device_code: Series[Int] = pa.Field(nullable=True)
@@ -49,7 +53,7 @@ class FactErrorsSchema(pa.DataFrameModel):
     error_code: Series[Int] = pa.Field(nullable=True)
     error_message: Series[String] = pa.Field(nullable=True)
 
-    # Các cột partition.
+    # Các cột partition được thêm vào trong quá trình transform.
     year: Series[Int]
     month: Series[Int]
 

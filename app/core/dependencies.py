@@ -51,12 +51,12 @@ def get_db_connection() -> Iterator[DuckDBPyConnection]:
     finally:
         if conn:
             conn.close()
-            logger.debug('Kết nối DuckDB đã được đóng.')
+            logger.debug("Kết nối DuckDB đã được đóng.")
 
 
 def query_db_to_df(query: str, params: list = None) -> pd.DataFrame:
     """
-    Hàm tiện ích để thực thi một câu lệnh SQL và trả về kết quả dưới dạng DataFrame.
+    Hàm tiện ích để thực thi SQL và trả về kết quả dưới dạng DataFrame.
 
     Hàm này tự quản lý việc mở và đóng kết nối, phù hợp cho các tác vụ
     truy vấn đơn lẻ trong service layer.
@@ -66,8 +66,7 @@ def query_db_to_df(query: str, params: list = None) -> pd.DataFrame:
         params: Danh sách các tham số cho câu lệnh SQL để chống SQL injection.
 
     Returns:
-        Một Pandas DataFrame chứa kết quả. Trả về DataFrame rỗng nếu có lỗi
-        xảy ra trong quá trình kết nối hoặc truy vấn.
+        Một Pandas DataFrame chứa kết quả. Trả về DataFrame rỗng nếu có lỗi.
     """
     try:
         # Sử dụng context manager để đảm bảo kết nối được quản lý an toàn.
