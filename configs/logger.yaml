@@ -1,7 +1,5 @@
-# Phiên bản của định dạng cấu hình logging.
-version: 1
-# 'false' để không vô hiệu hóa các logger đã tồn tại từ các thư viện khác.
-disable_existing_loggers: false
+version: 1                        # Phiên bản của định dạng cấu hình logging.
+disable_existing_loggers: false   # 'false' để không vô hiệu hóa các logger đã tồn tại từ các thư viện khác.
 
 # Định nghĩa các bộ lọc (filters) tùy chỉnh.
 filters:
