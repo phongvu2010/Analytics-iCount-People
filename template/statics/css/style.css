@@ -1,73 +1,45 @@
-/* Biến CSS toàn cục */
 :root {
     --sidebar-width: 280px;
 }
-
-/* Kiểu chữ và nền cơ bản cho theme tối */
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #030712; /* Gray 950 */
+    background-color: #030712; /* Gray 950 - Nền tối hơn */
     color: #d1d5db; /* Gray 300 */
 }
-
-/*
- * Cấu trúc layout chính
- * Đảm bảo nội dung chính không bị sidebar che khuất
- */
 .main-content {
     padding-left: var(--sidebar-width);
-    transition: padding-left 0.3s ease-in-out;
 }
 
-/*
- * Sidebar & Animation
- * Xử lý hiệu ứng trượt ra/vào cho sidebar
- */
-.sidebar {
-    transition: transform 0.3s ease-in-out;
-}
-/* Trạng thái khi sidebar bị ẩn đi */
-body.sidebar-collapsed .sidebar {
-    transform: translateX(-100%);
-}
-body.sidebar-collapsed .main-content {
-    padding-left: 0 !important;
-}
-
-
-/*
- * Tùy chỉnh Litepicker (Date Range Picker) cho theme tối
- */
+/* Tùy chỉnh màu sắc cho Litepicker trong theme tối */
 .litepicker {
-    background-color: #1f2937 !important; /* Gray 800 */
-    border-color: #4b5563 !important; /* Gray 600 */
+    background-color: #1f2937 !important;
+    border-color: #4b5563 !important;
 }
 .litepicker,
 .litepicker .container__months .month-item-header,
 .litepicker .container__tooltip,
 .litepicker .month-item {
-    color: #d1d5db !important; /* Gray 300 */
+    color: #d1d5db !important;
 }
 .litepicker .month-item.is-start-date,
 .litepicker .month-item.is-end-date {
-    background-color: #3b82f6 !important; /* Blue 500 */
+    background-color: #3b82f6 !important;
     color: white !important;
 }
 .litepicker .month-item:hover {
-    background-color: #374151 !important; /* Gray 700 */
+    background-color: #374151 !important;
 }
 .litepicker .button-apply {
-    background-color: #3b82f6 !important; /* Blue 500 */
+    background-color: #3b82f6 !important;
+    color: white !important;
 }
 .litepicker .button-cancel {
-    background-color: #4b5563 !important; /* Gray 600 */
+    background-color: #4b5563 !important;
 }
 
-/*
- * Tùy chỉnh Spinner cho loading overlay
- */
+/* Spinner cho loading overlay */
 .loader {
-    border-top-color: #3b82f6; /* Blue 500 */
+    border-top-color: #3b82f6;
     -webkit-animation: spin 1s linear infinite;
     animation: spin 1s linear infinite;
 }
@@ -80,27 +52,36 @@ body.sidebar-collapsed .main-content {
     100% { transform: rotate(360deg); }
 }
 
-/*
- * Tùy chỉnh Scrollbar cho theme tối
- */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #1f2937; /* Gray 800 */
+    background: #1f2937;
 }
 ::-webkit-scrollbar-thumb {
-    background: #4b5563; /* Gray 600 */
+    background: #4b5563;
     border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280; /* Gray 500 */
+    background: #6b7280;
+}
+.sidebar {
+    transition: transform 0.3s ease-in-out;
+}
+.main-content {
+    transition: padding-left 0.3s ease-in-out;
 }
 
-/*
- * Tùy chỉnh Select Dropdown
- * Ẩn mũi tên mặc định và thay bằng icon SVG
- */
+/* Trạng thái khi sidebar bị ẩn */
+body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+}
+body.sidebar-collapsed .main-content {
+    padding-left: 0 !important;
+}
+
+/* Thêm lớp này để tùy chỉnh select dropdown */
 .custom-select {
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -109,5 +90,5 @@ body.sidebar-collapsed .main-content {
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
-    padding-right: 2.5rem;
+    padding-right: 2.5rem; /* Thêm khoảng trống để mũi tên không đè lên chữ */
 }
