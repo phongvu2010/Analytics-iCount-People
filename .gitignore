@@ -1,9 +1,6 @@
 __pycache__/
-# __trash__/
 .venv/
 data/
 logs/
 
 .env
-# *.duckdb
-# test.*
