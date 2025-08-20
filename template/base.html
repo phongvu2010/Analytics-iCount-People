@@ -23,19 +23,18 @@
     <link rel="manifest" href="{{ url_for('static', path='/site.webmanifest') }}">
 
     <!-- Custom Styles -->
-    <!-- <link rel="stylesheet" href="https://cdn.tailwindcss.com/etc..."/> -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 </head>
 <body class="min-h-screen">
     <div class="flex">
         <!-- Sidebar -->
         {% include "partials/_sidebar.html" %}
-        
+
         <!-- Main Content Area -->
         <div class="flex-1 main-content flex flex-col">
             <!-- Header -->
             {% block header %}{% endblock %}
-            
+
             <!-- Page Content -->
             <main class="p-4 sm:p-6 lg:p-8 flex-grow">
                 {% block content %}{% endblock %}
@@ -56,6 +55,7 @@
 
     <!-- Block script chính -->
     <script src="{{ url_for('static', path='js/dashboard.js') }}"></script>
+
     <script>
         lucide.createIcons();
     </script>

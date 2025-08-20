@@ -1,40 +1,53 @@
+# Phiên bản của định dạng cấu hình logging.
 version: 1
+# 'false' để không vô hiệu hóa các logger đã tồn tại từ các thư viện khác.
 disable_existing_loggers: false
 
+# Định nghĩa các bộ lọc (filters) tùy chỉnh.
 filters:
+  # Filter này chỉ cho phép các log có level từ WARNING trở xuống đi qua.
+  # Dùng để tách log INFO/DEBUG ra stdout và WARNING/ERROR ra stderr.
   below_warning:
     (): app.utils.logger.MaxLevelFilter
     level: WARNING
 
+# Định nghĩa các định dạng (formatters) cho message log.
 formatters:
+  # Định dạng mặc định, dễ đọc cho con người.
   default:
     format: '%(asctime)s - %(levelname)s - [%(filename)s] - %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
+  # Định dạng JSON, phù hợp cho các hệ thống thu thập log tự động (VD: ELK, Splunk).
   json:
     class: pythonjsonlogger.jsonlogger.JsonFormatter
     format: '%(asctime)s %(levelname)s %(name)s %(filename)s %(lineno)d %(message)s'
 
+# Định nghĩa các nơi xử lý và xuất log (handlers).
 handlers:
+  # Xuất log ra console (Standard Output).
   stdout:
     class: logging.StreamHandler
     level: DEBUG
     formatter: default
     stream: ext://sys.stdout
-    filters: [below_warning]
+    filters: [below_warning] # Chỉ nhận log INFO và DEBUG.
+  # Xuất log lỗi ra console (Standard Error).
   stderr:
     class: logging.StreamHandler
     level: WARNING
     formatter: default
-    stream: ext://sys.stderr
+    stream: ext://sys.stderr # Chỉ nhận log từ WARNING trở lên.
+  # Ghi log ra file, tự động xoay vòng file theo ngày.
   file:
     class: logging.handlers.TimedRotatingFileHandler
     level: INFO
     formatter: default
     filename: logs/app.log
-    when: midnight
-    interval: 1
-    backupCount: 14
+    when: midnight      # Xoay vòng file vào lúc nửa đêm.
+    interval: 1         # Mỗi ngày một file.
+    backupCount: 14     # Giữ lại log của 14 ngày gần nhất.
     encoding: utf-8
+  # Ghi log dạng JSON ra file.
   file_json:
     class: logging.handlers.TimedRotatingFileHandler
     level: INFO
@@ -45,6 +58,7 @@ handlers:
     backupCount: 14
     encoding: utf-8
 
+# Cấu hình cho logger gốc (root logger), áp dụng cho toàn bộ ứng dụng.
 root:
-  level: INFO
-  handlers: [stdout, stderr, file, file_json]
+  level: INFO # Mức log mặc định, có thể bị ghi đè bởi biến môi trường LOG_LEVEL.
+  handlers: [stdout, stderr, file, file_json] # Áp dụng tất cả các handler đã định nghĩa.

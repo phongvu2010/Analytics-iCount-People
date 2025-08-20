@@ -27,8 +27,7 @@ api_app = FastAPI(
 templates = Jinja2Templates(directory='template')
 
 # Cấu hình CORS (Cross-Origin Resource Sharing) Middleware.
-# Điều này là bắt buộc để trình duyệt cho phép trang web frontend
-# (chạy trên một origin khác) gọi đến các API của backend này.
+# Điều này là bắt buộc để trình duyệt cho phép frontend gọi đến API.
 if settings.BACKEND_CORS_ORIGINS:
     origins = [str(origin).rstrip('/') for origin in settings.BACKEND_CORS_ORIGINS]
     api_app.add_middleware(
@@ -40,10 +39,9 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Tích hợp Router API từ `app/routers.py` vào ứng dụng chính.
-# Tất cả các endpoint trong `api_router` sẽ có tiền tố /api/v1.
 api_app.include_router(api_router)
 
-# Mount thư mục `statics` để phục vụ các tệp tĩnh.
+# Mount thư mục `statics` để phục vụ các tệp tĩnh (CSS, JS, images).
 # URL '/static' sẽ trỏ đến thư mục 'template/statics' trên server.
 api_app.mount(
     '/static',
@@ -74,6 +72,5 @@ async def show_dashboard(request: Request):
 def health_check():
     """
     Endpoint để kiểm tra tình trạng hoạt động (health status) của ứng dụng.
-    Thường được sử dụng bởi các hệ thống monitoring hoặc load balancer.
     """
     return {'status': 'ok'}

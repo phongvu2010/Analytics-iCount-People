@@ -12,7 +12,9 @@ from typing import Any, Dict, List, Optional
 
 
 class Metric(BaseModel):
-    """ Định nghĩa cấu trúc cho các thẻ chỉ số (KPIs) chính trên dashboard. """
+    """
+    Định nghĩa cấu trúc cho các thẻ chỉ số (KPIs) chính trên dashboard.
+    """
     total_in: int
     average_in: float
     peak_time: Optional[str] = None
@@ -22,18 +24,24 @@ class Metric(BaseModel):
 
 
 class ChartDataPoint(BaseModel):
-    """ Định nghĩa một điểm dữ liệu duy nhất trên biểu đồ. """
+    """
+    Định nghĩa một điểm dữ liệu duy nhất trên biểu đồ.
+    """
     x: Any  # Trục hoành: có thể là ngày, giờ, hoặc tên cửa hàng (str)
     y: int  # Trục tung: giá trị số (ví dụ: lượt khách)
 
 
 class ChartData(BaseModel):
-    """ Định nghĩa dữ liệu cho một biểu đồ hoàn chỉnh. """
+    """
+    Định nghĩa dữ liệu cho một biểu đồ hoàn chỉnh.
+    """
     series: List[ChartDataPoint]
 
 
 class SummaryTableRow(BaseModel):
-    """ Định nghĩa cấu trúc cho một hàng trong bảng dữ liệu chi tiết. """
+    """
+    Định nghĩa cấu trúc cho một hàng trong bảng dữ liệu chi tiết.
+    """
     period: str
     total_in: int
     pct_change: float
@@ -42,13 +50,17 @@ class SummaryTableRow(BaseModel):
 
 
 class TableData(BaseModel):
-    """ Định nghĩa cấu trúc cho toàn bộ dữ liệu của bảng. """
+    """
+    Định nghĩa cấu trúc cho toàn bộ dữ liệu của bảng.
+    """
     data: List[SummaryTableRow]
     summary: Dict[str, Any]
 
 
 class ErrorLog(BaseModel):
-    """ Định nghĩa cấu trúc cho một bản ghi log lỗi. """
+    """
+    Định nghĩa cấu trúc cho một bản ghi log lỗi.
+    """
     id: int
     store_name: str
     log_time: datetime

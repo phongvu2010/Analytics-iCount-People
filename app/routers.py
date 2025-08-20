@@ -21,14 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_dashboard_service(
-    period: str = Query(
-        'day', description='Khoảng thời gian: `day`, `week`, `month`, `year`'
-    ),
+    period: str = Query('day', description='Khoảng thời gian: `day`, `week`, `month`, `year`'),
     start_date: date = Query(..., description='Ngày bắt đầu (YYYY-MM-DD)'),
     end_date: date = Query(..., description='Ngày kết thúc (YYYY-MM-DD)'),
-    store: str = Query(
-        'all', description='Lọc theo cửa hàng hoặc `all` cho tất cả'
-    ),
+    store: str = Query('all', description='Lọc theo cửa hàng hoặc `all` cho tất cả'),
 ) -> DashboardService:
     """
     Dependency để khởi tạo và cung cấp `DashboardService` cho mỗi request.
@@ -51,14 +47,8 @@ async def get_dashboard_data(service: DashboardService = Depends(get_dashboard_s
     thực thi các tác vụ I/O (truy vấn file) một cách song song để tối ưu
     hóa thời gian phản hồi.
     """
-    # Các tác vụ I/O (query file) được thực thi đồng thời với asyncio.gather
-    # để giảm thiểu thời gian chờ đợi.
-    (
-        metrics_data,
-        trend_data,
-        store_data,
-        table_data
-    ) = await asyncio.gather(
+    # Thực thi các tác vụ I/O đồng thời với asyncio.gather để giảm thời gian chờ.
+    metrics, trend, store, table = await asyncio.gather(
         service.get_metrics(),
         service.get_trend_chart_data(),
         service.get_store_comparison_chart_data(),
@@ -66,17 +56,17 @@ async def get_dashboard_data(service: DashboardService = Depends(get_dashboard_s
     )
 
     # Các hàm static (đồng bộ) có thể được gọi tuần tự vì chúng nhanh.
-    error_logs_data = DashboardService.get_error_logs()
-    latest_record_time_data = DashboardService.get_latest_record_time()
+    errors = DashboardService.get_error_logs()
+    latest_time = DashboardService.get_latest_record_time()
 
     # Xây dựng đối tượng response hoàn chỉnh theo schema đã định nghĩa.
     return schemas.DashboardData(
-        metrics=schemas.Metric(**metrics_data),
-        trend_chart=schemas.ChartData(series=trend_data),
-        store_comparison_chart=schemas.ChartData(series=store_data),
-        table_data=schemas.TableData(**table_data),
-        error_logs=error_logs_data,
-        latest_record_time=latest_record_time_data
+        metrics=schemas.Metric(**metrics),
+        trend_chart=schemas.ChartData(series=trend),
+        store_comparison_chart=schemas.ChartData(series=store),
+        table_data=schemas.TableData(**table),
+        error_logs=errors,
+        latest_record_time=latest_time
     )
 
 
