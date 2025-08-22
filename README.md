@@ -200,3 +200,11 @@ LEFT JOIN (SELECT TOP 100 storeid, MAX(LogTime) AS MaxLogTime FROM ErrLog GROUP 
 	ON a.storeid = b.storeid
 WHERE a.storeid NOT IN (29, 38)
 ORDER BY storeid ASC
+
+```
+npm init -y
+npm install -D tailwindcss@3
+npx tailwindcss init
+npm run css:watch
+npm run css:build
+```
