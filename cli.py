@@ -19,6 +19,7 @@ from duckdb import DuckDBPyConnection, Error as DuckdbError
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
+from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log, retry_if_exception
 from typing import Iterator
 from typing_extensions import Annotated
 
@@ -86,6 +87,24 @@ def _get_database_connections() -> Iterator[tuple[Engine, DuckDBPyConnection]]:
             logger.info("Kết nối DuckDB đã được đóng.")
 
 
+# --- TÍCH HỢP CƠ CHẾ RETRY ---
+# Decorator @retry sẽ bao bọc hàm _process_table.
+# - stop_after_attempt(3): Thử lại tối đa 3 lần (1 lần đầu + 2 lần thử lại).
+# - wait_fixed(15): Chờ 15 giây giữa mỗi lần thử lại.
+# - before_sleep_log: Tự động ghi log cảnh báo trước mỗi lần thử lại.
+# - retry_on_exception: Chỉ thử lại nếu gặp các lỗi liên quan đến DB/IO,
+#   không thử lại với các lỗi logic dữ liệu như Pandera.
+def is_retryable_exception(exception: BaseException) -> bool:
+    """Hàm kiểm tra xem lỗi có nên được retry hay không."""
+    return isinstance(exception, (SQLAlchemyError, DuckdbError, IOError))
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(15),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    retry=retry_if_exception(is_retryable_exception)
+)
 def _process_table(
     sql_engine: Engine,
     duckdb_conn: DuckDBPyConnection,
@@ -94,6 +113,7 @@ def _process_table(
 ):
     """
     Thực hiện toàn bộ pipeline ETL cho một bảng duy nhất (E -> T -> L).
+    Hàm này được tăng cường với cơ chế tự động thử lại khi gặp lỗi kết nối.
 
     Args:
         sql_engine: SQLAlchemy engine đã kết nối.
@@ -110,6 +130,8 @@ def _process_table(
     data_iterator = extract.from_sql_server(sql_engine, config, last_timestamp) # 2. Extract
 
     total_rows, max_ts_in_run = 0, None
+
+    # Giữ khối try...except để bắt lỗi sau khi đã retry hết số lần
     try:
         with ParquetLoader(config) as loader:
             for chunk in data_iterator:
@@ -139,12 +161,13 @@ def _process_table(
         else:
             logger.info(f"Không tìm thấy dữ liệu mới cho '{config.dest_table}'.")
 
-    except (SQLAlchemyError, DuckdbError, pa_errors.SchemaErrors) as e:
-        logger.error(f"❌ Lỗi khi xử lý '{config.source_table}': {e}", exc_info=True)
-        raise
+    # Bắt các lỗi không thể retry (ví dụ: lỗi validation) hoặc lỗi sau khi đã retry hết
+    except pa_errors.SchemaErrors as e:
+        logger.error(f"❌ Lỗi validation dữ liệu không thể retry cho '{config.source_table}': {e}", exc_info=True)
+        raise # Ném lại lỗi để vòng lặp chính bắt được
 
     except Exception as e:
-        logger.error(f"❌ Lỗi không xác định khi xử lý '{config.source_table}': {e}", exc_info=True)
+        logger.error(f"❌ Đã xảy ra lỗi không thể phục hồi sau các lần thử lại cho '{config.source_table}': {e}", exc_info=True)
         raise
 
 
@@ -170,17 +193,19 @@ def run_etl():
         with _get_database_connections() as (sql_engine, duckdb_conn):
             for table_name, config in tables_to_process:
                 try:
+                    # Lần gọi này đã được bọc bởi cơ chế retry
                     _process_table(sql_engine, duckdb_conn, config, etl_state)
                     state.save_etl_state(etl_state) # Lưu state sau mỗi bảng thành công
                     succeeded.append(config.source_table)
                     logger.info(f"✅ Xử lý thành công '{config.source_table}'.\n")
                 except Exception:
+                    # Exception ở đây nghĩa là hàm đã retry hết số lần mà vẫn lỗi
                     failed.append(config.source_table)
                     logger.error(f"❌ Xử lý '{config.source_table}' thất bại. " f"Chuyển sang bảng tiếp theo.\n")
-                    continue
+                    continue # Bỏ qua bảng bị lỗi và tiếp tục
 
     except Exception as e:
-        logger.critical(f"Quy trình ETL bị dừng do lỗi kết nối: {e}")
+        logger.critical(f"Quy trình ETL bị dừng do lỗi kết nối ban đầu: {e}")
 
     finally:
         logger.info("=" * 60)

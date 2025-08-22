@@ -23,6 +23,7 @@
 ### Database Drivers & Client
 duckdb
 pyodbc
+tenacity
 
 ### Data Handling
 pandas

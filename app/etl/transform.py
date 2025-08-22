@@ -80,13 +80,17 @@ def _handle_data_types(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     ts_col = config.final_timestamp_col
     if ts_col and ts_col in df.columns:
         df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
-        df.dropna(subset=[ts_col], inplace=True)
+
+        # THAY ĐỔI: Gán lại kết quả thay vì dùng inplace=True
+        df = df.dropna(subset=[ts_col])
 
         if not df.empty:
+            # Các thao tác thêm cột giờ đây an toàn hơn
             if 'year' in config.partition_cols:
                 df['year'] = df[ts_col].dt.year
             if 'month' in config.partition_cols:
                 df['month'] = df[ts_col].dt.month
+
     return df
 
 def _select_and_validate(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
@@ -98,14 +102,15 @@ def _select_and_validate(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
         logger.warning(f"Không tìm thấy schema cho '{config.dest_table}'. Bỏ qua xác thực.")
         return df
 
-    # Chọn các cột có trong schema
+    # Chọn các cột có trong schema trước khi xác thực
     schema_cols = list(schema.to_schema().columns.keys())
     final_cols = [col for col in schema_cols if col in df.columns]
-    df = df[final_cols]
+    df_subset = df[final_cols]
 
     # Xác thực
     try:
-        return schema.validate(df, lazy=True)
+        # Trả về DataFrame đã được xác thực (có thể đã được ép kiểu)
+        return schema.validate(df_subset, lazy=True)
     except pa_errors.SchemaErrors as err:
         logger.error(
             f"Xác thực dữ liệu cho '{config.dest_table}' thất bại!\n"
@@ -137,6 +142,9 @@ def run_transformations(df: pd.DataFrame, config: TableConfig) -> pd.DataFrame:
     Returns:
         DataFrame đã được biến đổi, làm sạch và xác thực.
     """
+    if df.empty:
+        return df
+
     return (
         df.pipe(_apply_time_offsets, config)
           .pipe(_rename_and_clean, config)
