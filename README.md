@@ -177,6 +177,13 @@ dbo.Status
 #### Để chạy quy trình ETL:
 ```
 python -m cli run-etl
+
+# Chạy với 8 luồng
+python -m cli run-etl --max-workers 8
+```
+#### Để chạy tạo VIEW:
+```
+python -m cli init-db
 ```
 #### Để chạy web server:
 ```

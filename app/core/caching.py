@@ -1,14 +1,10 @@
-"""
-Module cung cấp cơ chế caching cho các hàm bất đồng bộ (async).
+import logging
 
-Sử dụng `cachetools.TTLCache` để tạo một bộ nhớ đệm trong bộ nhớ (in-memory cache)
-với thời gian sống (Time-To-Live). Cơ chế này giúp giảm tải cho database và tăng
-tốc độ phản hồi của API bằng cách lưu trữ các kết quả đã được tính toán, đặc biệt
-hiệu quả cho các endpoint có lượng truy cập cao và dữ liệu không thay đổi thường xuyên.
-"""
 from cachetools import TTLCache
 from functools import wraps
 from typing import Any, Callable
+
+logger = logging.getLogger(__name__) # Thêm logger
 
 # Khởi tạo một bộ nhớ cache dùng chung cho toàn bộ ứng dụng.
 # - maxsize=128: Lưu trữ tối đa 128 kết quả gần nhất. Khi cache đầy, các
@@ -20,22 +16,8 @@ service_cache = TTLCache(maxsize=128, ttl=1800)
 
 
 def async_cache(func: Callable) -> Callable:
-    """
-    Decorator để cache kết quả của các phương thức async trong `DashboardService`.
-
-    Decorator này giải quyết vấn đề `DashboardService` được tạo mới cho mỗi request
-    bằng cách tạo ra một cache key duy nhất. Key này được tạo dựa trên các thuộc
-    tính của instance service (đại diện cho các bộ lọc của người dùng) và các
-    tham số của phương thức được gọi.
-
-    Điều này đảm bảo rằng các request với cùng bộ lọc sẽ nhận lại kết quả từ cache
-    thay vì phải thực hiện lại các truy vấn tốn kém.
-    """
     @wraps(func)
     async def wrapper(self, *args, **kwargs) -> Any:
-        """
-        Hàm bao bọc (wrapper) thực hiện logic kiểm tra và lưu trữ cache.
-        """
         # Tạo cache key từ một tuple chứa các thành phần bất biến (immutable)
         # để đảm bảo tính duy nhất và khả năng băm (hashable).
         key_parts = (
@@ -63,6 +45,17 @@ def async_cache(func: Callable) -> Callable:
 
         # 3. Lưu vào cache: Lưu kết quả mới vào cache với key đã tạo.
         service_cache[key] = result
+
         return result
 
     return wrapper
+
+
+def clear_service_cache():
+    """
+    Xóa toàn bộ các item trong service_cache.
+    Hữu ích khi cần làm mới dữ liệu sau khi ETL hoàn tất.
+    """
+    logger.info(f"Đang xóa cache. Kích thước hiện tại: {service_cache.currsize} items.")
+    service_cache.clear()
+    logger.info("✅ Cache đã được xóa thành công.")

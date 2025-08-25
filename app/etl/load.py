@@ -1,14 +1,3 @@
-"""
-Module xử lý giai đoạn 'L' (Load) của pipeline ETL.
-
-Chức năng chính:
-1. Ghi dữ liệu đã biến đổi vào các tệp Parquet trong một khu vực tạm
-   (staging area). Parquet là một định dạng lưu trữ cột hiệu quả, tối ưu
-   cho các truy vấn phân tích.
-2. Tải dữ liệu từ Parquet vào DuckDB bằng kỹ thuật "atomic swap". Kỹ thuật
-   này đảm bảo tính toàn vẹn và không gây gián đoạn (zero downtime) cho người
-   dùng cuối đang truy vấn dữ liệu.
-"""
 import logging
 import pandas as pd
 import pyarrow as pa
@@ -39,16 +28,10 @@ class ParquetLoader:
         self.has_written_data = False
 
     def __enter__(self):
-        """
-        Khởi tạo môi trường, tạo thư mục nếu cần.
-        """
         self.dest_path.mkdir(parents=True, exist_ok=True)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Đảm bảo writer được đóng lại an toàn khi thoát context.
-        """
         if self.writer:
             self.writer.close()
         if exc_type is not None:
@@ -57,16 +40,11 @@ class ParquetLoader:
             )
 
     def write_chunk(self, df: pd.DataFrame):
-        """
-        Ghi một chunk DataFrame vào tệp/dataset Parquet.
-        """
         if df.empty:
             return
-
         try:
             arrow_table = pa.Table.from_pandas(df, preserve_index=False)
             if self.config.partition_cols:
-                # Ghi dữ liệu phân vùng trực tiếp.
                 pq.write_to_dataset(
                     arrow_table,
                     root_path=str(self.dest_path),
@@ -74,7 +52,6 @@ class ParquetLoader:
                     existing_data_behavior='overwrite_or_ignore'
                 )
             else:
-                # Đối với bảng không phân vùng, sử dụng ParquetWriter.
                 if self.writer is None:
                     output_file = self.dest_path / 'data.parquet'
                     if not self.config.incremental and output_file.exists():
@@ -92,9 +69,6 @@ class ParquetLoader:
 
 
 def prepare_destination(config: TableConfig):
-    """
-    Chuẩn bị thư mục staging, xóa dữ liệu cũ nếu là full-load.
-    """
     dest_path = BASE_DATA_PATH / config.dest_table
     if not config.incremental and dest_path.exists():
         logger.info(f"Full-load: Đã xóa staging cũ: {dest_path}")
@@ -119,7 +93,8 @@ def refresh_duckdb_table(
     4. Đổi tên bảng tạm thành bảng chính.
     5. COMMIT transaction.
     6. Xóa bảng cũ.
-    7. Nếu có lỗi, ROLLBACK để quay về trạng thái ban đầu.
+    7. Chạy ANALYZE để cập nhật thống kê cho bảng mới.
+    8. Nếu có lỗi, ROLLBACK để quay về trạng thái ban đầu.
     """
     if not has_new_data:
         logger.info(f"Bỏ qua refresh DuckDB cho '{config.dest_table}' do không có dữ liệu mới.")
@@ -165,6 +140,15 @@ def refresh_duckdb_table(
         if not config.incremental and settings.ETL_CLEANUP_ON_FAILURE:
             shutil.rmtree(staging_dir)
             logger.info(f"Đã dọn dẹp staging area '{staging_dir}'.")
+            
+        # ================== THAY ĐỔI: THÊM LỆNH `ANALYZE` ==================
+        # Sau khi nạp dữ liệu thành công, chạy ANALYZE để cập nhật
+        # bảng thống kê cho bộ tối ưu hóa truy vấn của DuckDB.
+        # Đây là bước quan trọng để đảm bảo hiệu năng truy vấn cao.
+        logger.info(f"Đang cập nhật thống kê cho bảng '{dest_table}'...")
+        conn.execute(f'ANALYZE {dest_table};')
+        logger.info(f"✅ Cập nhật thống kê cho bảng '{dest_table}' thành công.")
+        # =======================================================================
 
     except Exception as e:
         logger.error(

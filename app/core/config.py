@@ -147,6 +147,9 @@ class Settings(BaseSettings):
         List[AnyUrl], BeforeValidator(parse_cors)
     ] = []
 
+    # Token bí mật để bảo vệ các API nội bộ (ví dụ: xóa cache)
+    INTERNAL_API_TOKEN: str = "your-super-secret-and-long-random-token"
+
     # --- Cấu hình nghiệp vụ ---
     OUTLIER_THRESHOLD: int = 100            # Ngưỡng để xác định giá trị ngoại lai.
     OUTLIER_SCALE_RATIO: float = 0.00001    # Tỷ lệ để điều chỉnh giá trị ngoại lai.

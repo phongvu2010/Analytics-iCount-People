@@ -1,19 +1,19 @@
-"""
-Định nghĩa các API endpoint cho ứng dụng.
-
-Router này nhóm tất cả các endpoint liên quan đến dashboard, giúp mã nguồn
-trở nên có tổ chức và dễ dàng quản lý hơn. Nó sử dụng dependency injection
-của FastAPI để cung cấp `DashboardService` cho các endpoint.
-"""
 import asyncio
 import logging
 
 from datetime import date
-from fastapi import APIRouter, Depends, Query
-from typing import List
+# ================== THAY ĐỔI 1: Import thêm các module cần thiết ==================
+from fastapi import APIRouter, Depends, Query, Header, HTTPException, status, Response
+from typing import List, Annotated
+# =================================================================================
 
 from . import schemas
 from .services import DashboardService
+
+# ================== THAY ĐỔI 2: Import thêm config và hàm xóa cache ===============
+from .core.config import settings
+from .core.caching import clear_service_cache
+# =================================================================================
 
 # Khởi tạo router với tiền tố và tag chung để nhóm các API liên quan.
 router = APIRouter(prefix='/api/v1', tags=['Dashboard'])
@@ -78,3 +78,27 @@ def get_stores():
     Dữ liệu này được dùng để khởi tạo bộ lọc (filter) trên giao diện người dùng.
     """
     return DashboardService.get_all_stores()
+
+
+@router.post(
+    '/admin/clear-cache',
+    tags=['Admin'],
+    summary='Xóa cache của ứng dụng',
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def clear_cache(
+    x_internal_token: Annotated[str, Header()]
+):
+    """
+    Endpoint nội bộ để xóa toàn bộ cache của service.
+
+    Cần cung cấp một token xác thực trong header `X-Internal-Token`
+    để thực hiện hành động này.
+    """
+    if x_internal_token != settings.INTERNAL_API_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token không hợp lệ."
+        )
+    clear_service_cache()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

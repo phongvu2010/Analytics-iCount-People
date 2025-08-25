@@ -34,6 +34,7 @@ cachetools
 fastapi[all]
 pandera
 python-json-logger
+requests
 SQLAlchemy
 typer
 

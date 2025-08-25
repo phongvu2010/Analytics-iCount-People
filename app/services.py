@@ -58,58 +58,80 @@ class DashboardService:
             end_dt.strftime('%Y-%m-%d %H:%M:%S')
         )
 
-    def _build_base_query(
-        self, start_date_str: str, end_date_str: str
-    ) -> Tuple[str, list]:
+
+    # ================== THAY ĐỔI: XÓA BỎ HOÀN TOÀN HÀM `_build_base_query` ==================
+    # Toàn bộ logic của hàm này đã được chuyển vào VIEW `v_traffic_normalized`
+    # trong database, được quản lý bởi lệnh `cli.py init-db`.
+    # ======================================================================================
+    
+    # def _build_base_query(
+    #     self, start_date_str: str, end_date_str: str
+    # ) -> Tuple[str, list]:
+    #     """
+    #     Xây dựng câu truy vấn CTE (Common Table Expression) cơ sở.
+
+    #     Hàm này tạo ra một CTE chuẩn hóa dữ liệu nguồn, bao gồm:
+    #     - Lọc dữ liệu theo khoảng thời gian và cửa hàng.
+    #     - Xử lý các giá trị ngoại lệ (outliers) theo cấu hình.
+    #     - Điều chỉnh timestamp để phân tích theo "ngày làm việc".
+
+    #     CTE này được tái sử dụng trong nhiều phương thức khác để tránh lặp code.
+    #     """
+    #     params = [start_date_str, end_date_str]
+
+    #     store_filter_clause = ''
+    #     if self.store != 'all':
+    #         store_filter_clause = 'AND store_name = ?'
+    #         params.append(self.store)
+
+    #     # Xử lý outlier: thay thế các giá trị quá lớn bằng một tỷ lệ nhỏ
+    #     # hoặc một giá trị cố định.
+    #     scale = settings.OUTLIER_SCALE_RATIO
+    #     then_logic_in = f'CAST(ROUND(a.visitors_in * {scale}, 0) AS INTEGER)' if scale > 0 else '1'
+    #     then_logic_out = f'CAST(ROUND(a.visitors_out * {scale}, 0) AS INTEGER)' if scale > 0 else '1'
+
+    #     base_cte = f"""
+    #     WITH source_data AS (
+    #         SELECT
+    #             CAST(a.recorded_at AS TIMESTAMP) as record_time,
+    #             b.store_name,
+    #             CASE
+    #                 WHEN a.visitors_in > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in}
+    #                 ELSE a.visitors_in
+    #             END as in_count,
+    #             CASE
+    #                 WHEN a.visitors_out > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out}
+    #                 ELSE a.visitors_out
+    #             END as out_count
+    #         FROM fact_traffic AS a
+    #         LEFT JOIN dim_stores AS b ON a.store_id = b.store_id
+    #         WHERE
+    #             a.recorded_at >= ? AND a.recorded_at < ?
+    #             {store_filter_clause}
+    #     ),
+    #     filtered_data AS (
+    #         -- Dịch chuyển thời gian để ngày làm việc bắt đầu từ 00:00
+    #         SELECT *, (record_time - INTERVAL '{settings.WORKING_HOUR_START} hours') AS adjusted_time
+    #         FROM source_data
+    #     )
+    #     """
+    #     return base_cte, params
+
+    def _get_base_filters(self) -> Tuple[str, list]:
         """
-        Xây dựng câu truy vấn CTE (Common Table Expression) cơ sở.
-
-        Hàm này tạo ra một CTE chuẩn hóa dữ liệu nguồn, bao gồm:
-        - Lọc dữ liệu theo khoảng thời gian và cửa hàng.
-        - Xử lý các giá trị ngoại lệ (outliers) theo cấu hình.
-        - Điều chỉnh timestamp để phân tích theo "ngày làm việc".
-
-        CTE này được tái sử dụng trong nhiều phương thức khác để tránh lặp code.
+        Helper mới để tạo mệnh đề WHERE và tham số cho các truy vấn.
+        Hàm này thay thế việc phải xây dựng lại logic filter ở nhiều nơi.
         """
-        params = [start_date_str, end_date_str]
-
-        store_filter_clause = ''
+        start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
+        params = [start_str, end_str]
+        
+        filter_clauses = "WHERE record_time >= ? AND record_time < ?"
+        
         if self.store != 'all':
-            store_filter_clause = 'AND store_name = ?'
+            filter_clauses += " AND store_name = ?"
             params.append(self.store)
-
-        # Xử lý outlier: thay thế các giá trị quá lớn bằng một tỷ lệ nhỏ
-        # hoặc một giá trị cố định.
-        scale = settings.OUTLIER_SCALE_RATIO
-        then_logic_in = f'CAST(ROUND(a.visitors_in * {scale}, 0) AS INTEGER)' if scale > 0 else '1'
-        then_logic_out = f'CAST(ROUND(a.visitors_out * {scale}, 0) AS INTEGER)' if scale > 0 else '1'
-
-        base_cte = f"""
-        WITH source_data AS (
-            SELECT
-                CAST(a.recorded_at AS TIMESTAMP) as record_time,
-                b.store_name,
-                CASE
-                    WHEN a.visitors_in > {settings.OUTLIER_THRESHOLD} THEN {then_logic_in}
-                    ELSE a.visitors_in
-                END as in_count,
-                CASE
-                    WHEN a.visitors_out > {settings.OUTLIER_THRESHOLD} THEN {then_logic_out}
-                    ELSE a.visitors_out
-                END as out_count
-            FROM fact_traffic AS a
-            LEFT JOIN dim_stores AS b ON a.store_id = b.store_id
-            WHERE
-                a.recorded_at >= ? AND a.recorded_at < ?
-                {store_filter_clause}
-        ),
-        filtered_data AS (
-            -- Dịch chuyển thời gian để ngày làm việc bắt đầu từ 00:00
-            SELECT *, (record_time - INTERVAL '{settings.WORKING_HOUR_START} hours') AS adjusted_time
-            FROM source_data
-        )
-        """
-        return base_cte, params
+            
+        return filter_clauses, params
 
     @async_cache
     async def get_metrics(self) -> Dict[str, Any]:
@@ -119,8 +141,9 @@ class DashboardService:
         Bao gồm tổng lượt vào, trung bình, giờ cao điểm, lượng khách hiện tại,
         cửa hàng đông nhất và tỷ lệ tăng trưởng so với kỳ trước.
         """
-        start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
-        base_cte, params = self._build_base_query(start_str, end_str)
+        filter_clauses, params = self._get_base_filters()
+        # start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
+        # base_cte, params = self._build_base_query(start_str, end_str)
 
         # Định dạng và đơn vị thời gian cho truy vấn
         time_unit_map = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}
@@ -128,9 +151,13 @@ class DashboardService:
         peak_time_format_map = {'day': '%H:%M', 'week': '%d/%m', 'month': '%d/%m', 'year': 'Tháng %m'}
         peak_time_format = peak_time_format_map.get(self.period, '%d/%m')
 
+        # Câu truy vấn giờ đây sạch hơn, chỉ tập trung vào logic tổng hợp
         query = f"""
-        {base_cte}
-        , period_summary AS (
+        WITH filtered_data AS (
+            SELECT * FROM v_traffic_normalized
+            {filter_clauses}
+        ), 
+        period_summary AS (
             SELECT
                 date_trunc('{time_unit}', adjusted_time) as period,
                 SUM(in_count) as total_in_per_period
@@ -147,6 +174,25 @@ class DashboardService:
             (SELECT SUM(in_count) - SUM(out_count) FROM filtered_data) as current_occupancy,
             (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
         """
+        # query = f"""
+        # {base_cte}
+        # , period_summary AS (
+        #     SELECT
+        #         date_trunc('{time_unit}', adjusted_time) as period,
+        #         SUM(in_count) as total_in_per_period
+        #     FROM filtered_data
+        #     GROUP BY period
+        # )
+        # SELECT
+        #     (SELECT SUM(in_count) FROM filtered_data) as total_in,
+        #     (SELECT AVG(total_in_per_period) FROM period_summary) as average_in,
+        #     (
+        #         SELECT strftime(period + INTERVAL '{settings.WORKING_HOUR_START} hours', '{peak_time_format}')
+        #         FROM period_summary ORDER BY total_in_per_period DESC LIMIT 1
+        #     ) as peak_time,
+        #     (SELECT SUM(in_count) - SUM(out_count) FROM filtered_data) as current_occupancy,
+        #     (SELECT store_name FROM filtered_data GROUP BY store_name ORDER BY SUM(in_count) DESC LIMIT 1) as busiest_store
+        # """
 
         df, prev_total = await asyncio.gather(
             asyncio.to_thread(query_db_to_df, query, params=params),
@@ -183,7 +229,7 @@ class DashboardService:
         """
         Tính tổng lượt khách của kỳ liền trước để so sánh tăng trưởng.
         """
-        period_map = {
+        dates = {
             'day': {
                 'start': self.start_date - timedelta(days=1),
                 'end': self.end_date - timedelta(days=1)
@@ -200,14 +246,21 @@ class DashboardService:
                 'start': self.start_date - relativedelta(years=1),
                 'end': self.end_date - relativedelta(years=1)
             }
-        }
-        dates = period_map.get(self.period)
-        if not dates:
-            return 0
+        }.get(self.period)
 
+        if not dates: return 0
+
+        # Tái sử dụng logic filter tương tự
         start_str, end_str = self._get_date_range_params(dates['start'], dates['end'])
-        base_cte, params = self._build_base_query(start_str, end_str)
-        query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
+        params = [start_str, end_str]
+        # base_cte, params = self._build_base_query(start_str, end_str)
+        filter_clauses = "WHERE record_time >= ? AND record_time < ?"
+        if self.store != 'all':
+            filter_clauses += " AND store_name = ?"
+            params.append(self.store)
+        
+        query = f'SELECT SUM(in_count) as total FROM v_traffic_normalized {filter_clauses}'
+        # query = f'{base_cte} SELECT SUM(in_count) as total FROM filtered_data'
         df = await asyncio.to_thread(query_db_to_df, query, params=params)
 
         return 0 if df.empty or pd.isna(df['total'].iloc[0]) else int(df['total'].iloc[0])
@@ -225,18 +278,27 @@ class DashboardService:
         """
         Lấy dữ liệu chuỗi thời gian cho biểu đồ xu hướng.
         """
-        start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
-        base_cte, params = self._build_base_query(start_str, end_str)
+        filter_clauses, params = self._get_base_filters()
+        # start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
+        # base_cte, params = self._build_base_query(start_str, end_str)
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
 
         query = f"""
-        {base_cte}
         SELECT
             (date_trunc('{time_unit}', adjusted_time) + INTERVAL '{settings.WORKING_HOUR_START} hours') as x,
             SUM(in_count) as y
-        FROM filtered_data
+        FROM v_traffic_normalized
+        {filter_clauses}
         GROUP BY x ORDER BY x
         """
+        # query = f"""
+        # {base_cte}
+        # SELECT
+        #     (date_trunc('{time_unit}', adjusted_time) + INTERVAL '{settings.WORKING_HOUR_START} hours') as x,
+        #     SUM(in_count) as y
+        # FROM filtered_data
+        # GROUP BY x ORDER BY x
+        # """
         df = await asyncio.to_thread(query_db_to_df, query, params=params)
 
         if time_unit == 'month':
@@ -253,9 +315,16 @@ class DashboardService:
         """
         Lấy dữ liệu phân bổ lượt khách theo từng cửa hàng.
         """
-        start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
-        base_cte, params = self._build_base_query(start_str, end_str)
-        query = f"{base_cte} SELECT store_name as x, SUM(in_count) as y FROM filtered_data GROUP BY x ORDER BY y DESC"
+        filter_clauses, params = self._get_base_filters()
+        # start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
+        # base_cte, params = self._build_base_query(start_str, end_str)
+        query = f"""
+            SELECT store_name as x, SUM(in_count) as y 
+            FROM v_traffic_normalized 
+            {filter_clauses} 
+            GROUP BY x ORDER BY y DESC
+        """
+        # query = f"{base_cte} SELECT store_name as x, SUM(in_count) as y FROM filtered_data GROUP BY x ORDER BY y DESC"
         df = await asyncio.to_thread(query_db_to_df, query, params=params)
         return df.to_dict(orient='records')
 
@@ -264,24 +333,24 @@ class DashboardService:
         """
         Lấy dữ liệu chi tiết cho bảng, giới hạn 31 dòng gần nhất.
         """
-        start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
-        base_cte, params = self._build_base_query(start_str, end_str)
-
+        filter_clauses, params = self._get_base_filters()
+        # start_str, end_str = self._get_date_range_params(self.start_date, self.end_date)
+        # base_cte, params = self._build_base_query(start_str, end_str)
         time_unit = {'year': 'month', 'month': 'day', 'week': 'day', 'day': 'hour'}.get(self.period, 'day')
         date_format = {'hour': '%Y-%m-%d %H:00', 'day': '%Y-%m-%d', 'month': '%Y-%m'}.get(time_unit, '%Y-%m-%d')
 
         query = f"""
-        WITH aggregated AS (
-            {base_cte}
+        WITH filtered_data AS (
+            SELECT * FROM v_traffic_normalized {filter_clauses}
+        ),
+        aggregated AS (
             SELECT
                 date_trunc('{time_unit}', adjusted_time) as period_start,
                 SUM(in_count) as total_in
             FROM filtered_data GROUP BY period_start
         ),
         with_lag AS (
-            SELECT
-                *,
-                LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_in
+            SELECT *, LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_in
             FROM aggregated
         )
         SELECT
@@ -292,6 +361,29 @@ class DashboardService:
         ORDER BY period_start DESC
         LIMIT 31
         """
+        # query = f"""
+        # WITH aggregated AS (
+        #     {base_cte}
+        #     SELECT
+        #         date_trunc('{time_unit}', adjusted_time) as period_start,
+        #         SUM(in_count) as total_in
+        #     FROM filtered_data GROUP BY period_start
+        # ),
+        # with_lag AS (
+        #     SELECT
+        #         *,
+        #         LAG(total_in, 1, 0) OVER (ORDER BY period_start) as previous_in
+        #     FROM aggregated
+        # )
+        # SELECT
+        #     strftime(period_start + INTERVAL '{settings.WORKING_HOUR_START} hours', '{date_format}') as period,
+        #     total_in,
+        #     CASE WHEN previous_in = 0 THEN 0.0 ELSE ROUND(((total_in - previous_in) * 100.0) / previous_in, 1) END as pct_change
+        # FROM with_lag
+        # ORDER BY period_start DESC
+        # LIMIT 31
+        # """
+
         df = await asyncio.to_thread(query_db_to_df, query, params=params)
 
         if df.empty:
@@ -302,6 +394,7 @@ class DashboardService:
         df['proportion_change'] = df['proportion_pct'].diff(periods=-1).fillna(0)
 
         summary = {'total_sum': total_sum, 'average_in': df['total_in'].mean()}
+
         return {'data': df.to_dict(orient='records'), 'summary': summary}
 
     @staticmethod
