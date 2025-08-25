@@ -9,7 +9,6 @@ iCount/
 │   ├── core/
 │   │   ├── caching.py
 │   │   ├── config.py
-│   │   └── data_handler.py
 │   ├── etl/
 │   │   ├── __init__.py
 │   │   ├── extract.py
@@ -19,59 +18,64 @@ iCount/
 │   │   └── transform.py
 │   ├── utils/
 │   │   └── logger.py
+│   ├── dependencies.py
 │   ├── main.py
 │   ├── routers.py
 │   ├── schemas.py
 │   └── services.py
 ├── configs/
 │   ├── logger.yaml
-│   └── tables.yaml
+│   ├── tables.yaml
+│   └── time_offsets.yaml
 ├── data/                               # Nơi lưu trữ file DuckDB
 ├── logs/                               # Nơi lưu trữ file log
-├── template/                           # (Dành cho Giai đoạn 3)
+├── node_modules/
+├── template/
 │   ├── partials/
 │   │   ├── _charts.html                # Phần chứa các biểu đồ
 │   │   ├── _error_modal.html           # Phần chứa các error modal
 │   │   ├── _filters.html               # Phần chứa các bộ lọc
+│   │   ├── _footer.html                # Phần footer của trang
 │   │   ├── _header.html                # Phần header của trang
 │   │   ├── _metrics.html               # Phần chứa các thẻ chỉ số
-│   │   ├── _scripts.html               # Toàn bộ code JavaScript
 │   │   ├── _sidebar.html               # Phần chứa các sidebar
+│   │   ├── _skeleton.html
 │   │   └── _table.html                 # Phần bảng dữ liệu chi tiết
 │   ├── statics/
 │   │   ├── css/
+│   │   │   ├── input.html
 │   │   │   └── style.css
-│   │   ├── js/
-│   │   │   └── dashboard.js
-│   │   ├── favicon.ico
-│   │   └── logo.png
+│   │   ├── images/
+│   │   │   ├── favicon.ico
+│   │   │   └── logo.png
+│   │   └── js/
+│   │       └── dashboard.js            # Toàn bộ code JavaScript
 │   ├── base.html                       # File layout chính, chứa cấu trúc chung
 │   └── dashboard.html                  # File nội dung chính, kế thừa từ base.html
 ├── tests/                              # Thư mục chứa các bài test
-│   ├── etl/
-│   │   ├── __init__.py
-│   │   └── test_transform.py
 │   └── __init__.py
 ├── .env
 ├── .env.example
 ├── .gitignore
 ├── cli.py
+├── package-lock.json
+├── package.json
 ├── pyproject.toml                      # Thay cho requirements.txt để quản lý dependency tốt hơn
-└── README.md
+├── README.md
+└── tailwind.config.js
 ```
 
 ### Sơ đồ cấu trúc dự án ( Phương án mở rộng ):
 ```
 iCount/
 ├── app/
-│   ├── api/                            # (Dành cho Giai đoạn 2) Chứa logic API của FastAPI
+│   ├── api/
 │   │   ├── routers/
 │   │   ├── __init__.py
 │   │   └── dependencies.py
 │   ├── core/
 │   │   ├── caching.py
-│   │   ├── config.py
-│   │   └── data_handler.py
+│   │   └── config.py
 │   ├── etl/
 │   │   ├── __init__.py
 │   │   ├── extract.py
@@ -79,45 +83,51 @@ iCount/
 │   │   ├── schemas.py
 │   │   ├── state.py
 │   │   └── transform.py
-│   ├── schemas/                        # (Dành cho Giai đoạn 2) Định nghĩa các Pydantic model/schemas
+│   ├── schemas/
+│   ├── services/
 │   ├── utils/
 │   │   └── logger.py
-│   └── main.py                         # Entrypoint cho ứng dụng web FastAPI
+│   └── main.py
 ├── configs/
 │   ├── logger.yaml
-│   └── tables.yaml
+│   ├── tables.yaml
+│   └── time_offsets.yaml
 ├── data/                               # Nơi lưu trữ file DuckDB
 ├── logs/                               # Nơi lưu trữ file log
-├── template/                           # (Dành cho Giai đoạn 3)
+├── node_modules/
+├── template/
 │   ├── partials/
 │   │   ├── _charts.html                # Phần chứa các biểu đồ
 │   │   ├── _error_modal.html           # Phần chứa các error modal
 │   │   ├── _filters.html               # Phần chứa các bộ lọc
+│   │   ├── _footer.html                # Phần footer của trang
 │   │   ├── _header.html                # Phần header của trang
 │   │   ├── _metrics.html               # Phần chứa các thẻ chỉ số
-│   │   ├── _scripts.html               # Toàn bộ code JavaScript
 │   │   ├── _sidebar.html               # Phần chứa các sidebar
+│   │   ├── _skeleton.html
 │   │   └── _table.html                 # Phần bảng dữ liệu chi tiết
 │   ├── statics/
 │   │   ├── css/
+│   │   │   ├── input.html
 │   │   │   └── style.css
-│   │   ├── js/
-│   │   │   └── dashboard.js
-│   │   ├── favicon.ico
-│   │   └── logo.png
+│   │   ├── images/
+│   │   │   ├── favicon.ico
+│   │   │   └── logo.png
+│   │   └── js/
+│   │       └── dashboard.js            # Toàn bộ code JavaScript
 │   ├── base.html                       # File layout chính, chứa cấu trúc chung
 │   └── dashboard.html                  # File nội dung chính, kế thừa từ base.html
 ├── tests/                              # Thư mục chứa các bài test
-│   ├── etl/
-│   │   ├── __init__.py
-│   │   └── test_transform.py
 │   └── __init__.py
 ├── .env
 ├── .env.example
 ├── .gitignore
-├── cli.py                              # Entrypoint cho cả CLI (ETL) và chạy web server
+├── cli.py
+├── package-lock.json
+├── package.json
 ├── pyproject.toml                      # Thay cho requirements.txt để quản lý dependency tốt hơn
-└── README.md
+├── README.md
+└── tailwind.config.js
 ```
 
 ### Cấu trúc DB SQL Server
@@ -181,26 +191,7 @@ python -m cli serve --host 0.0.0.0 --port 8000
 python -m cli --help
 ```
 
-app/core/caching.py
-app/core/config.py
-app/core/dependencies.py
-
-app/etl/extract.py
-app/etl/load.py
-
-app/etl/transform.py
-
-app/main.py
-app/routers.py
-app/services.py
-
-SELECT a.*, b.MaxLogTime
-FROM (SELECT TOP 100 storeid, MAX(recordtime) AS MaxRecordTime FROM num_crowd GROUP BY storeid ORDER BY storeid ASC) AS a
-LEFT JOIN (SELECT TOP 100 storeid, MAX(LogTime) AS MaxLogTime FROM ErrLog GROUP BY storeid ORDER BY storeid ASC) AS b
-	ON a.storeid = b.storeid
-WHERE a.storeid NOT IN (29, 38)
-ORDER BY storeid ASC
-
+#### Cài đặt thư viện node.js & các gói phụ thuộc
 ```
 npm init -y
 npm install -D tailwindcss@3

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .core.caching import async_cache
 from .core.config import settings
-from .core.dependencies import query_db_to_df
+from .dependencies import query_db_to_df
 
 logger = logging.getLogger(__name__)
 

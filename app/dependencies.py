@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from duckdb import DuckDBPyConnection, Error as DuckDBError
 from typing import Iterator
 
-from .config import settings
+from .core.config import settings
 
 logger = logging.getLogger(__name__)
 
