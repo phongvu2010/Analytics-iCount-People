@@ -7,6 +7,7 @@ Chức năng chính bao gồm:
 2. Nạp dữ liệu từ các tệp Parquet vào DuckDB một cách an toàn và không
    gây gián đoạn bằng kỹ thuật "atomic swap".
 """
+
 import logging
 import shutil
 from pathlib import Path

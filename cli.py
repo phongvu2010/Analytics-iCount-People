@@ -6,6 +6,7 @@ Sử dụng Typer để tạo các câu lệnh tiện ích, bao gồm:
 - `init-db`: Khởi tạo các đối tượng cần thiết trong DuckDB (ví dụ: VIEWs).
 - `serve`: Khởi chạy web server FastAPI.
 """
+
 import contextlib
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed

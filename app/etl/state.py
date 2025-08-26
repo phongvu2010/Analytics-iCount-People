@@ -6,6 +6,7 @@ nhất đã xử lý) cho mỗi bảng vào một tệp JSON. Điều này cho p
 "ghi nhớ" đã xử lý đến đâu, để trong lần chạy tiếp theo, nó chỉ cần lấy
 các bản ghi mới hơn.
 """
+
 import json
 import logging
 from pathlib import Path

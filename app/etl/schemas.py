@@ -6,6 +6,7 @@ Mỗi schema tương ứng với một bảng đích trong DuckDB và hoạt đ�
 nạp vào kho luôn tuân thủ đúng định dạng, kiểu dữ liệu và các ràng buộc,
 giúp duy trì chất lượng và tính toàn vẹn của dữ liệu.
 """
+
 import pandera.pandas as pa
 from pandera.typing import DateTime, Int, Series, String
 

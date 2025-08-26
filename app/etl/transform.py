@@ -8,6 +8,7 @@ Nhận vào một DataFrame thô và áp dụng một chuỗi các thao tác bi�
 - Tạo các cột partition (ví dụ: year, month).
 - Xác thực dữ liệu với schema của Pandera để đảm bảo chất lượng.
 """
+
 import logging
 import pandas as pd
 import pandera.errors as pa_errors
