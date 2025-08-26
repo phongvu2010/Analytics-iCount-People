@@ -1,17 +1,19 @@
 """
-Định nghĩa các dependency cho API, giúp tái sử dụng logic trong ứng dụng.
+Module định nghĩa các dependency cho API, giúp tái sử dụng logic.
 
 Dependency Injection là một tính năng cốt lõi của FastAPI, cho phép tách biệt
-và tái sử dụng các thành phần như kết nối database, xác thực người dùng. Điều
-này giúp mã nguồn trở nên module hóa, dễ kiểm thử và bảo trì hơn.
+và tái sử dụng các thành phần như kết nối database, xác thực người dùng.
+Điều này giúp mã nguồn trở nên module hóa, dễ kiểm thử và bảo trì hơn.
 """
-import duckdb
-import logging
-import pandas as pd
 
+import logging
 from contextlib import contextmanager
-from duckdb import DuckDBPyConnection, Error as DuckDBError
 from typing import Iterator
+
+import duckdb
+import pandas as pd
+from duckdb import DuckDBPyConnection
+from duckdb import Error as DuckDBError
 
 from .core.config import settings
 
@@ -23,16 +25,15 @@ def get_db_connection() -> Iterator[DuckDBPyConnection]:
     """
     Context manager để quản lý vòng đời kết nối đến DuckDB.
 
-    Hàm này tạo ra một kết nối khi vào khối `with` và đảm bảo kết nối
-    được đóng lại một cách an toàn khi kết thúc, kể cả khi có lỗi xảy ra.
-    Kết nối được mở ở chế độ chỉ đọc (read-only) để đảm bảo an toàn cho
-    dữ liệu trong môi trường API.
+    Hàm này tạo ra một kết nối khi vào khối `with` và đảm bảo nó được đóng lại
+    an toàn khi kết thúc, kể cả khi có lỗi xảy ra. Kết nối được mở ở chế độ
+    chỉ đọc (read-only) để đảm bảo an toàn cho dữ liệu trong môi trường API.
 
     Yields:
-        Một đối tượng kết nối DuckDB đang hoạt động.
+        Một đối tượng kết nối DuckDB (DuckDBPyConnection) đang hoạt động.
 
     Raises:
-        DuckDBError: Nếu không thể kết nối tới file database.
+        DuckDBError: Nếu không thể kết nối tới tệp database.
     """
     conn = None
     try:
@@ -58,8 +59,8 @@ def query_db_to_df(query: str, params: list = None) -> pd.DataFrame:
     """
     Hàm tiện ích để thực thi SQL và trả về kết quả dưới dạng DataFrame.
 
-    Hàm này tự quản lý việc mở và đóng kết nối, phù hợp cho các tác vụ
-    truy vấn đơn lẻ trong service layer.
+    Tự quản lý việc mở và đóng kết nối, phù hợp cho các tác vụ truy vấn
+    đơn lẻ trong tầng service.
 
     Args:
         query: Câu lệnh SQL cần thực thi.
@@ -74,6 +75,6 @@ def query_db_to_df(query: str, params: list = None) -> pd.DataFrame:
             return conn.execute(query, parameters=params).df()
     except Exception:
         # Lỗi đã được log trong `get_db_connection`. Ở đây, chúng ta chỉ cần
-        # trả về một DataFrame rỗng để business logic có thể xử lý
-        # trường hợp không có dữ liệu mà không làm sập ứng dụng.
+        # trả về một DataFrame rỗng để business logic có thể xử lý trường hợp
+        # không có dữ liệu mà không làm sập ứng dụng.
         return pd.DataFrame()
