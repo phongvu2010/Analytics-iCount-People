@@ -138,10 +138,10 @@ class Settings(BaseSettings):
     # --- Cấu hình chung ---
     PROJECT_NAME: str = "Analytics iCount People API"
     DESCRIPTION: str = "API cung cấp dữ liệu phân tích lượt ra vào cửa hàng."
+    INTERNAL_API_TOKEN: str
     BACKEND_CORS_ORIGINS: Annotated[
         List[AnyUrl], BeforeValidator(_parse_cors_origins)
     ] = []
-    INTERNAL_API_TOKEN: str = "your-super-secret-and-long-random-token"
 
     # --- Cấu hình logic nghiệp vụ ---
     OUTLIER_THRESHOLD: int = 100
