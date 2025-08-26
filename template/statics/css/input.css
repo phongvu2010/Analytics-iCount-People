@@ -1,21 +1,27 @@
-/* Chỉ thị của Tailwind */
+/* ==========================================================================
+   Các chỉ thị cơ bản của Tailwind
+   ========================================================================== */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Code CSS tùy chỉnh của bạn từ file style.css cũ */
+/* ==========================================================================
+   CSS Tùy Chỉnh (Custom CSS)
+   ========================================================================== */
 :root {
     --sidebar-width: 280px;
 }
 body {
     font-family: 'Inter', sans-serif;
-    /* Nền và màu chữ sẽ do class của Tailwind trong base.html quản lý */
 }
 .main-content {
     padding-left: var(--sidebar-width);
+    transition: padding-left 0.3s ease-in-out;
 }
 
-/* Tùy chỉnh màu sắc cho Litepicker trong theme tối */
+/* ==========================================================================
+   Tùy chỉnh cho thư viện bên ngoài (Litepicker Dark Theme)
+   ========================================================================== */
 .litepicker {
     background-color: #1f2937 !important;
     border-color: #4b5563 !important;
@@ -42,10 +48,13 @@ body {
     background-color: #4b5563 !important;
 }
 
+/* ==========================================================================
+   Hiệu ứng và Tiện ích
+   ========================================================================== */
 /* Spinner cho loading overlay */
 .loader {
     border-top-color: #3b82f6;
-    -webkit-animation: spin 1s linear infinite;
+    /* -webkit-animation: spin 1s linear infinite; */
     animation: spin 1s linear infinite;
 }
 @-webkit-keyframes spin {
@@ -57,7 +66,7 @@ body {
     100% { transform: rotate(360deg); }
 }
 
-/* Scrollbar styling */
+/* Tùy chỉnh thanh cuộn (Scrollbar) */
 ::-webkit-scrollbar {
     width: 8px;
 }
@@ -71,14 +80,15 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #6b7280;
 }
+
+/* ==========================================================================
+   Trạng thái Responsive và Tương tác (Sidebar)
+   ========================================================================== */
 .sidebar {
     transition: transform 0.3s ease-in-out;
 }
-.main-content {
-    transition: padding-left 0.3s ease-in-out;
-}
 
-/* Trạng thái khi sidebar bị ẩn */
+/* Trạng thái khi sidebar bị thu gọn */
 body.sidebar-collapsed .sidebar {
     transform: translateX(-100%);
 }
@@ -86,7 +96,10 @@ body.sidebar-collapsed .main-content {
     padding-left: 0 !important;
 }
 
-/* Thêm lớp này để tùy chỉnh select dropdown */
+/* ==========================================================================
+   Tùy chỉnh cho Form Elements
+   ========================================================================== */
+/* Tùy chỉnh select dropdown */
 .custom-select {
     -webkit-appearance: none;
     -moz-appearance: none;

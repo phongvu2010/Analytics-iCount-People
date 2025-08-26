@@ -1,14 +1,42 @@
-document.addEventListener('DOMContentLoaded', async function () {
-    // --- STATE MANAGEMENT & CONSTANTS ---
-    let isInitialLoad = true; // Cờ để kiểm tra lần tải đầu tiên
+/**
+ * @file Logic chính cho trang Dashboard Analytics iCount People.
+ * @description Quản lý trạng thái, gọi API, khởi tạo biểu đồ,
+ * và cập nhật giao diện người dùng một cách linh hoạt.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+
+    // =========================================================================
+    // STATE & CONFIGURATION
+    // =========================================================================
 
     const API_BASE_URL = '/api/v1';
+    let isInitialLoad = true; // Cờ để xử lý hiệu ứng tải trang lần đầu
+
+    /**
+     * @typedef {Object} Filters
+     * @property {string} period - 'day', 'week', 'month', 'year'
+     * @property {string} startDate - 'YYYY-MM-DD'
+     * @property {string} endDate - 'YYYY-MM-DD'
+     * @property {string} store - 'all' hoặc tên cửa hàng cụ thể
+     */
+
+    /**
+     * @type {{tableData: Array<Object>, filters: Filters}}
+     */
     const state = {
         tableData: [],
-        filters: { period: 'month', startDate: '', endDate: '', store: 'all' }
+        filters: {
+            period: 'month',
+            startDate: '',
+            endDate: '',
+            store: 'all'
+        }
     };
 
-    // --- DOM ELEMENTS ---
+    // =========================================================================
+    // DOM ELEMENT REFERENCES
+    // =========================================================================
+
     const elements = {
         skeletonLoader: document.getElementById('skeleton-loader'),
         contentOverlay: document.getElementById('content-overlay'),
@@ -19,6 +47,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         tableBody: document.getElementById('details-table-body'),
         downloadCsvBtn: document.getElementById('download-csv-btn'),
         sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'),
+        summaryTotal: document.getElementById('summary-total'),
+        summaryAverage: document.getElementById('summary-average'),
+        latestTimestamp: document.getElementById('latest-data-timestamp'),
         metrics: {
             totalIn: document.getElementById('metric-total-in'),
             averageIn: document.getElementById('metric-average-in'),
@@ -37,251 +68,249 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     };
 
-    // --- CHART & DATEPICKER INSTANCES ---
+    // =========================================================================
+    // CHART INSTANCES & CONFIGURATION
+    // =========================================================================
+
     let trendChart, storeChart, datePickerInstance;
 
-    // --- CHART OPTIONS ---
     const commonChartOptions = {
         chart: {
-            toolbar: {
-                show: true,
-                tools: {
-                    download: true,
-                    selection: false,
-                    zoom: false,
-                    zoomin: false,
-                    zoomout: false,
-                    pan: false,
-                    reset: true
-                }
-            },
-            foreColor: '#9ca3af'
+            toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: true }},
+            foreColor: '#9ca3af',
+            background: 'transparent'
         },
         grid: { borderColor: '#374151' },
-        tooltip: { theme: 'dark' }
+        tooltip: { theme: 'dark' },
+        noData: { text: 'Không có dữ liệu để hiển thị', style: { color: '#d1d5db' } }
     };
+
     const trendChartOptions = {
         ...commonChartOptions,
         series: [],
-        chart: { ...commonChartOptions.chart, type: 'bar', height: 350, background: 'transparent' },
-        // Thêm các tùy chọn cho biểu đồ cột
-        plotOptions: {
-            bar: {
-                horizontal: false,
-                columnWidth: '60%', // Điều chỉnh độ rộng của các cột
-                borderRadius: 4     // Bo tròn nhẹ các góc của cột cho đẹp mắt
-            }
-        },
+        chart: { ...commonChartOptions.chart, type: 'bar', height: 350 },
+        plotOptions: { bar: { horizontal: false, columnWidth: '60%', borderRadius: 4 }},
         dataLabels: { enabled: false },
         stroke: { show: true, width: 2, colors: ['transparent'] },
-        xaxis: {
-            type: 'datetime',
-            labels: { datetimeUTC: false, style: { colors: '#9ca3af' } }
-        },
-        yaxis: {
-            title: { text: 'Lượt vào', style: { color: '#9ca3af' } },
-            labels: { style: { colors: '#9ca3af' } }
-        },
-        fill: { opacity: 1 },
-        noData: { text: 'Không có dữ liệu', style: { color: '#d1d5db' } }
+        xaxis: { type: 'datetime', labels: { datetimeUTC: false, style: { colors: '#9ca3af' } }},
+        yaxis: { title: { text: 'Lượt vào', style: { color: '#9ca3af' } }, labels: { style: { colors: '#9ca3af' } }},
     };
+
     const storeChartOptions = {
         ...commonChartOptions,
         series: [],
-        chart: { ...commonChartOptions.chart, type: 'donut', height: 350, background: 'transparent' },
+        chart: { ...commonChartOptions.chart, type: 'donut', height: 350 },
         labels: [],
         legend: { position: 'bottom', labels: { colors: '#d1d5db' } },
         dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` },
-        noData: { ...trendChartOptions.noData }
     };
 
-    // --- UTILITY FUNCTIONS ---
+    // =========================================================================
+    // UTILITY FUNCTIONS
+    // =========================================================================
+
+    /**
+     * Hiển thị hoặc ẩn lớp phủ loading.
+     * @param {boolean} isLoading - Trạng thái loading.
+     */
     const showLoading = (isLoading) => {
-        if (isInitialLoad) return; // Lần đầu không làm gì, skeleton đã hiển thị sẵn
+        if (isInitialLoad) return;
         elements.contentOverlay.classList.toggle('hidden', !isLoading);
         elements.contentOverlay.classList.toggle('flex', isLoading);
     };
+
+    /**
+     * Định dạng một số theo chuẩn Việt Nam.
+     * @param {number} num - Số cần định dạng.
+     * @returns {string} Chuỗi đã được định dạng.
+     */
     const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
+
+    /**
+     * Đóng/mở modal thông báo lỗi.
+     * @param {boolean} show - True để hiển thị, false để ẩn.
+     */
     const toggleModal = (show) => {
         if (show) {
-            elements.error.modal.classList.remove('hidden');
+            elements.error.modal.classList.remove('hidden', 'opacity-0');
             elements.error.modal.classList.add('flex');
             setTimeout(() => elements.error.modalPanel.classList.remove('scale-95', 'opacity-0'), 10);
         } else {
             elements.error.modalPanel.classList.add('scale-95', 'opacity-0');
             setTimeout(() => {
-                elements.error.modal.classList.add('hidden');
+                elements.error.modal.classList.add('hidden', 'opacity-0');
                 elements.error.modal.classList.remove('flex');
             }, 300);
         }
     };
-    const debounce = (func, delay) => {
-        let timeout;
-        return function(...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
-        };
-    };
 
-    // --- NEW: URL STATE FUNCTIONS ---
     /**
      * Cập nhật URL của trình duyệt với các filter hiện tại mà không tải lại trang.
      */
-    function updateURLWithFilters() {
-        const params = new URLSearchParams();
-        params.set('period', state.filters.period);
-        params.set('startDate', state.filters.startDate);
-        params.set('endDate', state.filters.endDate);
-        params.set('store', state.filters.store);
+    const updateURLWithFilters = () => {
+        const params = new URLSearchParams(state.filters);
         window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
     }
 
     /**
      * Đọc các filter từ URL, cập nhật state và giao diện khi tải trang.
      */
-    function applyFiltersFromURL() {
+    const applyFiltersFromURL = () => {
         const params = new URLSearchParams(window.location.search);
-        const urlPeriod = params.get('period');
-        const urlStartDate = params.get('startDate');
-        const urlEndDate = params.get('endDate');
-        const urlStore = params.get('store');
+        state.filters.period = params.get('period') || 'month';
+        state.filters.startDate = params.get('startDate') || '';
+        state.filters.endDate = params.get('endDate') || '';
+        state.filters.store = params.get('store') || 'all';
 
-        if (urlPeriod) {
-            state.filters.period = urlPeriod;
-            elements.periodSelector.value = urlPeriod;
-        }
-        if (urlStore && Array.from(elements.storeSelector.options).some(opt => opt.value === urlStore)) {
-            state.filters.store = urlStore;
-            elements.storeSelector.value = urlStore;
-        }
-        if (urlStartDate && urlEndDate) {
-            state.filters.startDate = urlStartDate;
-            state.filters.endDate = urlEndDate;
-            if (datePickerInstance) {
-                datePickerInstance.setDateRange(urlStartDate, urlEndDate, true); // true để không trigger event
-            }
-        }
+        elements.periodSelector.value = state.filters.period;
+        // Việc cập nhật store selector và date picker sẽ diễn ra sau khi chúng được khởi tạo.
     }
 
-    // --- INITIALIZATION FUNCTIONS ---
-    function initCharts() {
-        trendChart = new ApexCharts(document.querySelector('#trend-chart'), trendChartOptions);
-        storeChart = new ApexCharts(document.querySelector('#store-chart'), storeChartOptions);
-        trendChart.render();
-        storeChart.render();
-    }
+    // =========================================================================
+    // UI UPDATE FUNCTIONS
+    // =========================================================================
 
-    function initDatePicker() {
-        const today = new Date();
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    /**
+     * Cập nhật các thẻ chỉ số KPI.
+     * @param {object} metrics - Dữ liệu metrics từ API.
+     */
+    const updateMetrics = (metrics) => {
+        elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);
+        elements.metrics.averageIn.textContent = formatNumber(metrics.average_in);
+        elements.metrics.peakTime.textContent = metrics.peak_time || '--:--';
+        elements.metrics.busiestStore.textContent = metrics.busiest_store || 'N/A';
 
-        // Đặt giá trị mặc định ban đầu cho state
-        state.filters.startDate = firstDayOfMonth.toISOString().split('T')[0];
-        state.filters.endDate = today.toISOString().split('T')[0];
+        // Cập nhật thẻ tăng trưởng với màu sắc và icon tương ứng
+        const { growth } = metrics;
+        const growthEl = elements.metrics.growth;
+        const growthCard = elements.metrics.growthCard;
+        const iconContainer = growthCard.querySelector('[data-container="icon"]');
+        const icon = iconContainer?.querySelector('[data-lucide]');
+        if (!icon) return;
 
-        datePickerInstance = new Litepicker({
-            element: document.getElementById('date-range-picker'),
-            singleMode: false,
-            format: 'YYYY-MM-DD',
-            startDate: firstDayOfMonth,
-            endDate: today,
-            setup: (picker) => picker.on('selected', (d1, d2) => {
-                state.filters.startDate = d1.format('YYYY-MM-DD');
-                state.filters.endDate = d2.format('YYYY-MM-DD');
-            })
+        growthEl.textContent = `${growth.toFixed(1)}%`;
+        
+        // Reset classes
+        growthEl.className = 'text-4xl font-extrabold';
+        iconContainer.className = 'p-2 rounded-lg';
+        
+        let iconName = 'minus', colorClass = 'gray';
+        if (growth > 0) {
+            colorClass = 'green';
+            iconName = 'arrow-up-right';
+        } else if (growth < 0) {
+            colorClass = 'red';
+            iconName = 'arrow-down-right';
+        }
+
+        growthEl.classList.add(`text-${colorClass}-400`);
+        iconContainer.classList.add(`bg-${colorClass}-500/20`);
+        icon.setAttribute('data-lucide', iconName);
+        icon.className = `h-5 w-5 text-${colorClass}-400`;
+        lucide.createIcons();
+    };
+
+    /**
+     * Cập nhật dữ liệu cho 2 biểu đồ chính.
+     * @param {object} trendData - Dữ liệu cho biểu đồ xu hướng.
+     * @param {object} storeData - Dữ liệu cho biểu đồ tỷ trọng.
+     */
+    const updateCharts = (trendData, storeData) => {
+        trendChart.updateSeries([{ name: 'Lượt vào', data: trendData.series }]);
+        storeChart.updateOptions({
+            series: storeData.series.map(p => p.y),
+            labels: storeData.series.map(p => p.x)
         });
-    }
+    };
 
-    function handlePeriodChange() {
-        const period = elements.periodSelector.value;
-        const today = new Date();
-
-        let startDate = new Date(), endDate = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-
-        switch (period) {
-            case 'day':
-                startDate = today;
-                endDate = today;
-                break;
-            case 'week':
-                const firstDayOfWeek = today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1);
-                startDate = new Date(today.setDate(firstDayOfWeek));
-                endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 6);
-                break;
-            case 'month':
-                startDate = new Date(currentYear, currentMonth, 1);
-                endDate = new Date(currentYear, currentMonth + 1, 0);
-                break;
-            case 'year':
-                startDate = new Date(currentYear, 0, 1);
-                endDate = new Date(currentYear, 11, 31);
-                break;
-        }
-
-        if (startDate && endDate && datePickerInstance) {
-            datePickerInstance.setDateRange(startDate, endDate);
-        }
-    }
-
-    function addEventListeners() {
-        const debouncedFetch = debounce(() => {
-            state.currentPage = 1;
-            state.filters.period = elements.periodSelector.value;
-            state.filters.store = elements.storeSelector.value;
-
-            updateURLWithFilters(); // <-- THAY ĐỔI: Ghi trạng thái vào URL
-            fetchDashboardData();
-        }, 400);
-
-        elements.applyFiltersBtn.addEventListener('click', debouncedFetch);
-        elements.periodSelector.addEventListener('change', handlePeriodChange);
-        elements.error.bell.addEventListener('click', () => toggleModal(true));
-        elements.error.closeBtn.addEventListener('click', () => toggleModal(false));
-        elements.downloadCsvBtn.addEventListener('click', downloadCsv);
-        elements.error.modal.addEventListener('click', (e) => {
-            if (e.target === elements.error.modal) toggleModal(false);
-        });
-        // Thêm event cho nút toggle
-        elements.sidebarToggleBtn.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
-    }
-
-    function downloadCsv() {
+    /**
+     * Cập nhật bảng dữ liệu chi tiết và dòng tổng kết.
+     * @param {object} tableData - Dữ liệu bảng từ API.
+     */
+    const updateTable = (tableData) => {
+        state.tableData = tableData.data || [];
         if (state.tableData.length === 0) {
-            alert('Không có dữ liệu để tải.');
+            elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">Không có dữ liệu tổng hợp.</td></tr>`;
+        } else {
+            elements.tableBody.innerHTML = state.tableData.map(row => {
+                const { period, total_in, proportion_pct, pct_change } = row;
+
+                let changeClass = 'text-gray-300', changeIcon = 'minus', sign = '';
+                if (pct_change > 0) {
+                    changeClass = 'text-green-400';
+                    changeIcon = 'trending-up';
+                    sign = '+';
+                } else if (pct_change < 0) {
+                    changeClass = 'text-red-400';
+                    changeIcon = 'trending-down';
+                }
+
+                return `
+                    <tr class="hover:bg-gray-800 transition-colors duration-200">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${period}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-white font-semibold">${formatNumber(total_in)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${proportion_pct.toFixed(2)}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold">
+                            <div class="flex items-center ${changeClass}">
+                                <i data-lucide="${changeIcon}" class="h-4 w-4 mr-1"></i>
+                                <span>${sign}${pct_change.toFixed(1)}%</span>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+        // Cập nhật dòng tổng kết
+        elements.summaryTotal.textContent = formatNumber(tableData.summary?.total_sum || 0);
+        elements.summaryAverage.textContent = `TB: ${formatNumber(parseFloat(tableData.summary?.average_in || 0).toFixed(0))}`;
+        lucide.createIcons();
+    };
+
+    /**
+     * Cập nhật chuông thông báo lỗi.
+     * @param {Array<object>} errorLogs - Danh sách log lỗi từ API.
+     */
+    const updateErrorNotifications = (errorLogs) => {
+        const hasErrors = errorLogs && errorLogs.length > 0;
+        elements.error.indicator.classList.toggle('hidden', !hasErrors);
+        
+        if (!hasErrors) {
+            elements.error.logList.innerHTML = `<li class="text-gray-400">Không có lỗi nào được ghi nhận gần đây.</li>`;
             return;
         }
 
-        const headers = ['Kỳ báo cáo', 'Tổng lượt vào', 'Tỷ trọng (%)', 'Chênh lệch (%)'];
+        elements.error.logList.innerHTML = errorLogs.map(log => `
+            <li class="p-4 rounded-lg bg-gray-800/70 border border-gray-700">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-bold text-red-400">${log.error_message}</p>
+                        <p class="text-sm text-gray-400">Vị trí: <span class="font-medium text-gray-300">${log.store_name}</span> | Mã lỗi: ${log.error_code || 'N/A'}</p>
+                    </div>
+                    <p class="text-xs text-gray-500 whitespace-nowrap pl-4">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
+                </div>
+            </li>`).join('');
+    };
 
-        // Tạo các hàng dữ liệu cho file CSV
-        const csvRows = [
-            headers.join(','), // Hàng tiêu đề
-            ...state.tableData.map(row =>
-                [
-                    row.period,
-                    row.total_in,
-                    row.proportion_pct.toFixed(2),
-                    row.pct_change
-                ].join(','))
-            ];
+    /**
+     * Cập nhật thời gian của dữ liệu mới nhất.
+     * @param {string} timestamp - Chuỗi ISO timestamp.
+     */
+    const updateLatestTimestamp = (timestamp) => {
+        if (elements.latestTimestamp && timestamp) {
+            const formattedDate = new Date(timestamp).toLocaleString('vi-VN', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            elements.latestTimestamp.innerHTML = `Dữ liệu cập nhật lúc: <span class="font-semibold text-gray-300">${formattedDate}</span>`;
+        }
+    };
 
-        // Tạo chuỗi CSV hoàn chỉnh với ký tự xuống dòng
-        const csvString = csvRows.join('\n');
+    // =========================================================================
+    // DATA FETCHING
+    // =========================================================================
 
-        // Thêm BOM để Excel đọc tiếng Việt có dấu đúng
-        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-
-        link.setAttribute('href', URL.createObjectURL(blob));
-        link.setAttribute('download', `bao_cao_tong_hop_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // --- DATA FETCHING & UI UPDATING ---
+    /**
+     * Tải danh sách các cửa hàng và điền vào selector.
+     */
     async function loadStores() {
         try {
             const response = await fetch(`${API_BASE_URL}/stores`);
@@ -293,27 +322,38 @@ document.addEventListener('DOMContentLoaded', async function () {
                 option.textContent = store;
                 elements.storeSelector.appendChild(option);
             });
+            // Áp dụng lại filter store từ URL sau khi đã load xong
+            if (Array.from(elements.storeSelector.options).some(opt => opt.value === state.filters.store)) {
+                elements.storeSelector.value = state.filters.store;
+            }
         } catch (error) {
             console.error('Error loading stores:', error);
         }
     }
 
+    /**
+     * Hàm chính để gọi API lấy dữ liệu dashboard và cập nhật UI.
+     */
     async function fetchDashboardData() {
         showLoading(true);
-
-        const params = new URLSearchParams({
-            period: state.filters.period,
-            start_date: state.filters.startDate,
-            end_date: state.filters.endDate,
-            store: state.filters.store,
-        });
-        const url = `${API_BASE_URL}/dashboard?${params.toString()}`;
-
+        const params = new URLSearchParams(state.filters);
         try {
-            const response = await fetch(url);
+            const response = await fetch(`${API_BASE_URL}/dashboard?${params.toString()}`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            updateUI(data);
+            
+            // Cập nhật UI
+            if (isInitialLoad) {
+                elements.skeletonLoader.classList.add('hidden');
+                elements.dashboardContent.classList.remove('invisible');
+                isInitialLoad = false;
+            }
+            updateMetrics(data.metrics);
+            updateCharts(data.trend_chart, data.store_comparison_chart);
+            updateTable(data.table_data);
+            updateErrorNotifications(data.error_logs);
+            updateLatestTimestamp(data.latest_record_time);
+
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
             if (isInitialLoad) {
@@ -326,181 +366,111 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    function updateUI(data) {
-        if (isInitialLoad) {
-            elements.skeletonLoader.classList.add('hidden');
-            elements.dashboardContent.classList.remove('invisible');
-            isInitialLoad = false;
+    // =========================================================================
+    // EVENT HANDLERS & INITIALIZATION
+    // =========================================================================
+
+    /**
+     * Xử lý khi người dùng thay đổi lựa chọn "Xem theo".
+     */
+    const handlePeriodChange = () => {
+        const period = elements.periodSelector.value;
+        const today = new Date();
+        let startDate, endDate = new Date(today);
+
+        switch (period) {
+            case 'day':
+                startDate = new Date(today);
+                break;
+            case 'week':
+                startDate = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1)));
+                endDate = new Date(new Date(startDate).setDate(startDate.getDate() + 6));
+                break;
+            case 'month':
+                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'year':
+                startDate = new Date(today.getFullYear(), 0, 1);
+                endDate = new Date(today.getFullYear(), 11, 31);
+                break;
         }
-
-        updateMetrics(data.metrics);
-        updateCharts(data.trend_chart, data.store_comparison_chart);
-        state.tableData = data.table_data.data;
-        updateTable(data.table_data);
-        updateSummaryRow(data.table_data.summary);
-        updateErrorNotifications(data.error_logs);
-        updateLatestTimestamp(data.latest_record_time);
-    }
-
-    function updateLatestTimestamp(timestamp) {
-        const timestampEl = document.getElementById('latest-data-timestamp');
-
-        if (timestampEl && timestamp) {
-            // Định dạng lại ngày giờ theo kiểu Việt Nam
-            const formattedDate = new Date(timestamp).toLocaleString('vi-VN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).replace(',', '');
-
-            timestampEl.innerHTML = `Dữ liệu cập nhật lúc: <span class="font-semibold text-gray-300">${formattedDate}</span>`;
-        } else if (timestampEl) {
-            timestampEl.textContent = 'Dữ liệu gần nhất: Không rõ';
+        if (datePickerInstance) {
+            datePickerInstance.setDateRange(startDate, endDate);
         }
-    }
+    };
 
-    function updateMetrics(metrics) {
-        elements.metrics.totalIn.textContent = formatNumber(metrics.total_in);
-        elements.metrics.averageIn.textContent = formatNumber(metrics.average_in);
-        elements.metrics.peakTime.textContent = metrics.peak_time || '--:--';
-        elements.metrics.busiestStore.textContent = metrics.busiest_store || 'N/A';
+    /**
+     * Tải xuống dữ liệu trong bảng dưới dạng file CSV.
+     */
+    const downloadCsv = () => {
+        if (state.tableData.length === 0) return alert('Không có dữ liệu để tải.');
 
-        const growthValue = metrics.growth;
-        const growthEl = elements.metrics.growth;
-        const growthCard = elements.metrics.growthCard;
-        const growthIconDiv = growthCard.querySelector('[data-container="icon"]');
-        const growthIcon = growthIconDiv ? growthIconDiv.querySelector('[data-lucide]') : null;
+        const headers = ['Ky bao cao', 'Tong luot vao', 'Ty trong (%)', 'Chenh lech (%)'];
+        const csvRows = [
+            headers.join(','),
+            ...state.tableData.map(row =>
+                [row.period, row.total_in, row.proportion_pct.toFixed(2), row.pct_change].join(',')
+            )
+        ];
+        const csvString = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `bao_cao_${state.filters.period}_${state.filters.startDate}_${state.filters.endDate}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
 
-        if (!growthIcon) return;
-        growthEl.textContent = `${growthValue.toFixed(1)}%`;
-        ['text-green-400', 'text-red-400', 'text-white'].forEach(c => growthEl.classList.remove(c));
-        ['hover:shadow-green-500/20', 'hover:border-green-500/50', 'hover:shadow-red-500/20', 'hover:border-red-500/50'].forEach(c => growthCard.classList.remove(c));
-        ['bg-green-500/20', 'bg-red-500/20', 'bg-gray-500/20'].forEach(c => growthIconDiv.classList.remove(c));
-
-        let iconName = 'arrow-right', iconColor = 'text-gray-400';
-        if (growthValue > 0) {
-            growthEl.classList.add('text-green-400');
-            growthCard.classList.add('hover:shadow-green-500/20', 'hover:border-green-500/50');
-            growthIconDiv.classList.add('bg-green-500/20');
-            iconName = 'arrow-up-right';
-            iconColor = 'text-green-400';
-        } else if (growthValue < 0) {
-            growthEl.classList.add('text-red-400');
-            growthCard.classList.add('hover:shadow-red-500/20', 'hover:border-red-500/50');
-            growthIconDiv.classList.add('bg-red-500/20');
-            iconName = 'arrow-down-right';
-            iconColor = 'text-red-400';
-        } else {
-            growthEl.classList.add('text-white');
-            growthIconDiv.classList.add('bg-gray-500/20');
-        }
-
-        growthIcon.setAttribute('data-lucide', iconName);
-        growthIcon.className = `h-5 w-5 ${iconColor}`;
-        lucide.createIcons();
-    }
-
-    function updateCharts(trendData, storeData) {
-        trendChart.updateSeries([{
-            name: 'Lượt vào',
-            data: trendData.series.map(p => ({ x: p.x, y: p.y }))
-        }]);
-        storeChart.updateOptions({
-            series: storeData.series.map(p => p.y),
-            labels: storeData.series.map(p => p.x)
-        });
-    }
-
-    function updateTable(tableData) {
-        if (!tableData.data || tableData.data.length === 0) {
-            elements.tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-400">Không có dữ liệu tổng hợp.</td></tr>`;
-            return;
-        }
-
-        elements.tableBody.innerHTML = tableData.data.map(row => {
-            // Logic cho cột "Chênh lệch"
-            const pct_change = row.pct_change;
-            let changeClass = 'text-gray-300', changeIcon = '<i data-lucide="minus" class="h-4 w-4 mr-1"></i>', sign = pct_change > 0 ? '+' : '';
-            if (pct_change > 0) {
-                changeClass = 'text-green-400';
-                changeIcon = '<i data-lucide="trending-up" class="h-4 w-4 mr-1"></i>';
-            } else if (pct_change < 0) {
-                changeClass = 'text-red-400';
-                changeIcon = '<i data-lucide="trending-down" class="h-4 w-4 mr-1"></i>';
-            }
-
-            const prop_change = row.proportion_change;
-            let proportionClass = 'text-gray-300'; // Mặc định là màu xám
-            
-            if (prop_change > 0) {
-                proportionClass = 'text-green-400 font-semibold'; // Màu xanh nếu tăng
-            } else if (prop_change < 0) {
-                proportionClass = 'text-red-400 font-semibold'; // Màu đỏ nếu giảm
-            }
-
-            return `<tr class="hover:bg-gray-800 transition-colors duration-200">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${row.period}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-white font-semibold">${formatNumber(row.total_in)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm ${proportionClass}">${row.proportion_pct.toFixed(2)}%</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold"><div class="flex items-center ${changeClass}">${changeIcon}<span>${sign}${pct_change.toFixed(1)}%</span></div></td>
-                </tr>`;
-        }).join('');
-        lucide.createIcons();
-    }
-
-    function updateSummaryRow(summary) {
-        const summaryTotalEl = document.getElementById('summary-total');
-        const summaryAverageEl = document.getElementById('summary-average');
-
-        if (summary && summaryTotalEl && summaryAverageEl) {
-            summaryTotalEl.textContent = formatNumber(summary.total_sum || 0);
-            summaryAverageEl.textContent = `TB: ${formatNumber(parseFloat(summary.average_in || 0).toFixed(0))}`;
-        }
-    }
-
-    function updateErrorNotifications(errorLogs) {
-        elements.error.indicator.classList.toggle('hidden', !errorLogs || errorLogs.length === 0);
-        if (!errorLogs || errorLogs.length === 0) {
-            elements.error.logList.innerHTML = `<li class="text-gray-400">Không có lỗi nào được ghi nhận gần đây.</li>`;
-            return;
-        }
-
-        elements.error.logList.innerHTML = errorLogs.map(log => `
-            <li class="p-4 rounded-lg bg-gray-800/70 border border-gray-700">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="font-bold text-red-400">${log.error_message}</p>
-                        <p class="text-sm text-gray-400">Vị trí: <span class="font-medium text-gray-300">${log.store_name}</span> | Mã lỗi: ${log.error_code}</p>
-                    </div>
-                    <p class="text-xs text-gray-500 whitespace-nowrap pl-4">${new Date(log.log_time).toLocaleString('vi-VN')}</p>
-                </div>
-            </li>`).join('');
-    }
-
-    // --- SEQUENTIAL INITIALIZATION ---
+    /**
+     * Hàm khởi tạo chính của dashboard.
+     */
     async function initializeDashboard() {
-        try {
-            // Các tác vụ khởi tạo không phụ thuộc
-            initCharts();
-            initDatePicker();
-            addEventListeners();
-            document.body.classList.add('sidebar-collapsed');
+        applyFiltersFromURL(); // Đọc URL trước
+        
+        initCharts();
 
-            // Tải dữ liệu cần thiết cho UI (như danh sách cửa hàng)
-            await loadStores();
+        // Khởi tạo date picker và set giá trị từ URL hoặc mặc định
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        datePickerInstance = new Litepicker({
+            element: document.getElementById('date-range-picker'),
+            singleMode: false,
+            format: 'YYYY-MM-DD',
+            startDate: state.filters.startDate || firstDayOfMonth,
+            endDate: state.filters.endDate || today,
+            setup: (picker) => picker.on('selected', (d1, d2) => {
+                state.filters.startDate = d1.format('YYYY-MM-DD');
+                state.filters.endDate = d2.format('YYYY-MM-DD');
+            })
+        });
 
-            // Áp dụng các filter từ URL (nếu có)
-            applyFiltersFromURL();
-
-            // Cuối cùng, tải dữ liệu chính của dashboard
-            await fetchDashboardData();
-
-        } catch (error) {
-            console.error('An error occurred during initial page load:', error);
-            // Xử lý lỗi nếu cần thiết, ví dụ hiển thị thông báo lỗi chung
+        // Cập nhật state với giá trị date picker ban đầu
+        if (!state.filters.startDate || !state.filters.endDate) {
+            state.filters.startDate = datePickerInstance.getStartDate().format('YYYY-MM-DD');
+            state.filters.endDate = datePickerInstance.getEndDate().format('YYYY-MM-DD');
         }
+
+        // Gắn các event listener
+        elements.applyFiltersBtn.addEventListener('click', () => {
+            state.filters.period = elements.periodSelector.value;
+            state.filters.store = elements.storeSelector.value;
+            updateURLWithFilters();
+            fetchDashboardData();
+        });
+        elements.periodSelector.addEventListener('change', handlePeriodChange);
+        elements.error.bell.addEventListener('click', () => toggleModal(true));
+        elements.error.closeBtn.addEventListener('click', () => toggleModal(false));
+        elements.downloadCsvBtn.addEventListener('click', downloadCsv);
+        elements.sidebarToggleBtn.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
+        elements.error.modal.addEventListener('click', (e) => {
+            if (e.target === elements.error.modal) toggleModal(false);
+        });
+
+        await loadStores();
+        await fetchDashboardData();
+        
+        document.body.classList.add('sidebar-collapsed');
     }
 
     initializeDashboard();
