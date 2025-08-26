@@ -1,0 +1,21 @@
+# Bỏ qua các file và thư mục của Git
+.git
+.gitignore
+
+# Bỏ qua môi trường ảo (nếu có)
+.venv
+venv
+
+# Bỏ qua các file cache của Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ qua các thư mục dữ liệu và log
+# Chúng ta sẽ đưa chúng vào container bằng "volumes" để dữ liệu không bị mất.
+data/
+logs/
+
+# Thư mục của Node.js
+node_modules/

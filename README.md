@@ -177,3 +177,14 @@ npx tailwindcss init
 npm run css:watch
 npm run css:build
 ```
+
+```
+# Build image và khởi chạy container ở chế độ nền (-d)
+docker-compose up --build -d
+
+# Một vài lệnh hữu ích khác:
+## Để xem log của ứng dụng: docker-compose logs -f
+## Để dừng ứng dụng: docker-compose down
+
+# Chạy ETL và tự động xóa container sau khi hoàn thành (--rm)
+docker-compose run --rm web python -m cli run-etl

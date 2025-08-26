@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # Định nghĩa dịch vụ cho ứng dụng web của bạn
+  web:
+    # Build image từ Dockerfile trong thư mục hiện tại
+    build: .
+    # Đặt tên cho container để dễ quản lý
+    container_name: icount_analytics_app
+    # Ánh xạ cổng 8000 của máy chủ vào cổng 8000 của container
+    ports:
+      - "8000:8000"
+    # Nạp các biến môi trường từ file .env
+    env_file:
+      - .env
+    # "Volumes" là phần quan trọng nhất để lưu trữ dữ liệu
+    # Nó kết nối thư mục trên máy thật với thư mục trong container.
+    # Dữ liệu trong đây sẽ không bị mất khi bạn khởi động lại container.
+    volumes:
+      # Kết nối thư mục ./data trên máy thật với /app/data trong container
+      - ./data:/app/data
+      # Kết nối thư mục ./logs trên máy thật với /app/logs trong container
+      - ./logs:/app/logs
+    # Khởi động lại container nếu nó bị lỗi
+    restart: unless-stopped
