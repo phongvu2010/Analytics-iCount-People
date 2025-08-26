@@ -39,7 +39,9 @@ class DashboardService:
         self.end_date = end_date
         self.store = store
 
-    def _get_date_range_params(self) -> Tuple[str, str]:
+    def _get_date_range_params(
+        self, start_date: date, end_date: date
+    ) -> Tuple[str, str]:
         """
         Tạo chuỗi thời gian cho query dựa trên định nghĩa "ngày làm việc".
 
@@ -48,11 +50,11 @@ class DashboardService:
         khung giờ này khi truy vấn.
         """
         start_dt = datetime.combine(
-            self.start_date, datetime.min.time()
+            start_date, datetime.min.time()
         ) + timedelta(hours=settings.WORKING_HOUR_START)
 
         end_dt = datetime.combine(
-            self.end_date, datetime.min.time()
+            end_date, datetime.min.time()
         ) + timedelta(days=1, hours=settings.WORKING_HOUR_END)
 
         return (
@@ -67,7 +69,9 @@ class DashboardService:
         Hàm helper này giúp tái sử dụng logic lọc dữ liệu theo khoảng thời gian
         và cửa hàng, tránh lặp lại code.
         """
-        start_str, end_str = self._get_date_range_params()
+        start_str, end_str = self._get_date_range_params(
+            self.start_date, self.end_date
+        )
         params = [start_str, end_str]
 
         filter_clauses = "WHERE record_time >= ? AND record_time < ?"
@@ -231,9 +235,7 @@ class DashboardService:
         """
         df = await asyncio.to_thread(query_db_to_df, query, params=params)
         return df.to_dict(orient="records")
-    
-    # (Các phương thức còn lại như get_table_details, get_latest_record_time, get_error_logs
-    # có thể được refactor tương tự nếu cần, nhưng logic hiện tại đã khá tốt)
+
     @async_cache
     async def get_table_details(self) -> Dict[str, Any]:
         """Lấy dữ liệu chi tiết cho bảng, giới hạn 31 dòng gần nhất."""
