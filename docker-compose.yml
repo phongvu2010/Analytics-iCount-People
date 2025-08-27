@@ -1,25 +1,51 @@
 version: '3.8'
 
 services:
-  # Định nghĩa dịch vụ cho ứng dụng web của bạn
-  web:
-    # Build image từ Dockerfile trong thư mục hiện tại
-    build: .
-    # Đặt tên cho container để dễ quản lý
-    container_name: icount_analytics_app
-    # Ánh xạ cổng 8000 của máy chủ vào cổng 8000 của container
+  # Service để chạy API server FastAPI
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: icount_api
+    restart: unless-stopped
+    env_file:
+      - .env # Tải các biến môi trường từ tệp .env
     ports:
       - "8000:8000"
-    # Nạp các biến môi trường từ file .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - icount_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Service "one-off" để chạy các tác vụ ETL
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: icount_etl
     env_file:
       - .env
-    # "Volumes" là phần quan trọng nhất để lưu trữ dữ liệu
-    # Nó kết nối thư mục trên máy thật với thư mục trong container.
-    # Dữ liệu trong đây sẽ không bị mất khi bạn khởi động lại container.
     volumes:
-      # Kết nối thư mục ./data trên máy thật với /app/data trong container
       - ./data:/app/data
-      # Kết nối thư mục ./logs trên máy thật với /app/logs trong container
       - ./logs:/app/logs
-    # Khởi động lại container nếu nó bị lỗi
-    restart: unless-stopped
+    networks:
+      - icount_network
+    depends_on:
+      api:
+        condition: service_healthy # Chỉ chạy khi service 'api' đã sẵn sàng
+    # Ghi đè CMD mặc định để service này không tự chạy
+    command: ["tail", "-f", "/dev/null"]
+
+networks:
+  icount_network:
+    driver: bridge
+
+volumes:
+  app_data:
+  app_logs:

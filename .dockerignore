@@ -1,21 +1,27 @@
-# Bỏ qua các file và thư mục của Git
+# Git
 .git
 .gitignore
 
-# Bỏ qua môi trường ảo (nếu có)
-.venv
-venv
+# Docker
+Dockerfile
+.dockerignore
 
-# Bỏ qua các file cache của Python
+# Poetry
+.venv
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Bỏ qua các thư mục dữ liệu và log
-# Chúng ta sẽ đưa chúng vào container bằng "volumes" để dữ liệu không bị mất.
+# IDE
+.idea/
+.vscode/
+
+# Data & Logs (sẽ được mount qua volume)
 data/
 logs/
 
-# Thư mục của Node.js
-node_modules/
+# Môi trường
+.env

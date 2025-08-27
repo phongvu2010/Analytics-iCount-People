@@ -1,53 +1,67 @@
-# Stage 1: Chọn một "nền móng" nhẹ nhàng nhưng đủ mạnh mẽ
-# python:3.10-slim-bookworm là một lựa chọn tốt vì nó nhỏ gọn và bảo mật.
-FROM python:3.10-slim-bookworm AS base
+# Stage 1: Build - Cài đặt dependencies với Poetry
+FROM python:3.12-slim AS builder
 
-# Thiết lập các biến môi trường cần thiết
-ENV PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    PYTHONUNBUFFERED=1
-
-# Thiết lập thư mục làm việc bên trong container
-WORKDIR /app
+# Cài đặt các gói hệ thống cần thiết cho việc build một số thư viện Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Cài đặt Poetry
-RUN pip install poetry==1.8.2
+ENV POETRY_HOME="/opt/poetry"
+ENV POETRY_VERSION=1.8.2
+RUN python3 -m venv $POETRY_HOME && \
+    $POETRY_HOME/bin/pip install --upgrade pip && \
+    $POETRY_HOME/bin/pip install "poetry==$POETRY_VERSION"
+ENV PATH="$POETRY_HOME/bin:$PATH"
 
+# Sao chép các tệp quản lý dependency
+WORKDIR /app
+COPY poetry.lock pyproject.toml ./
 
-# Stage 2: Cài đặt các thư viện
-# Tách riêng bước này để tận dụng cơ chế caching của Docker.
-# Docker sẽ không cần cài lại thư viện nếu file toml/lock không thay đổi.
-FROM base AS builder
-COPY pyproject.toml poetry.lock ./
+# === THAY ĐỔI QUAN TRỌNG Ở ĐÂY ===
+# Cấu hình Poetry để tạo virtualenv bên trong thư mục dự án
+RUN poetry config virtualenvs.in-project true
+
+# Cài đặt các thư viện vào một virtual environment, không bao gồm các gói dev
 RUN poetry install --no-root --no-dev
 
 
-# Stage 3: Xây dựng image cuối cùng
-# Copy các thư viện đã cài và mã nguồn vào image
-FROM base AS final
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+# Stage 2: Final - Tạo image cuối cùng, nhẹ hơn
+FROM python:3.12-slim AS final
 
-# Sao chép entrypoint script vào image
-COPY entrypoint.sh .
+# Cài đặt các gói ODBC cần thiết để kết nối tới MS SQL Server
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    unixodbc \
+    unixodbc-dev \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+    && echo "deb [arch=arm64,armhf,amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Sao chép toàn bộ code của bạn
+# Tạo người dùng không phải root để tăng cường bảo mật
+ENV APP_USER=appuser
+RUN groupadd -r $APP_USER && useradd -r -g $APP_USER $APP_USER
+
+WORKDIR /app
+
+# Sao chép virtual environment đã cài đặt từ stage builder
+COPY --from=builder /app/.venv .venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Sao chép toàn bộ mã nguồn ứng dụng
 COPY . .
 
-# Cấp quyền thực thi cho entrypoint script
-RUN chmod +x /app/entrypoint.sh
+# Phân quyền cho người dùng mới
+RUN chown -R $APP_USER:$APP_USER /app
+USER $APP_USER
 
-# # Chạy lệnh init-db để đảm bảo các VIEWs trong DuckDB được tạo sẵn
-# # Điều này rất quan trọng để ứng dụng có thể khởi chạy mà không bị lỗi.
-# RUN python -m cli init-db
-
-# Mở cổng 8000 để bên ngoài có thể giao tiếp với ứng dụng
+# Expose port mà FastAPI sẽ chạy
 EXPOSE 8000
 
-# Thiết lập entrypoint để chạy script của chúng ta
-ENTRYPOINT ["/app/entrypoint.sh"]
-
-# Lệnh để khởi chạy ứng dụng khi container bắt đầu
-# Sử dụng host 0.0.0.0 để Uvicorn lắng nghe các kết nối từ bên ngoài container.
-CMD ["python", "-m", "cli", "serve", "--host", "0.0.0.0", "--reload"]
+# Command mặc định để khởi chạy web server
+CMD ["poetry", "run", "python", "cli.py", "serve", "--host", "0.0.0.0", "--port", "8000", "--no-reload"]
