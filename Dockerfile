@@ -46,6 +46,9 @@ RUN echo "msodbcsql18 msodbcsql/ACCEPT_EULA boolean true" | debconf-set-selectio
     && dpkg -i /tmp/msodbcsql18.deb \
     && rm -f /tmp/msodbcsql18.deb
 
+# Copy file cấu hình OpenSSL tùy chỉnh vào image
+COPY openssl.cnf /etc/ssl/openssl.cnf
+
 # Tạo một user không phải root để chạy ứng dụng
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser

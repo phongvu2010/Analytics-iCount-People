@@ -1,0 +1,17 @@
+#
+# OpenSSL configuration file for Analytics iCount People
+# WARNING: This configuration lowers the default security level.
+# Use only as a temporary workaround if you cannot upgrade the SQL Server certificate.
+#
+
+openssl_conf = openssl_init
+
+[openssl_init]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+MinProtocol = TLSv1.2
+CipherString = DEFAULT@SECLEVEL=1
