@@ -1,3 +1,15 @@
+# Môi trường ảo và dependencies cục bộ
+.venv/
+
+# Tệp môi trường (sẽ được inject khi chạy container)
+.env
+
+# Tệp cache của Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 # Git
 .git
 .gitignore
@@ -6,22 +18,14 @@
 Dockerfile
 .dockerignore
 
-# Poetry
-.venv
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
 # IDE
 .idea/
 .vscode/
+.DS_Store
 
 # Data & Logs (sẽ được mount qua volume)
 data/
 logs/
 
-# Môi trường
-.env
+# Thư mục của Node.js
+node_modules/
