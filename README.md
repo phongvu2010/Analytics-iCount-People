@@ -115,3 +115,7 @@ dbo.Status: Dữ liệu trạng thái của thiết bị.
     ├── S:              (smallint, )
     └── T:              (datetime, )
 ```
+
+sudo docker-compose up --build -d
+sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py run-etl
+sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py init-db
