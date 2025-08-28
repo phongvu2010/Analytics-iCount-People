@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
         tableData: [],
         filters: {
             period: 'month',
-            startDate: '',
-            endDate: '',
+            start_date: '',
+            end_date: '',
             store: 'all'
         }
     };
@@ -158,8 +158,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const applyFiltersFromURL = () => {
         const params = new URLSearchParams(window.location.search);
         state.filters.period = params.get('period') || 'month';
-        state.filters.startDate = params.get('startDate') || '';
-        state.filters.endDate = params.get('endDate') || '';
+        state.filters.startDate = params.get('start_date') || '';
+        state.filters.endDate = params.get('end_date') || '';
         state.filters.store = params.get('store') || 'all';
 
         elements.periodSelector.value = state.filters.period;
@@ -369,6 +369,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // EVENT HANDLERS & INITIALIZATION
     // =========================================================================
+    /**
+     * Khởi tạo các đối tượng biểu đồ ApexCharts.
+     */
+    function initCharts() {
+        trendChart = new ApexCharts(document.querySelector('#trend-chart'), trendChartOptions);
+        storeChart = new ApexCharts(document.querySelector('#store-chart'), storeChartOptions);
+        trendChart.render();
+        storeChart.render();
+    }
 
     /**
      * Xử lý khi người dùng thay đổi lựa chọn "Xem theo".
@@ -417,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `bao_cao_${state.filters.period}_${state.filters.startDate}_${state.filters.endDate}.csv`;
+        link.download = `bao_cao_${state.filters.period}_${state.filters.start_date}_${state.filters.end_date}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     };
@@ -427,34 +436,40 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     async function initializeDashboard() {
         applyFiltersFromURL(); // Đọc URL trước
-        
+
         initCharts();
 
         // Khởi tạo date picker và set giá trị từ URL hoặc mặc định
         const today = new Date();
         const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        const initialStartDate = state.filters.start_date ? new Date(state.filters.start_date) : firstDayOfMonth;
+        const initialEndDate = state.filters.end_date ? new Date(state.filters.end_date) : today;
+
+        // Thư viện Litepicker yêu cầu tham số cấu hình phải là camelCase
         datePickerInstance = new Litepicker({
             element: document.getElementById('date-range-picker'),
             singleMode: false,
             format: 'YYYY-MM-DD',
-            startDate: state.filters.startDate || firstDayOfMonth,
-            endDate: state.filters.endDate || today,
+            startDate: initialStartDate,
+            endDate: initialEndDate,
             setup: (picker) => picker.on('selected', (d1, d2) => {
-                state.filters.startDate = d1.format('YYYY-MM-DD');
-                state.filters.endDate = d2.format('YYYY-MM-DD');
+                state.filters.start_date = d1.format('YYYY-MM-DD');
+                state.filters.end_date = d2.format('YYYY-MM-DD');
             })
         });
 
         // Cập nhật state với giá trị date picker ban đầu
-        if (!state.filters.startDate || !state.filters.endDate) {
-            state.filters.startDate = datePickerInstance.getStartDate().format('YYYY-MM-DD');
-            state.filters.endDate = datePickerInstance.getEndDate().format('YYYY-MM-DD');
-        }
+        state.filters.start_date = datePickerInstance.getStartDate().format('YYYY-MM-DD');
+        state.filters.end_date = datePickerInstance.getEndDate().format('YYYY-MM-DD');
 
         // Gắn các event listener
         elements.applyFiltersBtn.addEventListener('click', () => {
             state.filters.period = elements.periodSelector.value;
             state.filters.store = elements.storeSelector.value;
+            // Cập nhật lại ngày tháng từ picker phòng trường hợp người dùng chưa bấm apply
+            state.filters.start_date = datePickerInstance.getStartDate().format('YYYY-MM-DD');
+            state.filters.end_date = datePickerInstance.getEndDate().format('YYYY-MM-DD');
             updateURLWithFilters();
             fetchDashboardData();
         });
