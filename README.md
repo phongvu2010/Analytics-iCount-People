@@ -74,58 +74,6 @@ iCount/
 └── tailwind.config.js
 ```
 
-## Hướng Dẫn Cài Đặt và Vận Hành
-### 1. Chuẩn Bị Môi Trường
-* Cài đặt Python 3.10+ và Node.js.
-* Tạo môi trường ảo và cài đặt các dependency của Python:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate       # Trên Windows: .venv\Scripts\activate
-    pip install -r requirements.txt # Giả sử bạn có file này, hoặc từ pyproject.toml
-    ```
-* Cài đặt các dependency của Node.js:
-    ```bash
-    npm install
-    ```
-* Sao chép `.env.example` thành `.env` và điền các thông tin cấu hình cần thiết, đặc biệt là thông tin kết nối đến MS SQL Server.
-
-### 2. Khởi Tạo Cơ Sở Dữ Liệu
-Chạy lệnh này **một lần** để tạo các VIEW cần thiết trong DuckDB, giúp tối ưu hóa các truy vấn sau này.
-```bash
-python -m cli init-db
-```
-
-### 3. Chạy Quy Trình ETL
-Để trích xuất dữ liệu từ SQL Server, biến đổi và nạp vào DuckDB, hãy chạy lệnh:
-```bash
-python -m cli run-etl
-```
-Chạy với 8 luồng
-```bash
-python -m cli run-etl --max-workers 8
-```
-
-### 4. Khởi Chạy Web Server
-Để khởi động API và giao diện dashboard, sử dụng lệnh:
-```bash
-python -m cli serve
-```
-Bạn cũng có thể thay đổi host và port:
-```bash
-python -m cli serve --host 0.0.0.0 --port 8000
-```
-Ứng dụng sẽ có sẵn tại http://127.0.0.1:8000.
-
-### 5. Để xem tất cả các lệnh có sẵn:
-```bash
-python -m cli --help
-```
-
-### 6. Phát Triển Frontend
-Để tự động biên dịch các thay đổi về CSS trong quá trình phát triển, hãy chạy:
-```bash
-npm run css:watch
-```
 
 ## Cấu Trúc Cơ Sở Dữ Liệu Nguồn (MS SQL Server)
 ```bash
@@ -166,14 +114,4 @@ dbo.Status: Dữ liệu trạng thái của thiết bị.
     ├── OA:             (int, )
     ├── S:              (smallint, )
     └── T:              (datetime, )
-```
-
-
-#### Cài đặt thư viện Node.js & các gói phụ thuộc
-```bash
-npm init -y
-npm install -D tailwindcss@3
-npx tailwindcss init
-npm run css:watch
-npm run css:build
 ```
