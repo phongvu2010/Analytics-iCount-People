@@ -82,6 +82,7 @@ class DatabaseSettings(BaseModel):
             f"mssql+pyodbc://{self.SQLSERVER_UID}:{encoded_pwd}"
             f"@{self.SQLSERVER_SERVER}/{self.SQLSERVER_DATABASE}"
             f"?driver={driver_for_query}"
+            "&Encrypt=yes&TrustServerCertificate=yes"
         )
 
 

@@ -26,28 +26,14 @@ COPY . .
 # Giai đoạn này tạo ra image cuối cùng, chỉ chứa những gì cần thiết để chạy ứng dụng.
 FROM python:3.12-slim-bookworm
 
-# Cài đặt các gói cần thiết cho runtime (ví dụ: driver ODBC cho SQL Server)
-# Bước 1: Cài đặt tất cả các gói phụ thuộc cần thiết cho driver
+# Cài đặt các gói cần thiết và FreeTDS ODBC driver
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gnupg \
-    debconf-utils \
-    unixodbc \
-    unixodbc-dev \
-    odbcinst \
-    && rm -rf /var/lib/apt/lists/*
+unixodbc unixodbc-dev freetds-dev tdsodbc \
+&& rm -rf /var/lib/apt/lists/*
 
-# Bước 2: Tải về gói msodbcsql18 .deb
-RUN ARCH=$(dpkg --print-architecture) && \
-    curl -fsSL -o /tmp/msodbcsql18.deb "https://packages.microsoft.com/debian/12/prod/pool/main/m/msodbcsql18/msodbcsql18_18.3.3.1-1_${ARCH}.deb"
-
-# Bước 3: Tự động chấp nhận EULA và cài đặt driver (bây giờ sẽ thành công vì dependencies đã có sẵn)
-RUN echo "msodbcsql18 msodbcsql/ACCEPT_EULA boolean true" | debconf-set-selections \
-    && dpkg -i /tmp/msodbcsql18.deb \
-    && rm -f /tmp/msodbcsql18.deb
-
-# Copy file cấu hình OpenSSL tùy chỉnh vào image
-COPY openssl.cnf /etc/ssl/openssl.cnf
+# Sao chép các file cấu hình FreeTDS vào image
+COPY freetds.conf /etc/freetds/freetds.conf
+COPY odbcinst.ini /etc/odbcinst.ini
 
 # Tạo một user không phải root để chạy ứng dụng
 RUN useradd --create-home --shell /bin/bash appuser
