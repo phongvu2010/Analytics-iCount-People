@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Service 1: Ứng dụng API chính
+  # Khởi động ngay lập tức và sẵn sàng nhận request.
+  # Ban đầu có thể trả về dữ liệu rỗng cho đến khi etl-init hoàn thành.
+  api:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    volumes:
+      - data:/home/appuser/data
+      - logs:/home/appuser/logs
+    restart: unless-stopped
+    # command: ["poetry", "run", "python", "cli.py", "serve", "--host", "0.0.0.0", "--no-reload"]
+    command: ["/home/appuser/.venv/bin/python", "cli.py", "serve", "--host", "0.0.0.0", "--no-reload"]
+
+  # Service 2: Chạy một lần để khởi tạo dữ liệu và DB schema LẦN ĐẦU
+  # Service này chạy song song với 'api' sau lần up đầu tiên.
+  etl-init:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - data:/home/appuser/data
+      - logs:/home/appuser/logs
+    # Chạy tuần tự: run-etl trước, nếu thành công (&&) thì mới chạy init-db.
+    # Sau khi chạy xong, service này sẽ tự động thoát.
+    command: >
+      sh -c "echo 'Bắt đầu quá trình khởi tạo dữ liệu lần đầu...' &&
+             /home/appuser/.venv/bin/python cli.py run-etl --no-clear-cache &&
+             /home/appuser/.venv/bin/python cli.py init-db &&
+             echo 'Hoàn tất khởi tạo dữ liệu.'"
+
+  # Service 3: Chạy ETL định kỳ (giả lập cron job)
+  etl-cron:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - data:/home/appuser/data
+      - logs:/home/appuser/logs
+    restart: always
+    depends_on:
+      # Chỉ bắt đầu chu kỳ chạy định kỳ sau khi việc khởi tạo lần đầu đã xong
+      etl-init:
+        condition: service_completed_successfully
+    # Chạy ETL, sau đó đợi 1 tiếng (3600 giây) rồi lặp lại
+    command: >
+      sh -c "sleep 60 && # Đợi một chút để service API ổn định hoàn toàn
+             while true; do 
+               echo 'Bắt đầu phiên ETL định kỳ...'; 
+               /home/appuser/.venv/bin/python cli.py run-etl --api-host api --api-port 8000; 
+               echo 'Hoàn tất phiên ETL. Tạm nghỉ 1 tiếng.'; 
+               sleep 3600; 
+             done"
+
+volumes:
+  # Định nghĩa volumes để lưu trữ dữ liệu bền bỉ
+  data:
+  logs:
