@@ -4,19 +4,17 @@
  * và cập nhật giao diện người dùng một cách linh hoạt.
  */
 document.addEventListener('DOMContentLoaded', function () {
-
     // =========================================================================
     // STATE & CONFIGURATION
     // =========================================================================
-
     const API_BASE_URL = '/api/v1';
     let isInitialLoad = true; // Cờ để xử lý hiệu ứng tải trang lần đầu
 
     /**
      * @typedef {Object} Filters
      * @property {string} period - 'day', 'week', 'month', 'year'
-     * @property {string} startDate - 'YYYY-MM-DD'
-     * @property {string} endDate - 'YYYY-MM-DD'
+     * @property {string} start_date - 'YYYY-MM-DD'
+     * @property {string} end_date - 'YYYY-MM-DD'
      * @property {string} store - 'all' hoặc tên cửa hàng cụ thể
      */
 
@@ -36,7 +34,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // DOM ELEMENT REFERENCES
     // =========================================================================
-
     const elements = {
         skeletonLoader: document.getElementById('skeleton-loader'),
         contentOverlay: document.getElementById('content-overlay'),
@@ -71,7 +68,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // CHART INSTANCES & CONFIGURATION
     // =========================================================================
-
     let trendChart, storeChart, datePickerInstance;
 
     const commonChartOptions = {
@@ -108,7 +104,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // UTILITY FUNCTIONS
     // =========================================================================
-
     /**
      * Hiển thị hoặc ẩn lớp phủ loading.
      * @param {boolean} isLoading - Trạng thái loading.
@@ -158,8 +153,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const applyFiltersFromURL = () => {
         const params = new URLSearchParams(window.location.search);
         state.filters.period = params.get('period') || 'month';
-        state.filters.startDate = params.get('start_date') || '';
-        state.filters.endDate = params.get('end_date') || '';
+        state.filters.start_date = params.get('start_date') || '';
+        state.filters.end_date = params.get('end_date') || '';
         state.filters.store = params.get('store') || 'all';
 
         elements.periodSelector.value = state.filters.period;
@@ -169,7 +164,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // UI UPDATE FUNCTIONS
     // =========================================================================
-
     /**
      * Cập nhật các thẻ chỉ số KPI.
      * @param {object} metrics - Dữ liệu metrics từ API.
@@ -307,7 +301,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // DATA FETCHING
     // =========================================================================
-
     /**
      * Tải danh sách các cửa hàng và điền vào selector.
      */
@@ -353,7 +346,6 @@ document.addEventListener('DOMContentLoaded', function () {
             updateTable(data.table_data);
             updateErrorNotifications(data.error_logs);
             updateLatestTimestamp(data.latest_record_time);
-
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
             if (isInitialLoad) {
