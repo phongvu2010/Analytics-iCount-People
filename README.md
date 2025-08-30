@@ -10,14 +10,68 @@ Hệ thống phân tích và trực quan hóa lưu lượng người ra vào, đ
 * **CLI Tool:** Typer
 
 
+## Quy trình triển khai
+Để triển khai và vận hành ứng dụng, hãy làm theo các bước sau.
+
+### 1. Cấu hình môi trường
+Đầu tiên, bạn cần tạo một tệp `.env` dựa trên tệp mẫu `.env.example` để cung cấp các thông tin cần thiết cho việc kết nối cơ sở dữ liệu và các cấu hình khác.
+
+```bash
+cp .env.example .env
+```
+
+Sau đó, mở tệp `.env` và điền các thông tin xác thực cho **MS SQL Server**:
+* `SQLSERVER_SERVER`: Địa chỉ IP hoặc tên máy chủ của SQL Server.
+* `SQLSERVER_DATABASE`: Tên cơ sở dữ liệu nguồn.
+* `SQLSERVER_UID`: Tên người dùng.
+* `SQLSERVER_PWD`: Mật khẩu.
+* `INTERNAL_API_TOKEN`: Đặt một chuỗi bí mật ngẫu nhiên để bảo vệ API nội bộ.
+
+### 2. Xây dựng và Chạy ứng dụng với Docker
+Ứng dụng được đóng gói bằng **Docker** để đảm bảo tính nhất quán và dễ dàng triển khai.
+Sử dụng `docker-compose` để xây dựng image và khởi chạy container:
+
+```bash
+sudo docker-compose up --build -d
+```
+
+Lệnh này sẽ:
+* `--build`: Xây dựng lại Docker image từ `Dockerfile` nếu có thay đổi.
+* `-d`: Chạy container ở chế độ nền (detached mode).
+
+### 3. Chạy quy trình ETL
+Sau khi ứng dụng đã khởi chạy, bạn cần thực hiện quy trình **ETL (Extract - Transform - Load)** để đồng bộ hóa dữ liệu từ **MS SQL Server** sang **DuckDB**.
+
+```bash
+sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py run-etl
+```
+
+Lệnh này sẽ thực thi câu lệnh `run-etl` được định nghĩa trong `cli.py` bên trong container `api`. Quá trình này sẽ:
+* **Extract:** Trích xuất dữ liệu từ các bảng trong SQL Server.
+* **Transform:** Chuyển đổi, làm sạch và xác thực dữ liệu.
+* **Load:** Nạp dữ liệu đã xử lý vào DuckDB.
+
+### 4. Khởi tạo các Views trong DuckDB
+Sau khi dữ liệu đã được nạp, bạn cần khởi tạo các `VIEW` cần thiết trong DuckDB để phục vụ cho việc truy vấn và phân tích.
+
+```bash
+sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py init-db
+```
+
+Lệnh này sẽ tạo (hoặc cập nhật) `VIEW v_traffic_normalized`, nơi logic xử lý outlier và điều chỉnh "ngày làm việc" được áp dụng.
+
+Sau khi hoàn tất các bước trên, ứng dụng của bạn sẽ có sẵn tại `http://<your_server_ip>:8000`.
+
+
 ## Sơ đồ cấu trúc dự án
 Dự án được tổ chức theo cấu trúc module hóa, tách biệt rõ ràng các mối quan tâm (API, ETL, Core), giúp dễ dàng bảo trì và mở rộng.
+
 ```bash
-iCount/
+Analytics-iCount-People/
 ├── app/                                # Chứa toàn bộ mã nguồn ứng dụng FastAPI
 │   ├── core/                           # Các module lõi (config, caching)
 │   │   ├── caching.py
-│   │   ├── config.py
+│   │   └── config.py
 │   ├── etl/                            # Logic của pipeline ETL (Extract, Transform, Load)
 │   │   ├── __init__.py
 │   │   ├── extract.py
@@ -38,7 +92,6 @@ iCount/
 │   └── time_offsets.yaml
 ├── data/                               # Nơi lưu trữ tệp DuckDB và trạng thái ETL
 ├── logs/                               # Nơi lưu trữ tệp log
-├── node_modules/
 ├── template/                           # Chứa các tệp HTML, CSS, JS cho frontend
 │   ├── partials/
 │   │   ├── _charts.html                # Phần chứa các biểu đồ
@@ -56,19 +109,27 @@ iCount/
 │   │   │   └── style.css
 │   │   ├── images/
 │   │   │   ├── favicon.ico
-│   │   │   └── logo.png
+│   │   │   ├── logo.png
+│   │   │   └── site.webmanifest
 │   │   └── js/
 │   │       └── dashboard.js            # Toàn bộ code JavaScript
 │   ├── base.html                       # File layout chính, chứa cấu trúc chung
 │   └── dashboard.html                  # File nội dung chính, kế thừa từ base.html
 ├── tests/                              # Thư mục chứa các bài test
 │   └── __init__.py
+├── __init__.py
+├── .dockerignore
 ├── .env
 ├── .env.example                        # Tệp môi trường mẫu
 ├── .gitignore
 ├── cli.py                              # Giao diện dòng lệnh (CLI) để vận hành
+├── docker-compose.yaml
+├── Dockerfile
+├── freetds.conf
+├── odbcinst.ini
 ├── package-lock.json
 ├── package.json
+├── poetry.lock
 ├── pyproject.toml                      # Thay cho requirements.txt để quản lý dependency tốt hơn
 ├── README.md
 └── tailwind.config.js
@@ -115,7 +176,3 @@ dbo.Status: Dữ liệu trạng thái của thiết bị.
     ├── S:              (smallint, )
     └── T:              (datetime, )
 ```
-
-sudo docker-compose up --build -d
-sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py run-etl
-sudo docker-compose exec api /home/appuser/.venv/bin/python cli.py init-db
